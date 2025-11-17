@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { pricingMatrix, cadPricingMatrix, pricingParameters } from "@shared/schema";
+import { pricingMatrix, upteamPricingMatrix, cadPricingMatrix, pricingParameters } from "@shared/schema";
 import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
 
@@ -26,6 +26,26 @@ async function importPricingData() {
       }).onConflictDoNothing();
     }
     console.log(`Imported ${pricingRecords.length} pricing matrix records`);
+
+    // Import upteam_pricing_matrix.csv
+    console.log("Importing upteam_pricing_matrix...");
+    const upteamPricingData = readFileSync("attached_assets/upteam_pricing_matrix_1763343524159.csv", "utf-8");
+    const upteamRecords = parse(upteamPricingData, {
+      columns: true,
+      skip_empty_lines: true,
+    });
+
+    for (const record of upteamRecords) {
+      await db.insert(upteamPricingMatrix).values({
+        id: parseInt(record.id),
+        buildingTypeId: parseInt(record.building_type_id),
+        areaTier: record.area_tier,
+        discipline: record.discipline,
+        lod: record.lod,
+        ratePerSqFt: record.rate_per_sq_ft,
+      }).onConflictDoNothing();
+    }
+    console.log(`Imported ${upteamRecords.length} upteam pricing matrix records`);
 
     // Import cad_pricing_matrix.csv
     console.log("Importing cad_pricing_matrix...");

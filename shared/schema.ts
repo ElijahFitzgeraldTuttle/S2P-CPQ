@@ -29,6 +29,16 @@ export const pricingMatrix = pgTable("pricing_matrix", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const upteamPricingMatrix = pgTable("upteam_pricing_matrix", {
+  id: integer("id").primaryKey(),
+  buildingTypeId: integer("building_type_id").notNull(),
+  areaTier: text("area_tier").notNull(),
+  discipline: text("discipline").notNull(),
+  lod: text("lod").notNull(),
+  ratePerSqFt: decimal("rate_per_sq_ft", { precision: 10, scale: 4 }).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const cadPricingMatrix = pgTable("cad_pricing_matrix", {
   id: integer("id").primaryKey(),
   buildingTypeId: integer("building_type_id").notNull(),
