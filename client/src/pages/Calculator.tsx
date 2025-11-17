@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus, Save } from "lucide-react";
-import ScopingToggle from "@/components/ScopingToggle";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
@@ -50,7 +49,7 @@ export default function Calculator() {
     enabled: !!quoteId,
   });
 
-  const [scopingMode, setScopingMode] = useState(false);
+  const [scopingMode] = useState(true);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -496,8 +495,6 @@ export default function Calculator() {
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <ScopingToggle enabled={scopingMode} onChange={setScopingMode} />
-
             <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
 
             <Separator />
@@ -553,12 +550,9 @@ export default function Calculator() {
 
             <PaymentTerms value={paymentTerms} onChange={setPaymentTerms} />
 
-            {scopingMode && (
-              <>
-                <Separator />
-                <ScopingFields data={scopingData} onChange={handleScopingDataChange} />
-              </>
-            )}
+            <Separator />
+
+            <ScopingFields data={scopingData} onChange={handleScopingDataChange} />
 
             <div className="flex gap-4 pt-6">
               <Button 
