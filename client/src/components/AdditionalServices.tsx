@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useState, useEffect } from "react";
 
 const SERVICES = [
-  { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 750, unit: "per set" },
+  { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 300, unit: "per set" },
   { id: "matterport", label: "Matterport Virtual Tours", rate: 0.10, unit: "per sqft" },
 ];
 
