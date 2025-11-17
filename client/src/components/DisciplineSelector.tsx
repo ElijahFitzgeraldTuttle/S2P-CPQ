@@ -11,9 +11,9 @@ const DISCIPLINES = [
 ];
 
 const LOD_LEVELS = [
-  { value: "200", label: "LOD 200", description: "Conceptual design" },
-  { value: "300", label: "LOD 300", description: "Detailed design" },
-  { value: "350", label: "LOD 350", description: "Construction documentation" },
+  { value: "200", label: "200" },
+  { value: "300", label: "300" },
+  { value: "350", label: "350" },
 ];
 
 interface DisciplineSelectorProps {
@@ -77,7 +77,7 @@ export default function DisciplineSelector({
                 {isSelected && (
                   <div className="space-y-2 pl-8">
                     <Label htmlFor={`lod-${discipline.id}`} className="text-sm font-medium">
-                      Level of Detail (LOD)
+                      LoD
                     </Label>
                     <Select 
                       value={lodValue} 
@@ -89,10 +89,7 @@ export default function DisciplineSelector({
                       <SelectContent>
                         {LOD_LEVELS.map((lod) => (
                           <SelectItem key={lod.value} value={lod.value}>
-                            <div className="flex flex-col">
-                              <span>{lod.label}</span>
-                              <span className="text-xs text-muted-foreground">{lod.description}</span>
-                            </div>
+                            {lod.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
