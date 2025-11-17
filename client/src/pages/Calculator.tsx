@@ -47,9 +47,6 @@ export default function Calculator() {
   const [scopingData, setScopingData] = useState({
     gradeAroundBuilding: "",
     gradeOther: "",
-    landscapeModeling: "",
-    landscapeOther: "",
-    landscapeAcres: "",
     interiorCadElevations: "",
     aboveBelowACT: "",
     aboveBelowACTOther: "",

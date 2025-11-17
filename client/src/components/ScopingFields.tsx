@@ -12,9 +12,6 @@ interface ScopingFieldsProps {
   data: {
     gradeAroundBuilding: string;
     gradeOther: string;
-    landscapeModeling: string;
-    landscapeOther: string;
-    landscapeAcres: string;
     interiorCadElevations: string;
     aboveBelowACT: string;
     aboveBelowACTOther: string;
@@ -96,55 +93,6 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               />
             )}
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Landscape Modeling?
-            </Label>
-            <RadioGroup value={data.landscapeModeling} onValueChange={(val) => onChange('landscapeModeling', val)}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lod200" id="landscape-200" />
-                <Label htmlFor="landscape-200" className="cursor-pointer">Landscape LoD 200</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lod300" id="landscape-300" />
-                <Label htmlFor="landscape-300" className="cursor-pointer">Landscape LoD 300</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lod350" id="landscape-350" />
-                <Label htmlFor="landscape-350" className="cursor-pointer">Landscape LoD 350</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="landscape-other" />
-                <Label htmlFor="landscape-other" className="cursor-pointer">Other:</Label>
-              </div>
-            </RadioGroup>
-            {data.landscapeModeling === 'other' && (
-              <Input
-                placeholder="Specify other"
-                value={data.landscapeOther}
-                onChange={(e) => onChange('landscapeOther', e.target.value)}
-                className="mt-2"
-              />
-            )}
-          </div>
-
-          {data.landscapeModeling && data.landscapeModeling !== 'other' && (
-            <div className="space-y-2">
-              <Label htmlFor="landscape-acres" className="text-sm font-medium">
-                How many acres of Landscape?
-              </Label>
-              <Input
-                id="landscape-acres"
-                type="number"
-                step="0.1"
-                placeholder="0"
-                value={data.landscapeAcres}
-                onChange={(e) => onChange('landscapeAcres', e.target.value)}
-                className="font-mono"
-              />
-            </div>
-          )}
         </div>
       </Card>
 
