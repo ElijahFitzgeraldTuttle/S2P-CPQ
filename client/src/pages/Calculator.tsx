@@ -303,7 +303,7 @@ export default function Calculator() {
       const disciplines = area.disciplines.length > 0 ? area.disciplines : [];
       
       disciplines.forEach((discipline) => {
-        const lod = area.disciplineLods[discipline] || "LOD 200";
+        const lod = area.disciplineLods[discipline] || "200";
         
         let baseRatePerSqft = 2.50;
         if (discipline === "mepf") {
@@ -314,7 +314,14 @@ export default function Calculator() {
           baseRatePerSqft = 1.50;
         }
         
-        let lineTotal = sqft * baseRatePerSqft;
+        const lodMultiplier: Record<string, number> = {
+          "200": 1.0,
+          "300": 1.3,
+          "350": 1.5,
+        };
+        
+        const multiplier = lodMultiplier[lod] || 1.0;
+        let lineTotal = sqft * baseRatePerSqft * multiplier;
         
         let scopeDiscount = 0;
         let scopeLabel = "";
