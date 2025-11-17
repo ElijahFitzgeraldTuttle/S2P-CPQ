@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Plus, Save } from "lucide-react";
 import ScopingToggle from "@/components/ScopingToggle";
@@ -26,6 +30,8 @@ interface Area {
 }
 
 export default function Calculator() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [scopingMode, setScopingMode] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
@@ -153,6 +159,52 @@ export default function Calculator() {
     setServices((prev) => ({ ...prev, [serviceId]: quantity }));
   };
 
+  const saveQuoteMutation = useMutation({
+    mutationFn: async (quoteData: any) => {
+      const res = await apiRequest("POST", "/api/quotes", quoteData);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: "Quote saved successfully",
+        description: "Your quote has been saved to the dashboard.",
+      });
+      setLocation("/dashboard");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error saving quote",
+        description: error.message || "Failed to save quote. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveQuote = () => {
+    const quoteData = {
+      projectName: projectDetails.projectName,
+      clientName: projectDetails.clientName,
+      projectAddress: projectDetails.projectAddress,
+      specificBuilding: projectDetails.specificBuilding,
+      typeOfBuilding: projectDetails.typeOfBuilding,
+      hasBasement: projectDetails.hasBasement,
+      hasAttic: projectDetails.hasAttic,
+      notes: projectDetails.notes,
+      scopingMode,
+      areas,
+      risks,
+      dispatchLocation: dispatch,
+      distance,
+      services,
+      scopingData: scopingMode ? scopingData : null,
+      totalPrice: "22112.50",
+      pricingBreakdown: {},
+    };
+    
+    saveQuoteMutation.mutate(quoteData);
+  };
+
   const pricingItems = [
     { label: "Architecture (5,000 sqft)", value: 12500, editable: true },
     { label: "MEPF (5,000 sqft)", value: 15000, editable: true },
@@ -236,9 +288,15 @@ export default function Calculator() {
             )}
 
             <div className="flex gap-4 pt-6">
-              <Button size="lg" className="flex-1" data-testid="button-save-quote">
+              <Button 
+                size="lg" 
+                className="flex-1" 
+                data-testid="button-save-quote"
+                onClick={handleSaveQuote}
+                disabled={saveQuoteMutation.isPending}
+              >
                 <Save className="h-4 w-4 mr-2" />
-                Save Quote
+                {saveQuoteMutation.isPending ? "Saving..." : "Save Quote"}
               </Button>
               <Button size="lg" variant="outline" data-testid="button-export-pdf">
                 Export PDF
