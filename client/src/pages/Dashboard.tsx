@@ -1,40 +1,38 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import QuoteCard from "@/components/QuoteCard";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Link } from "wouter";
-
-//todo: remove mock functionality
-const MOCK_QUOTES = [
-  {
-    id: "Q-2024-001",
-    projectName: "Downtown Office Tower",
-    clientName: "ABC Construction",
-    totalPrice: 45250,
-    dateCreated: "Nov 15, 2024",
-    type: "Scope + Quote" as const,
-  },
-  {
-    id: "Q-2024-002",
-    projectName: "Residential Complex Phase 2",
-    clientName: "XYZ Developers",
-    totalPrice: 78900,
-    dateCreated: "Nov 14, 2024",
-    type: "Quote" as const,
-  },
-  {
-    id: "Q-2024-003",
-    projectName: "Historic Building Restoration",
-    clientName: "Heritage Properties Inc",
-    totalPrice: 32100,
-    dateCreated: "Nov 13, 2024",
-    type: "Scope + Quote" as const,
-  },
-];
+import type { Quote } from "@shared/schema";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
+
+  const { data: quotes = [], isLoading } = useQuery<Quote[]>({
+    queryKey: ["/api/quotes"],
+  });
+
+  const formattedQuotes = quotes.map((quote) => ({
+    id: quote.quoteNumber,
+    projectName: quote.projectName,
+    clientName: quote.clientName || "N/A",
+    totalPrice: parseFloat(quote.totalPrice || "0"),
+    dateCreated: new Date(quote.createdAt).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    type: quote.scopingMode ? ("Scope + Quote" as const) : ("Quote" as const),
+    rawId: quote.id,
+  }));
+
+  const filteredQuotes = {
+    all: formattedQuotes,
+    quotes: formattedQuotes.filter((q) => q.type === "Quote"),
+    scoped: formattedQuotes.filter((q) => q.type === "Scope + Quote"),
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,45 +66,69 @@ export default function Dashboard() {
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {MOCK_QUOTES.map((quote) => (
-                <QuoteCard
-                  key={quote.id}
-                  {...quote}
-                  onView={() => console.log(`View ${quote.id}`)}
-                  onExport={() => console.log(`Export ${quote.id}`)}
-                  onDelete={() => console.log(`Delete ${quote.id}`)}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading quotes...</div>
+            ) : filteredQuotes.all.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No quotes found. Create your first quote to get started.
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredQuotes.all.map((quote) => (
+                  <QuoteCard
+                    key={quote.rawId}
+                    {...quote}
+                    onView={() => console.log(`View ${quote.rawId}`)}
+                    onExport={() => console.log(`Export ${quote.rawId}`)}
+                    onDelete={() => console.log(`Delete ${quote.rawId}`)}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="quotes" className="mt-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {MOCK_QUOTES.filter(q => q.type === "Quote").map((quote) => (
-                <QuoteCard
-                  key={quote.id}
-                  {...quote}
-                  onView={() => console.log(`View ${quote.id}`)}
-                  onExport={() => console.log(`Export ${quote.id}`)}
-                  onDelete={() => console.log(`Delete ${quote.id}`)}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading quotes...</div>
+            ) : filteredQuotes.quotes.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No quote-only projects found.
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredQuotes.quotes.map((quote) => (
+                  <QuoteCard
+                    key={quote.rawId}
+                    {...quote}
+                    onView={() => console.log(`View ${quote.rawId}`)}
+                    onExport={() => console.log(`Export ${quote.rawId}`)}
+                    onDelete={() => console.log(`Delete ${quote.rawId}`)}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="scoped" className="mt-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {MOCK_QUOTES.filter(q => q.type === "Scope + Quote").map((quote) => (
-                <QuoteCard
-                  key={quote.id}
-                  {...quote}
-                  onView={() => console.log(`View ${quote.id}`)}
-                  onExport={() => console.log(`Export ${quote.id}`)}
-                  onDelete={() => console.log(`Delete ${quote.id}`)}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading quotes...</div>
+            ) : filteredQuotes.scoped.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No scoped projects found.
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredQuotes.scoped.map((quote) => (
+                  <QuoteCard
+                    key={quote.rawId}
+                    {...quote}
+                    onView={() => console.log(`View ${quote.rawId}`)}
+                    onExport={() => console.log(`Export ${quote.rawId}`)}
+                    onDelete={() => console.log(`Delete ${quote.rawId}`)}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
