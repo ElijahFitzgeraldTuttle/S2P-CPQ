@@ -13,6 +13,7 @@ const MOCK_QUOTES = [
     clientName: "ABC Construction",
     totalPrice: 45250,
     dateCreated: "Nov 15, 2024",
+    type: "Scope + Quote" as const,
   },
   {
     id: "Q-2024-002",
@@ -20,6 +21,7 @@ const MOCK_QUOTES = [
     clientName: "XYZ Developers",
     totalPrice: 78900,
     dateCreated: "Nov 14, 2024",
+    type: "Quote" as const,
   },
   {
     id: "Q-2024-003",
@@ -27,11 +29,12 @@ const MOCK_QUOTES = [
     clientName: "Heritage Properties Inc",
     totalPrice: 32100,
     dateCreated: "Nov 13, 2024",
+    type: "Scope + Quote" as const,
   },
 ];
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("quotes");
+  const [activeTab, setActiveTab] = useState("all");
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,15 +56,18 @@ export default function Dashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
+            <TabsTrigger value="all" data-testid="tab-all">
+              All Projects
+            </TabsTrigger>
             <TabsTrigger value="quotes" data-testid="tab-quotes">
               Quote Only
             </TabsTrigger>
-            <TabsTrigger value="projects" data-testid="tab-projects">
-              Scoping Projects
+            <TabsTrigger value="scoped" data-testid="tab-scoped">
+              Scope + Quote
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="quotes" className="mt-6">
+          <TabsContent value="all" className="mt-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {MOCK_QUOTES.map((quote) => (
                 <QuoteCard
@@ -75,16 +81,31 @@ export default function Dashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="projects" className="mt-6">
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">
-                No scoping projects yet
-              </p>
-              <Link href="/calculator">
-                <Button variant="outline">
-                  Create your first scoping project
-                </Button>
-              </Link>
+          <TabsContent value="quotes" className="mt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {MOCK_QUOTES.filter(q => q.type === "Quote").map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  {...quote}
+                  onView={() => console.log(`View ${quote.id}`)}
+                  onExport={() => console.log(`Export ${quote.id}`)}
+                  onDelete={() => console.log(`Delete ${quote.id}`)}
+                />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="scoped" className="mt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {MOCK_QUOTES.filter(q => q.type === "Scope + Quote").map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  {...quote}
+                  onView={() => console.log(`View ${quote.id}`)}
+                  onExport={() => console.log(`Export ${quote.id}`)}
+                  onDelete={() => console.log(`Delete ${quote.id}`)}
+                />
+              ))}
             </div>
           </TabsContent>
         </Tabs>
