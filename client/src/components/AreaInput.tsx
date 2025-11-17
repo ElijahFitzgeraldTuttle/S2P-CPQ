@@ -21,7 +21,8 @@ const BUILDING_TYPES = [
   { value: "11", label: "Warehouse / Storage" },
   { value: "12", label: "Religious Buildings" },
   { value: "13", label: "Infrastructure / Roads / Bridges" },
-  { value: "14", label: "Landscape" },
+  { value: "14", label: "Built Landscape" },
+  { value: "15", label: "Natural Landscape" },
 ];
 
 const PROJECT_SCOPES = [
@@ -65,7 +66,7 @@ interface AreaInputProps {
 }
 
 export default function AreaInput({ area, index, onChange, onDisciplineChange, onLodChange, onRemove, canRemove }: AreaInputProps) {
-  const isLandscape = area.buildingType === "14";
+  const isLandscape = area.buildingType === "14" || area.buildingType === "15";
   
   return (
     <Card className="p-4">
@@ -154,71 +155,97 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
 
         <Separator className="my-4" />
 
-        <div className="space-y-3">
-          <h4 className="font-semibold text-sm">Disciplines & LoD</h4>
-          
-          {DISCIPLINES.map((discipline) => {
-            const isSelected = area.disciplines.includes(discipline.id);
-            const lodValue = area.disciplineLods[discipline.id] || "300";
-            
-            return (
-              <Card
-                key={discipline.id}
-                className={`p-3 transition-colors ${
-                  isSelected ? "border-primary bg-accent" : ""
-                }`}
+        {isLandscape ? (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Level of Detail (LoD)</h4>
+            <div className="space-y-2">
+              <Label htmlFor={`lod-${area.id}`} className="text-sm font-medium">
+                Select LoD
+              </Label>
+              <Select 
+                value={area.disciplineLods["site"] || "300"} 
+                onValueChange={(value) => onLodChange(area.id, "site", value)}
               >
-                <div className="space-y-3">
-                  <div 
-                    className="flex items-start gap-3 cursor-pointer hover-elevate rounded p-2 -m-2"
-                    onClick={() => onDisciplineChange(area.id, discipline.id, !isSelected)}
-                  >
-                    <Checkbox
-                      id={`${area.id}-${discipline.id}`}
-                      checked={isSelected}
-                      onCheckedChange={(checked) => onDisciplineChange(area.id, discipline.id, checked as boolean)}
-                      data-testid={`checkbox-area-${index}-discipline-${discipline.id}`}
-                    />
-                    <div className="flex-1">
-                      <Label
-                        htmlFor={`${area.id}-${discipline.id}`}
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        {discipline.label}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {discipline.description}
-                      </p>
+                <SelectTrigger id={`lod-${area.id}`} data-testid={`select-lod-landscape-${index}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOD_LEVELS.map((lod) => (
+                    <SelectItem key={lod.value} value={lod.value}>
+                      LoD {lod.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Disciplines & LoD</h4>
+            
+            {DISCIPLINES.map((discipline) => {
+              const isSelected = area.disciplines.includes(discipline.id);
+              const lodValue = area.disciplineLods[discipline.id] || "300";
+              
+              return (
+                <Card
+                  key={discipline.id}
+                  className={`p-3 transition-colors ${
+                    isSelected ? "border-primary bg-accent" : ""
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div 
+                      className="flex items-start gap-3 cursor-pointer hover-elevate rounded p-2 -m-2"
+                      onClick={() => onDisciplineChange(area.id, discipline.id, !isSelected)}
+                    >
+                      <Checkbox
+                        id={`${area.id}-${discipline.id}`}
+                        checked={isSelected}
+                        onCheckedChange={(checked) => onDisciplineChange(area.id, discipline.id, checked as boolean)}
+                        data-testid={`checkbox-area-${index}-discipline-${discipline.id}`}
+                      />
+                      <div className="flex-1">
+                        <Label
+                          htmlFor={`${area.id}-${discipline.id}`}
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          {discipline.label}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {discipline.description}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  {isSelected && (
-                    <div className="space-y-2 pl-8">
-                      <Label htmlFor={`lod-${area.id}-${discipline.id}`} className="text-sm font-medium">
-                        LoD
-                      </Label>
-                      <Select 
-                        value={lodValue} 
-                        onValueChange={(value) => onLodChange(area.id, discipline.id, value)}
-                      >
-                        <SelectTrigger id={`lod-${area.id}-${discipline.id}`} data-testid={`select-lod-area-${index}-${discipline.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {LOD_LEVELS.map((lod) => (
-                            <SelectItem key={lod.value} value={lod.value}>
-                              {lod.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                    {isSelected && (
+                      <div className="space-y-2 pl-8">
+                        <Label htmlFor={`lod-${area.id}-${discipline.id}`} className="text-sm font-medium">
+                          LoD
+                        </Label>
+                        <Select 
+                          value={lodValue} 
+                          onValueChange={(value) => onLodChange(area.id, discipline.id, value)}
+                        >
+                          <SelectTrigger id={`lod-${area.id}-${discipline.id}`} data-testid={`select-lod-area-${index}-${discipline.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LOD_LEVELS.map((lod) => (
+                              <SelectItem key={lod.value} value={lod.value}>
+                                {lod.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </Card>
   );

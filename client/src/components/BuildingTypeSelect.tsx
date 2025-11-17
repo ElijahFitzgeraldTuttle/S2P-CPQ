@@ -15,7 +15,8 @@ const BUILDING_TYPES = [
   { value: "11", label: "Warehouse / Storage" },
   { value: "12", label: "Religious Buildings" },
   { value: "13", label: "Infrastructure / Roads / Bridges" },
-  { value: "14", label: "Landscape" },
+  { value: "14", label: "Built Landscape" },
+  { value: "15", label: "Natural Landscape" },
 ];
 
 interface BuildingTypeSelectProps {
