@@ -7,7 +7,6 @@ import NotFound from "@/pages/not-found";
 import Header from "@/components/Header";
 import Home from "@/pages/Home";
 import Calculator from "@/pages/Calculator";
-import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 
 function Router() {
@@ -16,7 +15,6 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/calculator" component={Calculator} />
       <Route path="/calculator/:id" component={Calculator} />
-      <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>

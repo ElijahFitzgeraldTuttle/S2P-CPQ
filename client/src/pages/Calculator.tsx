@@ -213,7 +213,6 @@ export default function Calculator() {
 
   useEffect(() => {
     if (existingQuote) {
-      setScopingMode(existingQuote.scopingMode);
       setProjectDetails({
         clientName: existingQuote.clientName || "",
         projectName: existingQuote.projectName,
@@ -250,9 +249,9 @@ export default function Calculator() {
       queryClient.invalidateQueries({ queryKey: ["/api", "quotes"] });
       toast({
         title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
-        description: quoteId ? "Your changes have been saved." : "Your quote has been saved to the dashboard.",
+        description: quoteId ? "Your changes have been saved." : "Your quote has been saved.",
       });
-      setLocation("/dashboard");
+      setLocation("/");
     },
     onError: (error: any) => {
       toast({
