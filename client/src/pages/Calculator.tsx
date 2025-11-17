@@ -66,6 +66,7 @@ export default function Calculator() {
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
   const [distance, setDistance] = useState<number | null>(null);
+  const [distanceCalculated, setDistanceCalculated] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [services, setServices] = useState<Record<string, number>>({});
   const [paymentTerms, setPaymentTerms] = useState("net30");
@@ -196,11 +197,13 @@ export default function Calculator() {
       });
       const data = await response.json();
       setDistance(data.distance);
+      setDistanceCalculated(true);
       toast({
         title: "Distance calculated",
         description: `${data.distance} miles from ${dispatch} to project location`,
       });
     } catch (error) {
+      setDistanceCalculated(false);
       toast({
         title: "Error calculating distance",
         description: "Could not calculate distance. Please check the address and try again.",
@@ -227,6 +230,7 @@ export default function Calculator() {
       setRisks(existingQuote.risks as string[]);
       setDispatch(existingQuote.dispatchLocation);
       setDistance(existingQuote.distance);
+      setDistanceCalculated(!!existingQuote.distance);
       setServices(existingQuote.services as Record<string, number>);
       setPaymentTerms((existingQuote as any).paymentTerms || "net30");
       if (existingQuote.scopingData) {
@@ -383,7 +387,7 @@ export default function Calculator() {
 
     let runningTotal = archAfterRisk + otherDisciplinesTotal;
 
-    if (distance && distance > 0) {
+    if (distanceCalculated && distance && distance > 0) {
       const ratePerMile = 3;
       let travelCost = distance * ratePerMile;
       
