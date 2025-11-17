@@ -1,8 +1,9 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Navigation } from "lucide-react";
 
 const DISPATCH_LOCATIONS = [
   { value: "troy", label: "Troy, NY" },
@@ -17,6 +18,7 @@ interface TravelCalculatorProps {
   isCalculating: boolean;
   onDispatchChange: (value: string) => void;
   onAddressChange: (value: string) => void;
+  onCalculate: () => void;
 }
 
 export default function TravelCalculator({
@@ -26,15 +28,17 @@ export default function TravelCalculator({
   isCalculating,
   onDispatchChange,
   onAddressChange,
+  onCalculate,
 }: TravelCalculatorProps) {
-  const travelCost = distance ? distance * 1.5 : 0;
-  const scanDayFee = distance && distance > 100 ? 500 : 0;
-  const totalTravel = travelCost + scanDayFee;
-
   return (
-    <Card className="p-4">
+    <Card className="p-6">
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Travel Calculation</h3>
+        <div>
+          <h3 className="text-lg font-semibold mb-2">Travel Calculation</h3>
+          <p className="text-sm text-muted-foreground">
+            Calculate distance from dispatch location to project site
+          </p>
+        </div>
         
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -69,32 +73,30 @@ export default function TravelCalculator({
           </div>
         </div>
 
-        {isCalculating && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Calculating distance...
-          </div>
-        )}
+        <Button 
+          onClick={onCalculate} 
+          disabled={isCalculating || !projectAddress}
+          data-testid="button-calculate-distance"
+          className="w-full"
+        >
+          {isCalculating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Calculating...
+            </>
+          ) : (
+            <>
+              <Navigation className="h-4 w-4 mr-2" />
+              Calculate Distance
+            </>
+          )}
+        </Button>
 
         {distance !== null && !isCalculating && (
-          <div className="space-y-2 p-3 bg-accent rounded-md">
+          <div className="space-y-2 p-4 bg-accent rounded-md">
             <div className="flex justify-between text-sm">
-              <span>Distance:</span>
+              <span className="text-muted-foreground">Calculated Distance:</span>
               <span className="font-mono font-semibold">{distance} miles</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Mileage ($1.50/mi):</span>
-              <span className="font-mono">${travelCost.toFixed(2)}</span>
-            </div>
-            {scanDayFee > 0 && (
-              <div className="flex justify-between text-sm">
-                <span>Scan Day Fee (over 100mi):</span>
-                <span className="font-mono">${scanDayFee.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm font-semibold pt-2 border-t">
-              <span>Total Travel Cost:</span>
-              <span className="font-mono text-primary">${totalTravel.toFixed(2)}</span>
             </div>
           </div>
         )}

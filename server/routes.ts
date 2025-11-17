@@ -73,6 +73,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/calculate-distance", async (req, res) => {
+    try {
+      const { origin, destination } = req.body;
+      
+      if (!origin || !destination) {
+        return res.status(400).json({ error: "Origin and destination are required" });
+      }
+
+      const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
+      if (!MAPBOX_TOKEN) {
+        return res.status(500).json({ error: "Mapbox API token not configured" });
+      }
+
+      const DISPATCH_COORDS: Record<string, [number, number]> = {
+        troy: [-73.6918, 42.7284],
+        woodstock: [-74.1182, 42.0409],
+        brooklyn: [-73.9442, 40.6782],
+      };
+
+      const originCoords = DISPATCH_COORDS[origin.toLowerCase()];
+      if (!originCoords) {
+        return res.status(400).json({ error: "Invalid dispatch location" });
+      }
+
+      const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(destination)}.json?access_token=${MAPBOX_TOKEN}&limit=1`;
+      const geocodeResponse = await fetch(geocodeUrl);
+      
+      if (!geocodeResponse.ok) {
+        throw new Error("Failed to geocode destination address");
+      }
+
+      const geocodeData = await geocodeResponse.json();
+      
+      if (!geocodeData.features || geocodeData.features.length === 0) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      const destCoords = geocodeData.features[0].geometry.coordinates;
+
+      const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${originCoords[0]},${originCoords[1]};${destCoords[0]},${destCoords[1]}?access_token=${MAPBOX_TOKEN}`;
+      const directionsResponse = await fetch(directionsUrl);
+      
+      if (!directionsResponse.ok) {
+        throw new Error("Failed to calculate route");
+      }
+
+      const directionsData = await directionsResponse.json();
+      
+      if (!directionsData.routes || directionsData.routes.length === 0) {
+        return res.status(404).json({ error: "No route found" });
+      }
+
+      const distanceMeters = directionsData.routes[0].distance;
+      const distanceMiles = Math.round(distanceMeters / 1609.34);
+
+      res.json({ 
+        distance: distanceMiles,
+        origin: origin,
+        destination: destination,
+        formattedAddress: geocodeData.features[0].place_name
+      });
+    } catch (error) {
+      console.error("Error calculating distance:", error);
+      res.status(500).json({ error: "Failed to calculate distance" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -67,6 +67,7 @@ export default function Calculator() {
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
   const [distance, setDistance] = useState<number | null>(null);
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [services, setServices] = useState<Record<string, number>>({});
   const [paymentTerms, setPaymentTerms] = useState("net30");
   const [scopingData, setScopingData] = useState({
@@ -176,6 +177,39 @@ export default function Calculator() {
 
   const handleServiceChange = (serviceId: string, quantity: number) => {
     setServices((prev) => ({ ...prev, [serviceId]: quantity }));
+  };
+
+  const handleCalculateDistance = async () => {
+    if (!projectDetails.projectAddress || !dispatch) {
+      toast({
+        title: "Missing information",
+        description: "Please enter both a dispatch location and project address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCalculatingDistance(true);
+    try {
+      const response = await apiRequest("POST", "/api/calculate-distance", {
+        origin: dispatch,
+        destination: projectDetails.projectAddress,
+      });
+      const data = await response.json();
+      setDistance(data.distance);
+      toast({
+        title: "Distance calculated",
+        description: `${data.distance} miles from ${dispatch} to project location`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error calculating distance",
+        description: "Could not calculate distance. Please check the address and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCalculatingDistance(false);
+    }
   };
 
   useEffect(() => {
@@ -345,7 +379,7 @@ export default function Calculator() {
     let runningTotal = archAfterRisk + otherDisciplinesTotal;
 
     if (distance && distance > 0) {
-      const ratePerMile = dispatch === "brooklyn" ? 4 : 3;
+      const ratePerMile = 3;
       let travelCost = distance * ratePerMile;
       
       const totalSqft = areas.reduce((sum, area) => sum + (parseInt(area.squareFeet) || 0), 0);
@@ -356,7 +390,7 @@ export default function Calculator() {
       }
       
       items.push({
-        label: `Travel (${distance} mi @ $${ratePerMile}/mi from ${dispatch === "brooklyn" ? "Brooklyn" : "Troy"})`,
+        label: `Travel (${distance} mi @ $3/mi${distance > 75 && estimatedScanDays >= 2 ? ` + $${300 * estimatedScanDays} scan-day fee` : ''})`,
         value: travelCost,
         editable: true,
       });
@@ -498,9 +532,10 @@ export default function Calculator() {
               dispatchLocation={dispatch}
               projectAddress={projectDetails.projectAddress}
               distance={distance}
-              isCalculating={false}
+              isCalculating={isCalculatingDistance}
               onDispatchChange={setDispatch}
               onAddressChange={(val) => handleProjectDetailChange("projectAddress", val as string)}
+              onCalculate={handleCalculateDistance}
             />
 
             <Separator />
