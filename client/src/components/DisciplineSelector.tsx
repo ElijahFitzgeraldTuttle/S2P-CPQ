@@ -18,34 +18,38 @@ const LOD_LEVELS = [
 
 interface DisciplineSelectorProps {
   selectedDisciplines: string[];
-  lodLevel: string;
+  disciplineLods: Record<string, string>;
   onDisciplineChange: (disciplineId: string, checked: boolean) => void;
-  onLodChange: (value: string) => void;
+  onLodChange: (disciplineId: string, value: string) => void;
 }
 
 export default function DisciplineSelector({
   selectedDisciplines,
-  lodLevel,
+  disciplineLods,
   onDisciplineChange,
   onLodChange,
 }: DisciplineSelectorProps) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Disciplines & LOD</h3>
-        
-        <div className="grid gap-4 sm:grid-cols-2">
-          {DISCIPLINES.map((discipline) => {
-            const isSelected = selectedDisciplines.includes(discipline.id);
-            return (
-              <Card
-                key={discipline.id}
-                className={`p-4 cursor-pointer transition-colors hover-elevate ${
-                  isSelected ? "border-primary bg-accent" : ""
-                }`}
-                onClick={() => onDisciplineChange(discipline.id, !isSelected)}
-              >
-                <div className="flex items-start gap-3">
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Disciplines & Level of Detail</h3>
+      
+      <div className="space-y-3">
+        {DISCIPLINES.map((discipline) => {
+          const isSelected = selectedDisciplines.includes(discipline.id);
+          const lodValue = disciplineLods[discipline.id] || "300";
+          
+          return (
+            <Card
+              key={discipline.id}
+              className={`p-4 transition-colors ${
+                isSelected ? "border-primary bg-accent" : ""
+              }`}
+            >
+              <div className="space-y-3">
+                <div 
+                  className="flex items-start gap-3 cursor-pointer hover-elevate rounded p-2 -m-2"
+                  onClick={() => onDisciplineChange(discipline.id, !isSelected)}
+                >
                   <Checkbox
                     id={discipline.id}
                     checked={isSelected}
@@ -69,31 +73,36 @@ export default function DisciplineSelector({
                     )}
                   </div>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="lod-level" className="text-sm font-medium">
-          Level of Development (LOD)
-        </Label>
-        <Select value={lodLevel} onValueChange={onLodChange}>
-          <SelectTrigger id="lod-level" data-testid="select-lod">
-            <SelectValue placeholder="Select LOD level" />
-          </SelectTrigger>
-          <SelectContent>
-            {LOD_LEVELS.map((lod) => (
-              <SelectItem key={lod.value} value={lod.value}>
-                <div className="flex flex-col">
-                  <span>{lod.label}</span>
-                  <span className="text-xs text-muted-foreground">{lod.description}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                {isSelected && (
+                  <div className="space-y-2 pl-8">
+                    <Label htmlFor={`lod-${discipline.id}`} className="text-sm font-medium">
+                      Level of Detail (LOD)
+                    </Label>
+                    <Select 
+                      value={lodValue} 
+                      onValueChange={(value) => onLodChange(discipline.id, value)}
+                    >
+                      <SelectTrigger id={`lod-${discipline.id}`} data-testid={`select-lod-${discipline.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOD_LEVELS.map((lod) => (
+                          <SelectItem key={lod.value} value={lod.value}>
+                            <div className="flex flex-col">
+                              <span>{lod.label}</span>
+                              <span className="text-xs text-muted-foreground">{lod.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

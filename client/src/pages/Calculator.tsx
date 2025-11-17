@@ -9,6 +9,7 @@ import RiskFactors from "@/components/RiskFactors";
 import TravelCalculator from "@/components/TravelCalculator";
 import AdditionalServices from "@/components/AdditionalServices";
 import PricingSummary from "@/components/PricingSummary";
+import ScopingFields from "@/components/ScopingFields";
 import { Separator } from "@/components/ui/separator";
 
 interface Area {
@@ -31,11 +32,22 @@ export default function Calculator() {
     { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full" },
   ]);
   const [disciplines, setDisciplines] = useState<string[]>([]);
-  const [lodLevel, setLodLevel] = useState("300");
+  const [disciplineLods, setDisciplineLods] = useState<Record<string, string>>({});
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
   const [distance, setDistance] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
+  const [scopingData, setScopingData] = useState({
+    buildingAge: "",
+    floorsAbove: "",
+    floorsBelow: "",
+    elevatorCount: "",
+    parkingSpaces: "",
+    occupancyStatus: "",
+    accessRestrictions: "",
+    safetyRequirements: "",
+    deliverables: "",
+  });
 
   const handleProjectDetailChange = (field: string, value: string) => {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
@@ -65,6 +77,17 @@ export default function Calculator() {
     setDisciplines((prev) =>
       checked ? [...prev, disciplineId] : prev.filter((d) => d !== disciplineId)
     );
+    if (checked && !disciplineLods[disciplineId]) {
+      setDisciplineLods((prev) => ({ ...prev, [disciplineId]: "300" }));
+    }
+  };
+
+  const handleLodChange = (disciplineId: string, value: string) => {
+    setDisciplineLods((prev) => ({ ...prev, [disciplineId]: value }));
+  };
+
+  const handleScopingDataChange = (field: string, value: string) => {
+    setScopingData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleRiskChange = (riskId: string, checked: boolean) => {
@@ -135,12 +158,19 @@ export default function Calculator() {
 
             <DisciplineSelector
               selectedDisciplines={disciplines}
-              lodLevel={lodLevel}
+              disciplineLods={disciplineLods}
               onDisciplineChange={handleDisciplineChange}
-              onLodChange={setLodLevel}
+              onLodChange={handleLodChange}
             />
 
             <Separator />
+
+            {scopingMode && (
+              <>
+                <ScopingFields data={scopingData} onChange={handleScopingDataChange} />
+                <Separator />
+              </>
+            )}
 
             <RiskFactors selectedRisks={risks} onRiskChange={handleRiskChange} />
 

@@ -8,7 +8,6 @@ export default function Header() {
     { path: "/", label: "Home", icon: null },
     { path: "/calculator", label: "Calculator", icon: Calculator },
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/admin", label: "Admin", icon: Settings },
   ];
 
   return (
