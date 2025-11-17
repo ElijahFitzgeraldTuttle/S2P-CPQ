@@ -127,7 +127,21 @@ export default function Calculator() {
 
   const handleAreaChange = (id: string, field: keyof Area, value: string) => {
     setAreas((prev) =>
-      prev.map((area) => (area.id === id ? { ...area, [field]: value } : area))
+      prev.map((area) => {
+        if (area.id !== id) return area;
+        
+        const updatedArea = { ...area, [field]: value };
+        
+        if (field === "buildingType") {
+          const isLandscape = value === "14" || value === "15";
+          if (isLandscape) {
+            updatedArea.disciplines = ["site"];
+            updatedArea.disciplineLods = { site: updatedArea.disciplineLods.site || "300" };
+          }
+        }
+        
+        return updatedArea;
+      })
     );
   };
 
@@ -494,48 +508,88 @@ export default function Calculator() {
     });
   };
 
+  const getLandscapePerAcreRate = (buildingType: string, acres: number, lod: string): number => {
+    const builtLandscapeRates: Record<string, number[]> = {
+      "200": [875, 625, 375, 250, 160],
+      "300": [1000, 750, 500, 375, 220],
+      "350": [1250, 1000, 750, 500, 260],
+    };
+    
+    const naturalLandscapeRates: Record<string, number[]> = {
+      "200": [625, 375, 250, 200, 140],
+      "300": [750, 500, 375, 275, 200],
+      "350": [1000, 750, 500, 325, 240],
+    };
+    
+    const rates = buildingType === "14" ? builtLandscapeRates : naturalLandscapeRates;
+    const lodRates = rates[lod] || rates["200"];
+    
+    if (acres >= 100) return lodRates[4];
+    if (acres >= 50) return lodRates[3];
+    if (acres >= 20) return lodRates[2];
+    if (acres >= 5) return lodRates[1];
+    return lodRates[0];
+  };
+
   const calculatePricing = () => {
     const items: PricingLineItem[] = [];
     let archBaseTotal = 0;
     let otherDisciplinesTotal = 0;
 
     areas.forEach((area) => {
-      const sqft = Math.max(parseInt(area.squareFeet) || 0, 3000);
+      const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+      const inputValue = isLandscape ? parseFloat(area.squareFeet) || 0 : parseInt(area.squareFeet) || 0;
+      
       const scope = area.scope || "full";
-      const disciplines = area.disciplines.length > 0 ? area.disciplines : [];
+      const disciplines = isLandscape ? ["site"] : (area.disciplines.length > 0 ? area.disciplines : []);
       
       disciplines.forEach((discipline) => {
-        const lod = area.disciplineLods[discipline] || "200";
+        const lod = area.disciplineLods[discipline] || "300";
+        let lineTotal = 0;
+        let areaLabel = "";
         
-        let baseRatePerSqft = 2.50;
-        if (discipline === "mepf") {
-          baseRatePerSqft = 3.00;
-        } else if (discipline === "structure") {
-          baseRatePerSqft = 2.00;
-        } else if (discipline === "site") {
-          baseRatePerSqft = 1.50;
+        if (isLandscape) {
+          const acres = inputValue;
+          const sqft = Math.round(acres * 43560);
+          const perAcreRate = getLandscapePerAcreRate(area.buildingType, acres, lod);
+          lineTotal = acres * perAcreRate;
+          areaLabel = `${acres} acres (${sqft.toLocaleString()} sqft)`;
+        } else {
+          const sqft = Math.max(inputValue, 3000);
+          
+          let baseRatePerSqft = 2.50;
+          if (discipline === "mepf") {
+            baseRatePerSqft = 3.00;
+          } else if (discipline === "structure") {
+            baseRatePerSqft = 2.00;
+          } else if (discipline === "site") {
+            baseRatePerSqft = 1.50;
+          }
+          
+          const lodMultiplier: Record<string, number> = {
+            "200": 1.0,
+            "300": 1.3,
+            "350": 1.5,
+          };
+          
+          const multiplier = lodMultiplier[lod] || 1.0;
+          lineTotal = sqft * baseRatePerSqft * multiplier;
+          areaLabel = `${sqft.toLocaleString()} sqft`;
         }
-        
-        const lodMultiplier: Record<string, number> = {
-          "200": 1.0,
-          "300": 1.3,
-          "350": 1.5,
-        };
-        
-        const multiplier = lodMultiplier[lod] || 1.0;
-        let lineTotal = sqft * baseRatePerSqft * multiplier;
         
         let scopeDiscount = 0;
         let scopeLabel = "";
-        if (scope === "interior" && discipline === "architecture") {
-          scopeDiscount = lineTotal * 0.25;
-          scopeLabel = " (Interior Only -25%)";
-        } else if (scope === "exterior" && discipline === "architecture") {
-          scopeDiscount = lineTotal * 0.50;
-          scopeLabel = " (Exterior Only -50%)";
-        } else if (scope === "roof" && discipline === "architecture") {
-          scopeDiscount = lineTotal * 0.65;
-          scopeLabel = " (Roof/Facades Only -65%)";
+        if (!isLandscape) {
+          if (scope === "interior" && discipline === "architecture") {
+            scopeDiscount = lineTotal * 0.25;
+            scopeLabel = " (Interior Only -25%)";
+          } else if (scope === "exterior" && discipline === "architecture") {
+            scopeDiscount = lineTotal * 0.50;
+            scopeLabel = " (Exterior Only -50%)";
+          } else if (scope === "roof" && discipline === "architecture") {
+            scopeDiscount = lineTotal * 0.65;
+            scopeLabel = " (Roof/Facades Only -65%)";
+          }
         }
         
         lineTotal -= scopeDiscount;
@@ -547,7 +601,7 @@ export default function Calculator() {
         }
         
         items.push({
-          label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${sqft.toLocaleString()} sqft, LOD ${lod})${scopeLabel}`,
+          label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${areaLabel}, LOD ${lod})${scopeLabel}`,
           value: lineTotal,
           editable: true,
         });
@@ -591,7 +645,11 @@ export default function Calculator() {
       const ratePerMile = 3;
       let travelCost = distance * ratePerMile;
       
-      const totalSqft = areas.reduce((sum, area) => sum + (parseInt(area.squareFeet) || 0), 0);
+      const totalSqft = areas.reduce((sum, area) => {
+        const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+        const inputValue = parseInt(area.squareFeet) || 0;
+        return sum + (isLandscape ? inputValue * 43560 : inputValue);
+      }, 0);
       const estimatedScanDays = Math.ceil(totalSqft / 10000);
       
       if (distance > 75 && estimatedScanDays >= 2) {
@@ -672,7 +730,11 @@ export default function Calculator() {
         isTotal: true,
       });
 
-      const totalSqft = areas.reduce((sum, area) => sum + (parseInt(area.squareFeet) || 0), 0);
+      const totalSqft = areas.reduce((sum, area) => {
+        const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+        const inputValue = parseInt(area.squareFeet) || 0;
+        return sum + (isLandscape ? inputValue * 43560 : inputValue);
+      }, 0);
       if (totalSqft > 0) {
         const effectivePricePerSqft = runningTotal / totalSqft;
         items.push({

@@ -2,7 +2,21 @@
 
 ## Overview
 
-A professional web-based pricing calculator for Scan-to-BIM (Building Information Modeling) services. The application enables users to generate detailed quotes for architectural scanning and modeling projects through either a quick quote calculator or a comprehensive scoping form. The system calculates pricing based on building types, square footage tiers, disciplines (Architecture, Structure, MEPF, Site/Topography), Level of Detail (LoD), risk factors, travel costs, and additional services. Built as a B2B utility tool with emphasis on data organization, clarity, and efficient quote generation.
+A professional web-based pricing calculator for Scan-to-BIM (Building Information Modeling) services. The application enables users to generate detailed quotes for architectural scanning and modeling projects through either a quick quote calculator or a comprehensive scoping form. The system calculates pricing based on building types, square footage tiers (or acreage for landscape projects), disciplines (Architecture, Structure, MEPF, Site/Topography), Level of Detail (LoD), risk factors, travel costs, and additional services. Built as a B2B utility tool with emphasis on data organization, clarity, and efficient quote generation.
+
+## Recent Changes
+
+### Landscape Pricing Implementation (November 2025)
+- Added two landscape building types: "Built Landscape" (14) and "Natural Landscape" (15)
+- Landscape areas use per-acre pricing instead of per-square-foot pricing
+- Simplified UI for landscape: shows only LoD dropdown (no disciplines menu)
+- Acreage is automatically converted to square feet (43,560 sqft per acre) for display and aggregate calculations
+- Pricing calculation uses tiered per-acre rates based on acreage ranges and LoD
+- Hardcoded landscape pricing rates (temporary until pricing matrix database is updated):
+  - Built Landscape: $875-$1,250/acre (up to 5 acres, LoD 200-350)
+  - Natural Landscape: $625-$1,000/acre (up to 5 acres, LoD 200-350)
+  - Additional tiers for 5-20, 20-50, 50+, and 100+ acres with decreasing rates
+- Landscape areas auto-initialize with "site" discipline and LoD 300 default
 
 ## User Preferences
 
