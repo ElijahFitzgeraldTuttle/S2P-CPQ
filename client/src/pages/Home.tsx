@@ -1,24 +1,25 @@
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Plus, FileText, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { Quote } from "@shared/schema";
 
 export default function Home() {
-  const pastProjects = [
-    {
-      id: "1",
-      name: "Downtown Office Complex",
-      client: "ABC Properties",
-      date: "Nov 15, 2024",
-      total: "$22,112.50",
-    },
-    {
-      id: "2",
-      name: "Retail Center Renovation",
-      client: "XYZ Development",
-      date: "Nov 10, 2024",
-      total: "$18,750.00",
-    },
-  ];
+  const { data: quotes = [], isLoading } = useQuery<Quote[]>({
+    queryKey: ["/api", "quotes"],
+  });
+
+  const pastProjects = quotes.slice(0, 5).map((quote) => ({
+    id: quote.id,
+    name: quote.projectName,
+    client: quote.clientName || "N/A",
+    date: new Date(quote.createdAt).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    total: `$${parseFloat(quote.totalPrice || "0").toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,8 +39,14 @@ export default function Home() {
           </Link>
 
           {/* Past Projects */}
-          {pastProjects.map((project) => (
-            <Link key={project.id} href={`/calculator?id=${project.id}`}>
+          {isLoading && (
+            <Card className="aspect-square flex items-center justify-center p-8">
+              <p className="text-muted-foreground">Loading quotes...</p>
+            </Card>
+          )}
+          
+          {!isLoading && pastProjects.map((project) => (
+            <Link key={project.id} href={`/calculator/${project.id}`}>
               <Card className="aspect-square flex flex-col p-6 cursor-pointer hover-elevate active-elevate-2 transition-all" data-testid={`card-project-${project.id}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="rounded-lg bg-accent p-3">
