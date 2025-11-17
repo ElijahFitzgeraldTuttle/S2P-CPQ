@@ -424,8 +424,8 @@ export default function Calculator() {
           total = quantity * serviceRates[serviceId];
           label = `ACT Modeling ($5/sqft × ${quantity.toLocaleString()} sqft)`;
         } else if (serviceId === "georeferencing") {
-          total = quantity * serviceRates[serviceId];
-          label = `Georeferencing (${quantity} building${quantity > 1 ? 's' : ''} @ $1,000 each)`;
+          total = 1000;
+          label = `Georeferencing`;
         } else if (serviceId === "cadDeliverable") {
           total = Math.max(quantity * serviceRates[serviceId], 300);
           label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;

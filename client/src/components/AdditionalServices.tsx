@@ -1,11 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useState, useEffect } from "react";
 
 const SERVICES = [
-  { id: "georeferencing", label: "Georeferencing", rate: 500, unit: "per unit" },
   { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 750, unit: "per set" },
   { id: "matterport", label: "Matterport Virtual Tours", rate: 150, unit: "per unit" },
   { id: "expeditedService", label: "Expedited Service", rate: 2000, unit: "rush fee" },
@@ -39,6 +39,35 @@ export default function AdditionalServices({ services, onServiceChange }: Additi
       <h3 className="text-lg font-semibold">Additional Services</h3>
       
       <div className="grid gap-4">
+        {/* Georeferencing Service */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="georeferencing"
+                checked={services.georeferencing > 0}
+                onCheckedChange={(checked) => onServiceChange("georeferencing", checked ? 1 : 0)}
+                data-testid="checkbox-georeferencing"
+              />
+              <div>
+                <Label htmlFor="georeferencing" className="text-sm font-medium cursor-pointer">
+                  Georeferencing
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  $1,000 per building or site
+                </p>
+              </div>
+            </div>
+            {services.georeferencing > 0 && (
+              <div className="text-right">
+                <span className="font-mono text-sm font-semibold text-primary">
+                  $1,000
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* Acoustic Ceiling Tile Service */}
         <Card className="p-4">
           <div className="space-y-4">
