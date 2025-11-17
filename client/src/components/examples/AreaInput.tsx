@@ -5,6 +5,7 @@ export default function AreaInputExample() {
   const [area, setArea] = useState({
     id: '1',
     name: 'Main Building',
+    buildingType: '4',
     squareFeet: '5000',
     scope: 'full'
   });

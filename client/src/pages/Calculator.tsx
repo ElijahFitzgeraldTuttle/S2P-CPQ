@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Save } from "lucide-react";
 import ScopingToggle from "@/components/ScopingToggle";
-import BuildingTypeSelect from "@/components/BuildingTypeSelect";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
@@ -15,13 +14,13 @@ import { Separator } from "@/components/ui/separator";
 interface Area {
   id: string;
   name: string;
+  buildingType: string;
   squareFeet: string;
   scope: string;
 }
 
 export default function Calculator() {
   const [scopingMode, setScopingMode] = useState(false);
-  const [buildingType, setBuildingType] = useState("");
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -29,7 +28,7 @@ export default function Calculator() {
     notes: "",
   });
   const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", squareFeet: "", scope: "full" },
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full" },
   ]);
   const [disciplines, setDisciplines] = useState<string[]>([]);
   const [lodLevel, setLodLevel] = useState("300");
@@ -54,7 +53,7 @@ export default function Calculator() {
   const addArea = () => {
     setAreas((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: "", squareFeet: "", scope: "full" },
+      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full" },
     ]);
   };
 
@@ -103,8 +102,6 @@ export default function Calculator() {
           <div className="lg:col-span-2 space-y-6">
             <ScopingToggle enabled={scopingMode} onChange={setScopingMode} />
 
-            <BuildingTypeSelect value={buildingType} onChange={setBuildingType} />
-
             <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
 
             <Separator />
@@ -130,7 +127,6 @@ export default function Calculator() {
                   onChange={handleAreaChange}
                   onRemove={removeArea}
                   canRemove={areas.length > 1}
-                  isLandscape={buildingType === "14"}
                 />
               ))}
             </div>
