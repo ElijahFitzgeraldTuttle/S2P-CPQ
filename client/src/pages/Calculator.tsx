@@ -13,6 +13,7 @@ import DisciplineSelector from "@/components/DisciplineSelector";
 import RiskFactors from "@/components/RiskFactors";
 import TravelCalculator from "@/components/TravelCalculator";
 import AdditionalServices from "@/components/AdditionalServices";
+import PaymentTerms from "@/components/PaymentTerms";
 import PricingSummary from "@/components/PricingSummary";
 import ScopingFields from "@/components/ScopingFields";
 import { Separator } from "@/components/ui/separator";
@@ -67,6 +68,7 @@ export default function Calculator() {
   const [dispatch, setDispatch] = useState("troy");
   const [distance, setDistance] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
+  const [paymentTerms, setPaymentTerms] = useState("net30");
   const [scopingData, setScopingData] = useState({
     gradeAroundBuilding: "",
     gradeOther: "",
@@ -194,6 +196,7 @@ export default function Calculator() {
       setDispatch(existingQuote.dispatchLocation);
       setDistance(existingQuote.distance);
       setServices(existingQuote.services as Record<string, number>);
+      setPaymentTerms((existingQuote as any).paymentTerms || "net30");
       if (existingQuote.scopingData) {
         setScopingData(existingQuote.scopingData as any);
       }
@@ -246,6 +249,7 @@ export default function Calculator() {
       dispatchLocation: dispatch,
       distance,
       services,
+      paymentTerms,
       scopingData: scopingMode ? scopingData : null,
       totalPrice,
       pricingBreakdown: {},
@@ -256,93 +260,171 @@ export default function Calculator() {
 
   const calculatePricing = () => {
     const items: PricingLineItem[] = [];
-    let baseTotal = 0;
+    let archBaseTotal = 0;
+    let otherDisciplinesTotal = 0;
 
     areas.forEach((area) => {
       const sqft = Math.max(parseInt(area.squareFeet) || 0, 3000);
+      const scope = area.scope || "full";
       const disciplines = area.disciplines.length > 0 ? area.disciplines : [];
       
       disciplines.forEach((discipline) => {
         const lod = area.disciplineLods[discipline] || "LOD 200";
-        const ratePerSqft = 2.5;
-        const total = sqft * ratePerSqft;
-        baseTotal += total;
+        
+        let baseRatePerSqft = 2.50;
+        if (discipline === "mepf") {
+          baseRatePerSqft = 3.00;
+        } else if (discipline === "structure") {
+          baseRatePerSqft = 2.00;
+        } else if (discipline === "site") {
+          baseRatePerSqft = 1.50;
+        }
+        
+        let lineTotal = sqft * baseRatePerSqft;
+        
+        let scopeDiscount = 0;
+        let scopeLabel = "";
+        if (scope === "interior" && discipline === "architecture") {
+          scopeDiscount = lineTotal * 0.25;
+          scopeLabel = " (Interior Only -25%)";
+        } else if (scope === "exterior" && discipline === "architecture") {
+          scopeDiscount = lineTotal * 0.50;
+          scopeLabel = " (Exterior Only -50%)";
+        } else if (scope === "roof" && discipline === "architecture") {
+          scopeDiscount = lineTotal * 0.65;
+          scopeLabel = " (Roof/Facades Only -65%)";
+        }
+        
+        lineTotal -= scopeDiscount;
+        
+        if (discipline === "architecture") {
+          archBaseTotal += lineTotal;
+        } else {
+          otherDisciplinesTotal += lineTotal;
+        }
         
         items.push({
-          label: `${discipline} (${sqft.toLocaleString()} sqft, ${lod})`,
-          value: total,
+          label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${sqft.toLocaleString()} sqft, LOD ${lod})${scopeLabel}`,
+          value: lineTotal,
           editable: true,
         });
       });
     });
 
-    if (baseTotal > 0) {
+    const baseSubtotal = archBaseTotal + otherDisciplinesTotal;
+    
+    if (baseSubtotal > 0) {
       items.push({
         label: "Base Subtotal",
-        value: baseTotal,
+        value: baseSubtotal,
         editable: false,
       });
     }
 
-    let totalAfterDiscounts = baseTotal;
-
+    let archAfterRisk = archBaseTotal;
     if (risks.length > 0) {
       risks.forEach((risk) => {
-        const premium = baseTotal * 0.15;
+        let riskPercent = 0.15;
+        if (risk === "Hazardous") {
+          riskPercent = 0.25;
+        } else if (risk === "No Power") {
+          riskPercent = 0.20;
+        }
+        
+        const premium = archBaseTotal * riskPercent;
+        archAfterRisk += premium;
+        
         items.push({
-          label: `Risk Premium - ${risk}`,
+          label: `Risk Premium - ${risk} (+${Math.round(riskPercent * 100)}% on Architecture)`,
           value: premium,
           editable: true,
         });
-        totalAfterDiscounts += premium;
       });
     }
 
+    let runningTotal = archAfterRisk + otherDisciplinesTotal;
+
     if (distance && distance > 0) {
-      const travelCost = distance * 3;
+      const ratePerMile = dispatch === "brooklyn" ? 4 : 3;
+      let travelCost = distance * ratePerMile;
+      
+      const totalSqft = areas.reduce((sum, area) => sum + (parseInt(area.squareFeet) || 0), 0);
+      const estimatedScanDays = Math.ceil(totalSqft / 10000);
+      
+      if (distance > 75 && estimatedScanDays >= 2) {
+        travelCost += 300 * estimatedScanDays;
+      }
+      
       items.push({
-        label: `Travel (${distance} miles)`,
+        label: `Travel (${distance} mi @ $${ratePerMile}/mi from ${dispatch === "brooklyn" ? "Brooklyn" : "Troy"})`,
         value: travelCost,
         editable: true,
       });
-      totalAfterDiscounts += travelCost;
+      runningTotal += travelCost;
     }
 
     Object.entries(services).forEach(([serviceId, quantity]) => {
       if (quantity > 0) {
         const serviceRates: Record<string, number> = {
-          georeferencing: 500,
-          cadDeliverable: 750,
-          matterport: 150,
-          expeditedService: 2000,
+          georeferencing: 1000,
+          cadDeliverable: 300,
+          matterport: 0.10,
+          expeditedService: 0,
           actSqft: 5,
         };
         
-        const rate = serviceRates[serviceId] || 0;
-        const total = serviceId === "actSqft" ? quantity * rate : quantity * rate;
-        const label = serviceId === "actSqft" 
-          ? `ACT Modeling (${quantity} sqft)`
-          : serviceId === "georeferencing" 
-            ? `Georeferencing (${quantity} units)`
-            : serviceId === "cadDeliverable"
-              ? `CAD Deliverable (${quantity} sets)`
-              : serviceId === "matterport"
-                ? `Matterport (${quantity} units)`
-                : `Expedited Service`;
+        let total = 0;
+        let label = "";
         
-        items.push({
-          label,
-          value: total,
-          editable: true,
-        });
-        totalAfterDiscounts += total;
+        if (serviceId === "matterport") {
+          total = quantity * serviceRates[serviceId];
+          label = `Matterport ($0.10/sqft × ${quantity.toLocaleString()} sqft)`;
+        } else if (serviceId === "actSqft") {
+          total = quantity * serviceRates[serviceId];
+          label = `ACT Modeling ($5/sqft × ${quantity.toLocaleString()} sqft)`;
+        } else if (serviceId === "georeferencing") {
+          total = quantity * serviceRates[serviceId];
+          label = `Georeferencing (${quantity} building${quantity > 1 ? 's' : ''} @ $1,000 each)`;
+        } else if (serviceId === "cadDeliverable") {
+          total = Math.max(quantity * serviceRates[serviceId], 300);
+          label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;
+        } else if (serviceId === "expeditedService") {
+          total = runningTotal * 0.20;
+          label = `Expedited Service (+20% of total)`;
+        }
+        
+        if (total > 0) {
+          items.push({
+            label,
+            value: total,
+            editable: true,
+          });
+          runningTotal += total;
+        }
       }
     });
+
+    const paymentInterest: Record<string, number> = {
+      net30: 0,
+      net60: 0.10,
+      net90: 0.20,
+    };
+    
+    const interestRate = paymentInterest[paymentTerms] || 0;
+    if (interestRate > 0) {
+      const interestAmount = runningTotal * interestRate;
+      items.push({
+        label: `Payment Terms Interest (${paymentTerms.toUpperCase()} +${Math.round(interestRate * 100)}%)`,
+        value: interestAmount,
+        editable: true,
+      });
+      runningTotal += interestAmount;
+    }
 
     if (items.length > 0) {
       items.push({
         label: "Grand Total",
-        value: totalAfterDiscounts,
+        value: runningTotal,
         editable: true,
         isTotal: true,
       });
@@ -424,6 +506,10 @@ export default function Calculator() {
             <Separator />
 
             <AdditionalServices services={services} onServiceChange={handleServiceChange} />
+
+            <Separator />
+
+            <PaymentTerms value={paymentTerms} onChange={setPaymentTerms} />
 
             {scopingMode && (
               <>
