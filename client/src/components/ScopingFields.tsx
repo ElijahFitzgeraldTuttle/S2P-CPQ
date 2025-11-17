@@ -116,50 +116,6 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
 
           <div className="space-y-2">
             <Label className="text-sm font-medium">
-              Scanning & Modeling above and below Acoustic Ceiling Tile? (where appropriate)
-            </Label>
-            <RadioGroup value={data.aboveBelowACT} onValueChange={(val) => onChange('aboveBelowACT', val)}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="act-yes" />
-                <Label htmlFor="act-yes" className="cursor-pointer">Yes</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id="act-no" />
-                <Label htmlFor="act-no" className="cursor-pointer">No</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="act-other" />
-                <Label htmlFor="act-other" className="cursor-pointer">Other:</Label>
-              </div>
-            </RadioGroup>
-            {data.aboveBelowACT === 'other' && (
-              <Input
-                placeholder="Specify other"
-                value={data.aboveBelowACTOther}
-                onChange={(e) => onChange('aboveBelowACTOther', e.target.value)}
-                className="mt-2"
-              />
-            )}
-          </div>
-
-          {data.aboveBelowACT === 'yes' && (
-            <div className="space-y-2">
-              <Label htmlFor="act-sqft" className="text-sm font-medium">
-                Scope of ACT (sqft)
-              </Label>
-              <Input
-                id="act-sqft"
-                type="number"
-                placeholder="0"
-                value={data.actSqft}
-                onChange={(e) => onChange('actSqft', e.target.value)}
-                className="font-mono"
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
               BIM Deliverable
             </Label>
             <div className="grid gap-2 sm:grid-cols-2">
