@@ -67,11 +67,11 @@ export default function AreaInput({ area, index, onChange, onRemove, canRemove }
 
         <div className="space-y-2">
           <Label htmlFor={`area-building-type-${area.id}`} className="text-sm font-medium">
-            Building Type
+            Area Type
           </Label>
           <Select value={area.buildingType} onValueChange={(value) => onChange(area.id, 'buildingType', value)}>
             <SelectTrigger id={`area-building-type-${area.id}`} data-testid={`select-area-building-type-${index}`}>
-              <SelectValue placeholder="Select building type" />
+              <SelectValue placeholder="Select area type" />
             </SelectTrigger>
             <SelectContent>
               {BUILDING_TYPES.map((type) => (
@@ -113,23 +113,25 @@ export default function AreaInput({ area, index, onChange, onRemove, canRemove }
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor={`area-scope-${area.id}`} className="text-sm font-medium">
-            Project Scope
-          </Label>
-          <Select value={area.scope} onValueChange={(value) => onChange(area.id, 'scope', value)}>
-            <SelectTrigger id={`area-scope-${area.id}`} data-testid={`select-area-scope-${index}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PROJECT_SCOPES.map((scope) => (
-                <SelectItem key={scope.value} value={scope.value}>
-                  {scope.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!isLandscape && (
+          <div className="space-y-2">
+            <Label htmlFor={`area-scope-${area.id}`} className="text-sm font-medium">
+              Project Scope
+            </Label>
+            <Select value={area.scope} onValueChange={(value) => onChange(area.id, 'scope', value)}>
+              <SelectTrigger id={`area-scope-${area.id}`} data-testid={`select-area-scope-${index}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROJECT_SCOPES.map((scope) => (
+                  <SelectItem key={scope.value} value={scope.value}>
+                    {scope.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
     </Card>
   );
