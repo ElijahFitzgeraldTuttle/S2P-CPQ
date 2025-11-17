@@ -1,13 +1,43 @@
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Plus, FileText, Clock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Plus, FileText, Clock, Trash2 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 
 export default function Home() {
+  const { toast } = useToast();
   const { data: quotes = [], isLoading } = useQuery<Quote[]>({
     queryKey: ["/api", "quotes"],
   });
+
+  const deleteQuoteMutation = useMutation({
+    mutationFn: async (quoteId: number) => {
+      await apiRequest("DELETE", `/api/quotes/${quoteId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api", "quotes"] });
+      toast({
+        title: "Quote deleted",
+        description: "The quote has been successfully deleted.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error deleting quote",
+        description: "Failed to delete the quote. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDelete = (e: React.MouseEvent, quoteId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteQuoteMutation.mutate(quoteId);
+  };
 
   const pastProjects = quotes.slice(0, 5).map((quote) => ({
     id: quote.id,
@@ -52,9 +82,21 @@ export default function Home() {
                   <div className="rounded-lg bg-accent p-3">
                     <FileText className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>{project.date}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>{project.date}</span>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => handleDelete(e, project.id)}
+                      disabled={deleteQuoteMutation.isPending}
+                      data-testid={`button-delete-${project.id}`}
+                      className="h-8 w-8"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </div>
                 
