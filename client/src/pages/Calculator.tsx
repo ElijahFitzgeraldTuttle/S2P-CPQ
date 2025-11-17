@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus, Save } from "lucide-react";
 import ScopingToggle from "@/components/ScopingToggle";
@@ -32,6 +33,14 @@ interface Area {
 export default function Calculator() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [, params] = useRoute("/calculator/:id");
+  const quoteId = params?.id;
+
+  const { data: existingQuote, isLoading: isLoadingQuote } = useQuery<Quote>({
+    queryKey: ["/api/quotes", quoteId],
+    enabled: !!quoteId,
+  });
+
   const [scopingMode, setScopingMode] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
@@ -159,22 +168,51 @@ export default function Calculator() {
     setServices((prev) => ({ ...prev, [serviceId]: quantity }));
   };
 
+  useEffect(() => {
+    if (existingQuote) {
+      setScopingMode(existingQuote.scopingMode);
+      setProjectDetails({
+        clientName: existingQuote.clientName || "",
+        projectName: existingQuote.projectName,
+        projectAddress: existingQuote.projectAddress,
+        specificBuilding: existingQuote.specificBuilding || "",
+        typeOfBuilding: existingQuote.typeOfBuilding,
+        hasBasement: existingQuote.hasBasement,
+        hasAttic: existingQuote.hasAttic,
+        notes: existingQuote.notes || "",
+      });
+      setAreas(existingQuote.areas as Area[]);
+      setRisks(existingQuote.risks as string[]);
+      setDispatch(existingQuote.dispatchLocation);
+      setDistance(existingQuote.distance);
+      setServices(existingQuote.services as Record<string, number>);
+      if (existingQuote.scopingData) {
+        setScopingData(existingQuote.scopingData as any);
+      }
+    }
+  }, [existingQuote]);
+
   const saveQuoteMutation = useMutation({
     mutationFn: async (quoteData: any) => {
-      const res = await apiRequest("POST", "/api/quotes", quoteData);
-      return res.json();
+      if (quoteId) {
+        const res = await apiRequest("PATCH", `/api/quotes/${quoteId}`, quoteData);
+        return res.json();
+      } else {
+        const res = await apiRequest("POST", "/api/quotes", quoteData);
+        return res.json();
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       toast({
-        title: "Quote saved successfully",
-        description: "Your quote has been saved to the dashboard.",
+        title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
+        description: quoteId ? "Your changes have been saved." : "Your quote has been saved to the dashboard.",
       });
       setLocation("/dashboard");
     },
     onError: (error: any) => {
       toast({
-        title: "Error saving quote",
+        title: quoteId ? "Error updating quote" : "Error saving quote",
         description: error.message || "Failed to save quote. Please try again.",
         variant: "destructive",
       });
@@ -216,11 +254,19 @@ export default function Calculator() {
     { label: "Grand Total", value: 22112.50, editable: true, isTotal: true },
   ];
 
+  if (isLoadingQuote) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading quote...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Create Quote</h1>
+          <h1 className="text-3xl font-bold mb-2">{quoteId ? "Edit Quote" : "Create Quote"}</h1>
           <p className="text-muted-foreground">
             Build a comprehensive pricing quote for your Scan-to-BIM project
           </p>

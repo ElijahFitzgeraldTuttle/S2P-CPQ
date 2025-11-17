@@ -1,17 +1,41 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import QuoteCard from "@/components/QuoteCard";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Quote } from "@shared/schema";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: quotes = [], isLoading } = useQuery<Quote[]>({
     queryKey: ["/api/quotes"],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/quotes/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: "Quote deleted",
+        description: "The quote has been successfully deleted.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error deleting quote",
+        description: "Failed to delete the quote. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const formattedQuotes = quotes.map((quote) => ({
@@ -78,9 +102,9 @@ export default function Dashboard() {
                   <QuoteCard
                     key={quote.rawId}
                     {...quote}
-                    onView={() => console.log(`View ${quote.rawId}`)}
+                    onView={() => setLocation(`/calculator/${quote.rawId}`)}
                     onExport={() => console.log(`Export ${quote.rawId}`)}
-                    onDelete={() => console.log(`Delete ${quote.rawId}`)}
+                    onDelete={() => deleteMutation.mutate(quote.rawId)}
                   />
                 ))}
               </div>
@@ -100,9 +124,9 @@ export default function Dashboard() {
                   <QuoteCard
                     key={quote.rawId}
                     {...quote}
-                    onView={() => console.log(`View ${quote.rawId}`)}
+                    onView={() => setLocation(`/calculator/${quote.rawId}`)}
                     onExport={() => console.log(`Export ${quote.rawId}`)}
-                    onDelete={() => console.log(`Delete ${quote.rawId}`)}
+                    onDelete={() => deleteMutation.mutate(quote.rawId)}
                   />
                 ))}
               </div>
@@ -122,9 +146,9 @@ export default function Dashboard() {
                   <QuoteCard
                     key={quote.rawId}
                     {...quote}
-                    onView={() => console.log(`View ${quote.rawId}`)}
+                    onView={() => setLocation(`/calculator/${quote.rawId}`)}
                     onExport={() => console.log(`Export ${quote.rawId}`)}
-                    onDelete={() => console.log(`Delete ${quote.rawId}`)}
+                    onDelete={() => deleteMutation.mutate(quote.rawId)}
                   />
                 ))}
               </div>
