@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 const SERVICES = [
   { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 750, unit: "per set" },
   { id: "matterport", label: "Matterport Virtual Tours", rate: 0.10, unit: "per sqft" },
-  { id: "expeditedService", label: "Expedited Service", rate: 2000, unit: "rush fee" },
 ];
 
 const ACT_RATE_PER_SQFT = 5;
@@ -170,6 +169,27 @@ export default function AdditionalServices({ services, onServiceChange }: Additi
             </Card>
           );
         })}
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="expeditedService"
+                checked={services.expeditedService > 0}
+                onCheckedChange={(checked) => onServiceChange("expeditedService", checked ? 1 : 0)}
+                data-testid="checkbox-expedited-service"
+              />
+              <div>
+                <Label htmlFor="expeditedService" className="text-sm font-medium cursor-pointer">
+                  Expedited Service
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  +20% of total (buys 1 week)
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
