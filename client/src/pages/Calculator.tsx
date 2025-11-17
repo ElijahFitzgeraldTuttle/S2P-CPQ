@@ -33,6 +33,8 @@ export default function Calculator() {
     projectAddress: "",
     specificBuilding: "",
     typeOfBuilding: "",
+    hasBasement: false,
+    hasAttic: false,
     notes: "",
   });
   const [areas, setAreas] = useState<Area[]>([
@@ -43,31 +45,12 @@ export default function Calculator() {
   const [distance, setDistance] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
   const [scopingData, setScopingData] = useState({
-    intExt: "",
-    intExtOther: "",
-    lodStandard: "",
-    lodStandardOther: "",
-    basementAttic: [] as string[],
-    basementAtticOther: "",
-    basementAtticSqft: "",
-    structuralModeling: "",
-    structuralModelingOther: "",
-    structuralSqft: "",
-    mepfModeling: "",
-    mepfModelingOther: "",
-    mepfSqft: "",
     gradeAroundBuilding: "",
     gradeOther: "",
     landscapeModeling: "",
     landscapeOther: "",
     landscapeAcres: "",
-    georeferencing: "",
-    georeferencingOther: "",
-    cadDeliverable: "",
-    cadDeliverableOther: "",
     interiorCadElevations: "",
-    matterport: "",
-    matterportOther: "",
     aboveBelowACT: "",
     aboveBelowACTOther: "",
     actSqft: "",
@@ -76,9 +59,6 @@ export default function Calculator() {
     bimVersion: "",
     customTemplate: "",
     customTemplateOther: "",
-    riskFactors: [] as string[],
-    expeditedService: "",
-    expeditedServiceOther: "",
     sqftAssumptions: "",
     assumedGrossMargin: "",
     caveatsProfitability: "",
@@ -107,9 +87,9 @@ export default function Calculator() {
     projectStatusOther: "",
   });
 
-  const handleProjectDetailChange = (field: string, value: string) => {
+  const handleProjectDetailChange = (field: string, value: string | boolean) => {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
-    if (field === "projectAddress") {
+    if (field === "projectAddress" && typeof value === "string") {
       setTimeout(() => setDistance(125), 1000);
     }
   };
@@ -234,13 +214,6 @@ export default function Calculator() {
 
             <Separator />
 
-            {scopingMode && (
-              <>
-                <ScopingFields data={scopingData} onChange={handleScopingDataChange} />
-                <Separator />
-              </>
-            )}
-
             <RiskFactors selectedRisks={risks} onRiskChange={handleRiskChange} />
 
             <Separator />
@@ -251,12 +224,19 @@ export default function Calculator() {
               distance={distance}
               isCalculating={false}
               onDispatchChange={setDispatch}
-              onAddressChange={(val) => handleProjectDetailChange("projectAddress", val)}
+              onAddressChange={(val) => handleProjectDetailChange("projectAddress", val as string)}
             />
 
             <Separator />
 
             <AdditionalServices services={services} onServiceChange={handleServiceChange} />
+
+            {scopingMode && (
+              <>
+                <Separator />
+                <ScopingFields data={scopingData} onChange={handleScopingDataChange} />
+              </>
+            )}
 
             <div className="flex gap-4 pt-6">
               <Button size="lg" className="flex-1" data-testid="button-save-quote">

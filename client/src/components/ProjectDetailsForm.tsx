@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProjectDetailsFormProps {
   clientName: string;
@@ -8,8 +9,10 @@ interface ProjectDetailsFormProps {
   projectAddress: string;
   specificBuilding: string;
   typeOfBuilding: string;
+  hasBasement: boolean;
+  hasAttic: boolean;
   notes: string;
-  onFieldChange: (field: string, value: string) => void;
+  onFieldChange: (field: string, value: string | boolean) => void;
 }
 
 export default function ProjectDetailsForm({
@@ -18,6 +21,8 @@ export default function ProjectDetailsForm({
   projectAddress,
   specificBuilding,
   typeOfBuilding,
+  hasBasement,
+  hasAttic,
   notes,
   onFieldChange,
 }: ProjectDetailsFormProps) {
@@ -94,6 +99,34 @@ export default function ProjectDetailsForm({
             required
             data-testid="input-type-of-building"
           />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Building Features</Label>
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="has-basement"
+              checked={hasBasement}
+              onCheckedChange={(checked) => onFieldChange('hasBasement', checked as boolean)}
+              data-testid="checkbox-basement"
+            />
+            <Label htmlFor="has-basement" className="cursor-pointer font-normal">
+              Has Basement
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="has-attic"
+              checked={hasAttic}
+              onCheckedChange={(checked) => onFieldChange('hasAttic', checked as boolean)}
+              data-testid="checkbox-attic"
+            />
+            <Label htmlFor="has-attic" className="cursor-pointer font-normal">
+              Has Attic
+            </Label>
+          </div>
         </div>
       </div>
 
