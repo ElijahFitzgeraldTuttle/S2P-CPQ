@@ -5,7 +5,13 @@ import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, Download, FileText, FileSpreadsheet, Files } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
@@ -294,6 +300,129 @@ export default function Calculator() {
     saveQuoteMutation.mutate(quoteData);
   };
 
+  const exportQuote = () => {
+    const totalItem = pricingItems.find(item => item.isTotal);
+    const totalPrice = totalItem ? totalItem.value : 0;
+    
+    const quoteExport = {
+      quoteNumber: existingQuote?.quoteNumber || "Draft",
+      date: new Date().toLocaleDateString(),
+      projectDetails: {
+        clientName: projectDetails.clientName,
+        projectName: projectDetails.projectName,
+        projectAddress: projectDetails.projectAddress,
+        specificBuilding: projectDetails.specificBuilding,
+        typeOfBuilding: projectDetails.typeOfBuilding,
+        hasBasement: projectDetails.hasBasement,
+        hasAttic: projectDetails.hasAttic,
+        notes: projectDetails.notes,
+      },
+      areas,
+      risks,
+      travel: {
+        dispatchLocation: dispatch,
+        distance,
+      },
+      services,
+      paymentTerms,
+      pricingBreakdown: pricingItems,
+      totalPrice,
+    };
+
+    const blob = new Blob([JSON.stringify(quoteExport, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quote-${projectDetails.projectName || "draft"}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Quote exported",
+      description: "Quote has been downloaded as JSON",
+    });
+  };
+
+  const exportScope = () => {
+    const scopeExport = {
+      date: new Date().toLocaleDateString(),
+      projectDetails: {
+        clientName: projectDetails.clientName,
+        projectName: projectDetails.projectName,
+        projectAddress: projectDetails.projectAddress,
+        specificBuilding: projectDetails.specificBuilding,
+        typeOfBuilding: projectDetails.typeOfBuilding,
+        hasBasement: projectDetails.hasBasement,
+        hasAttic: projectDetails.hasAttic,
+        notes: projectDetails.notes,
+      },
+      scopingData,
+    };
+
+    const blob = new Blob([JSON.stringify(scopeExport, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `scope-${projectDetails.projectName || "draft"}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Scope exported",
+      description: "Scoping data has been downloaded as JSON",
+    });
+  };
+
+  const exportBoth = () => {
+    const totalItem = pricingItems.find(item => item.isTotal);
+    const totalPrice = totalItem ? totalItem.value : 0;
+    
+    const fullExport = {
+      quoteNumber: existingQuote?.quoteNumber || "Draft",
+      date: new Date().toLocaleDateString(),
+      projectDetails: {
+        clientName: projectDetails.clientName,
+        projectName: projectDetails.projectName,
+        projectAddress: projectDetails.projectAddress,
+        specificBuilding: projectDetails.specificBuilding,
+        typeOfBuilding: projectDetails.typeOfBuilding,
+        hasBasement: projectDetails.hasBasement,
+        hasAttic: projectDetails.hasAttic,
+        notes: projectDetails.notes,
+      },
+      areas,
+      risks,
+      travel: {
+        dispatchLocation: dispatch,
+        distance,
+      },
+      services,
+      paymentTerms,
+      pricingBreakdown: pricingItems,
+      totalPrice,
+      scopingData,
+    };
+
+    const blob = new Blob([JSON.stringify(fullExport, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `full-export-${projectDetails.projectName || "draft"}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export complete",
+      description: "Quote and scope have been downloaded as JSON",
+    });
+  };
+
   const calculatePricing = () => {
     const items: PricingLineItem[] = [];
     let archBaseTotal = 0;
@@ -578,9 +707,28 @@ export default function Calculator() {
                 <Save className="h-4 w-4 mr-2" />
                 {saveQuoteMutation.isPending ? "Saving..." : "Save Quote"}
               </Button>
-              <Button size="lg" variant="outline" data-testid="button-export-pdf">
-                Export PDF
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="lg" variant="outline" data-testid="button-export-menu">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportQuote} data-testid="button-export-quote">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export Quote
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportScope} data-testid="button-export-scope">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export Scope
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportBoth} data-testid="button-export-both">
+                    <Files className="h-4 w-4 mr-2" />
+                    Export Both
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
