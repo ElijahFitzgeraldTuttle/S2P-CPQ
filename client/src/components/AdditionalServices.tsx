@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 
 const SERVICES = [
   { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 750, unit: "per set" },
-  { id: "matterport", label: "Matterport Virtual Tours", rate: 150, unit: "per unit" },
+  { id: "matterport", label: "Matterport Virtual Tours", rate: 0.10, unit: "per sqft" },
   { id: "expeditedService", label: "Expedited Service", rate: 2000, unit: "rush fee" },
 ];
 
