@@ -7,8 +7,6 @@ const SERVICES = [
   { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 750, unit: "per set" },
   { id: "matterport", label: "Matterport Virtual Tours", rate: 150, unit: "per unit" },
   { id: "expeditedService", label: "Expedited Service", rate: 2000, unit: "rush fee" },
-  { id: "scanHalf", label: "3D Laser Scanning - Half Day (4 hours)", rate: 750, unit: "" },
-  { id: "scanFull", label: "3D Laser Scanning - Full Day (10 hours)", rate: 1500, unit: "" },
 ];
 
 interface AdditionalServicesProps {
