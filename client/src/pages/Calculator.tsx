@@ -471,6 +471,16 @@ export default function Calculator() {
         editable: true,
         isTotal: true,
       });
+
+      const totalSqft = areas.reduce((sum, area) => sum + (parseInt(area.squareFeet) || 0), 0);
+      if (totalSqft > 0) {
+        const effectivePricePerSqft = runningTotal / totalSqft;
+        items.push({
+          label: `Effective Price per Sq Ft (${totalSqft.toLocaleString()} sqft)`,
+          value: effectivePricePerSqft,
+          editable: false,
+        });
+      }
     }
 
     return items;
