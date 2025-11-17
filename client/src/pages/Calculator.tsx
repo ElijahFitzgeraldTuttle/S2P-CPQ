@@ -30,6 +30,14 @@ interface Area {
   disciplineLods: Record<string, string>;
 }
 
+interface PricingLineItem {
+  label: string;
+  value: number;
+  editable?: boolean;
+  isDiscount?: boolean;
+  isTotal?: boolean;
+}
+
 export default function Calculator() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -177,8 +185,8 @@ export default function Calculator() {
         projectAddress: existingQuote.projectAddress,
         specificBuilding: existingQuote.specificBuilding || "",
         typeOfBuilding: existingQuote.typeOfBuilding,
-        hasBasement: existingQuote.hasBasement,
-        hasAttic: existingQuote.hasAttic,
+        hasBasement: existingQuote.hasBasement ?? false,
+        hasAttic: existingQuote.hasAttic ?? false,
         notes: existingQuote.notes || "",
       });
       setAreas(existingQuote.areas as Area[]);
@@ -220,6 +228,9 @@ export default function Calculator() {
   });
 
   const handleSaveQuote = () => {
+    const totalItem = pricingItems.find(item => item.isTotal);
+    const totalPrice = totalItem ? totalItem.value.toFixed(2) : "0.00";
+    
     const quoteData = {
       projectName: projectDetails.projectName,
       clientName: projectDetails.clientName,
@@ -236,23 +247,111 @@ export default function Calculator() {
       distance,
       services,
       scopingData: scopingMode ? scopingData : null,
-      totalPrice: "22112.50",
+      totalPrice,
       pricingBreakdown: {},
     };
     
     saveQuoteMutation.mutate(quoteData);
   };
 
-  const pricingItems = [
-    { label: "Architecture (5,000 sqft)", value: 12500, editable: true },
-    { label: "MEPF (5,000 sqft)", value: 15000, editable: true },
-    { label: "Base Subtotal", value: 27500, editable: false },
-    { label: "Interior Discount (25%)", value: 6875, editable: true, isDiscount: true },
-    { label: "Risk Premium - Occupied", value: 500, editable: true },
-    { label: "Travel (125 miles)", value: 687.50, editable: true },
-    { label: "Matterport (2 units)", value: 300, editable: true },
-    { label: "Grand Total", value: 22112.50, editable: true, isTotal: true },
-  ];
+  const calculatePricing = () => {
+    const items: PricingLineItem[] = [];
+    let baseTotal = 0;
+
+    areas.forEach((area) => {
+      const sqft = Math.max(parseInt(area.squareFeet) || 0, 3000);
+      const disciplines = area.disciplines.length > 0 ? area.disciplines : [];
+      
+      disciplines.forEach((discipline) => {
+        const lod = area.disciplineLods[discipline] || "LOD 200";
+        const ratePerSqft = 2.5;
+        const total = sqft * ratePerSqft;
+        baseTotal += total;
+        
+        items.push({
+          label: `${discipline} (${sqft.toLocaleString()} sqft, ${lod})`,
+          value: total,
+          editable: true,
+        });
+      });
+    });
+
+    if (baseTotal > 0) {
+      items.push({
+        label: "Base Subtotal",
+        value: baseTotal,
+        editable: false,
+      });
+    }
+
+    let totalAfterDiscounts = baseTotal;
+
+    if (risks.length > 0) {
+      risks.forEach((risk) => {
+        const premium = baseTotal * 0.15;
+        items.push({
+          label: `Risk Premium - ${risk}`,
+          value: premium,
+          editable: true,
+        });
+        totalAfterDiscounts += premium;
+      });
+    }
+
+    if (distance && distance > 0) {
+      const travelCost = distance * 3;
+      items.push({
+        label: `Travel (${distance} miles)`,
+        value: travelCost,
+        editable: true,
+      });
+      totalAfterDiscounts += travelCost;
+    }
+
+    Object.entries(services).forEach(([serviceId, quantity]) => {
+      if (quantity > 0) {
+        const serviceRates: Record<string, number> = {
+          georeferencing: 500,
+          cadDeliverable: 750,
+          matterport: 150,
+          expeditedService: 2000,
+          actSqft: 5,
+        };
+        
+        const rate = serviceRates[serviceId] || 0;
+        const total = serviceId === "actSqft" ? quantity * rate : quantity * rate;
+        const label = serviceId === "actSqft" 
+          ? `ACT Modeling (${quantity} sqft)`
+          : serviceId === "georeferencing" 
+            ? `Georeferencing (${quantity} units)`
+            : serviceId === "cadDeliverable"
+              ? `CAD Deliverable (${quantity} sets)`
+              : serviceId === "matterport"
+                ? `Matterport (${quantity} units)`
+                : `Expedited Service`;
+        
+        items.push({
+          label,
+          value: total,
+          editable: true,
+        });
+        totalAfterDiscounts += total;
+      }
+    });
+
+    if (items.length > 0) {
+      items.push({
+        label: "Grand Total",
+        value: totalAfterDiscounts,
+        editable: true,
+        isTotal: true,
+      });
+    }
+
+    return items;
+  };
+
+  const pricingItems = calculatePricing();
 
   if (isLoadingQuote) {
     return (
