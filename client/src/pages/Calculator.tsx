@@ -12,6 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
@@ -301,125 +303,194 @@ export default function Calculator() {
   };
 
   const exportQuote = () => {
-    const totalItem = pricingItems.find(item => item.isTotal);
-    const totalPrice = totalItem ? totalItem.value : 0;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    const quoteExport = {
-      quoteNumber: existingQuote?.quoteNumber || "Draft",
-      date: new Date().toLocaleDateString(),
-      projectDetails: {
-        clientName: projectDetails.clientName,
-        projectName: projectDetails.projectName,
-        projectAddress: projectDetails.projectAddress,
-        specificBuilding: projectDetails.specificBuilding,
-        typeOfBuilding: projectDetails.typeOfBuilding,
-        hasBasement: projectDetails.hasBasement,
-        hasAttic: projectDetails.hasAttic,
-        notes: projectDetails.notes,
-      },
-      areas,
-      risks,
-      travel: {
-        dispatchLocation: dispatch,
-        distance,
-      },
-      services,
-      paymentTerms,
-      pricingBreakdown: pricingItems,
-      totalPrice,
-    };
-
-    const blob = new Blob([JSON.stringify(quoteExport, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `quote-${projectDetails.projectName || "draft"}-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    doc.setFontSize(20);
+    doc.text("S2P - Scan2Plan", 14, 20);
+    
+    doc.setFontSize(16);
+    doc.text("Quote", 14, 30);
+    
+    doc.setFontSize(10);
+    doc.text(`Quote #: ${existingQuote?.quoteNumber || "Draft"}`, 14, 38);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 44);
+    
+    doc.setFontSize(12);
+    doc.text("Project Information", 14, 54);
+    doc.setFontSize(10);
+    doc.text(`Client: ${projectDetails.clientName || "N/A"}`, 14, 61);
+    doc.text(`Project: ${projectDetails.projectName}`, 14, 67);
+    doc.text(`Address: ${projectDetails.projectAddress}`, 14, 73);
+    doc.text(`Building Type: ${projectDetails.typeOfBuilding}`, 14, 79);
+    
+    const pricingTableData = pricingItems.map(item => [
+      item.label,
+      `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    ]);
+    
+    autoTable(doc, {
+      startY: 88,
+      head: [['Item', 'Amount']],
+      body: pricingTableData,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 130 },
+        1: { cellWidth: 50, halign: 'right' }
+      }
+    });
+    
+    if (projectDetails.notes) {
+      const finalY = (doc as any).lastAutoTable.finalY || 88;
+      doc.setFontSize(12);
+      doc.text("Notes", 14, finalY + 10);
+      doc.setFontSize(9);
+      const splitNotes = doc.splitTextToSize(projectDetails.notes, pageWidth - 28);
+      doc.text(splitNotes, 14, finalY + 17);
+    }
+    
+    doc.save(`quote-${projectDetails.projectName || "draft"}-${Date.now()}.pdf`);
 
     toast({
       title: "Quote exported",
-      description: "Quote has been downloaded as JSON",
+      description: "Quote has been downloaded as PDF",
     });
   };
 
   const exportScope = () => {
-    const scopeExport = {
-      date: new Date().toLocaleDateString(),
-      projectDetails: {
-        clientName: projectDetails.clientName,
-        projectName: projectDetails.projectName,
-        projectAddress: projectDetails.projectAddress,
-        specificBuilding: projectDetails.specificBuilding,
-        typeOfBuilding: projectDetails.typeOfBuilding,
-        hasBasement: projectDetails.hasBasement,
-        hasAttic: projectDetails.hasAttic,
-        notes: projectDetails.notes,
-      },
-      scopingData,
-    };
-
-    const blob = new Blob([JSON.stringify(scopeExport, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `scope-${projectDetails.projectName || "draft"}-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFontSize(20);
+    doc.text("S2P - Scan2Plan", 14, 20);
+    
+    doc.setFontSize(16);
+    doc.text("Scoping Sheet", 14, 30);
+    
+    doc.setFontSize(10);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 38);
+    
+    doc.setFontSize(12);
+    doc.text("Project Information", 14, 48);
+    doc.setFontSize(10);
+    doc.text(`Client: ${projectDetails.clientName || "N/A"}`, 14, 55);
+    doc.text(`Project: ${projectDetails.projectName}`, 14, 61);
+    doc.text(`Address: ${projectDetails.projectAddress}`, 14, 67);
+    doc.text(`Building Type: ${projectDetails.typeOfBuilding}`, 14, 73);
+    
+    let yPos = 83;
+    doc.setFontSize(12);
+    doc.text("Scoping Details", 14, yPos);
+    yPos += 7;
+    
+    doc.setFontSize(9);
+    const scopeEntries = Object.entries(scopingData).filter(([_, value]) => value);
+    
+    scopeEntries.forEach(([key, value]) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      const valueStr = Array.isArray(value) ? value.join(', ') : String(value);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, 14, yPos);
+      doc.setFont('helvetica', 'normal');
+      
+      const splitValue = doc.splitTextToSize(valueStr, pageWidth - 28);
+      doc.text(splitValue, 14, yPos + 5);
+      yPos += 5 + (splitValue.length * 4);
+    });
+    
+    doc.save(`scope-${projectDetails.projectName || "draft"}-${Date.now()}.pdf`);
 
     toast({
       title: "Scope exported",
-      description: "Scoping data has been downloaded as JSON",
+      description: "Scoping data has been downloaded as PDF",
     });
   };
 
   const exportBoth = () => {
-    const totalItem = pricingItems.find(item => item.isTotal);
-    const totalPrice = totalItem ? totalItem.value : 0;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    const fullExport = {
-      quoteNumber: existingQuote?.quoteNumber || "Draft",
-      date: new Date().toLocaleDateString(),
-      projectDetails: {
-        clientName: projectDetails.clientName,
-        projectName: projectDetails.projectName,
-        projectAddress: projectDetails.projectAddress,
-        specificBuilding: projectDetails.specificBuilding,
-        typeOfBuilding: projectDetails.typeOfBuilding,
-        hasBasement: projectDetails.hasBasement,
-        hasAttic: projectDetails.hasAttic,
-        notes: projectDetails.notes,
-      },
-      areas,
-      risks,
-      travel: {
-        dispatchLocation: dispatch,
-        distance,
-      },
-      services,
-      paymentTerms,
-      pricingBreakdown: pricingItems,
-      totalPrice,
-      scopingData,
-    };
-
-    const blob = new Blob([JSON.stringify(fullExport, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `full-export-${projectDetails.projectName || "draft"}-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    doc.setFontSize(20);
+    doc.text("S2P - Scan2Plan", 14, 20);
+    
+    doc.setFontSize(16);
+    doc.text("Complete Project Export", 14, 30);
+    
+    doc.setFontSize(10);
+    doc.text(`Quote #: ${existingQuote?.quoteNumber || "Draft"}`, 14, 38);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 44);
+    
+    doc.setFontSize(12);
+    doc.text("Project Information", 14, 54);
+    doc.setFontSize(10);
+    doc.text(`Client: ${projectDetails.clientName || "N/A"}`, 14, 61);
+    doc.text(`Project: ${projectDetails.projectName}`, 14, 67);
+    doc.text(`Address: ${projectDetails.projectAddress}`, 14, 73);
+    doc.text(`Building Type: ${projectDetails.typeOfBuilding}`, 14, 79);
+    
+    const pricingTableData = pricingItems.map(item => [
+      item.label,
+      `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    ]);
+    
+    autoTable(doc, {
+      startY: 88,
+      head: [['Item', 'Amount']],
+      body: pricingTableData,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 130 },
+        1: { cellWidth: 50, halign: 'right' }
+      }
+    });
+    
+    let yPos = (doc as any).lastAutoTable.finalY + 15;
+    
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFontSize(12);
+    doc.text("Scoping Details", 14, yPos);
+    yPos += 7;
+    
+    doc.setFontSize(9);
+    const scopeEntries = Object.entries(scopingData).filter(([_, value]) => value);
+    
+    scopeEntries.forEach(([key, value]) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      const valueStr = Array.isArray(value) ? value.join(', ') : String(value);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, 14, yPos);
+      doc.setFont('helvetica', 'normal');
+      
+      const splitValue = doc.splitTextToSize(valueStr, pageWidth - 28);
+      doc.text(splitValue, 14, yPos + 5);
+      yPos += 5 + (splitValue.length * 4);
+    });
+    
+    doc.save(`complete-${projectDetails.projectName || "draft"}-${Date.now()}.pdf`);
 
     toast({
       title: "Export complete",
-      description: "Quote and scope have been downloaded as JSON",
+      description: "Complete project has been downloaded as PDF",
     });
   };
 
