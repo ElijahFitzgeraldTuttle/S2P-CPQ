@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 
 const BUILDING_TYPES = [
   { value: "1", label: "Residential - Single Family" },
@@ -29,23 +31,40 @@ const PROJECT_SCOPES = [
   { value: "roof", label: "Roof/Facades Only" },
 ];
 
+const DISCIPLINES = [
+  { id: "architecture", label: "Architecture", description: "Building modeling" },
+  { id: "structure", label: "Structure", description: "Structural elements" },
+  { id: "mepf", label: "MEPF", description: "Mechanical, Electrical, Plumbing, Fire" },
+  { id: "site", label: "Site/Topography", description: "Site work and grading" },
+];
+
+const LOD_LEVELS = [
+  { value: "200", label: "200" },
+  { value: "300", label: "300" },
+  { value: "350", label: "350" },
+];
+
 interface Area {
   id: string;
   name: string;
   buildingType: string;
   squareFeet: string;
   scope: string;
+  disciplines: string[];
+  disciplineLods: Record<string, string>;
 }
 
 interface AreaInputProps {
   area: Area;
   index: number;
   onChange: (id: string, field: keyof Area, value: string) => void;
+  onDisciplineChange: (areaId: string, disciplineId: string, checked: boolean) => void;
+  onLodChange: (areaId: string, disciplineId: string, value: string) => void;
   onRemove: (id: string) => void;
   canRemove: boolean;
 }
 
-export default function AreaInput({ area, index, onChange, onRemove, canRemove }: AreaInputProps) {
+export default function AreaInput({ area, index, onChange, onDisciplineChange, onLodChange, onRemove, canRemove }: AreaInputProps) {
   const isLandscape = area.buildingType === "14";
   
   return (
@@ -132,6 +151,74 @@ export default function AreaInput({ area, index, onChange, onRemove, canRemove }
             </Select>
           </div>
         )}
+
+        <Separator className="my-4" />
+
+        <div className="space-y-3">
+          <h4 className="font-semibold text-sm">Disciplines & LoD</h4>
+          
+          {DISCIPLINES.map((discipline) => {
+            const isSelected = area.disciplines.includes(discipline.id);
+            const lodValue = area.disciplineLods[discipline.id] || "300";
+            
+            return (
+              <Card
+                key={discipline.id}
+                className={`p-3 transition-colors ${
+                  isSelected ? "border-primary bg-accent" : ""
+                }`}
+              >
+                <div className="space-y-3">
+                  <div 
+                    className="flex items-start gap-3 cursor-pointer hover-elevate rounded p-2 -m-2"
+                    onClick={() => onDisciplineChange(area.id, discipline.id, !isSelected)}
+                  >
+                    <Checkbox
+                      id={`${area.id}-${discipline.id}`}
+                      checked={isSelected}
+                      onCheckedChange={(checked) => onDisciplineChange(area.id, discipline.id, checked as boolean)}
+                      data-testid={`checkbox-area-${index}-discipline-${discipline.id}`}
+                    />
+                    <div className="flex-1">
+                      <Label
+                        htmlFor={`${area.id}-${discipline.id}`}
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        {discipline.label}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {discipline.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isSelected && (
+                    <div className="space-y-2 pl-8">
+                      <Label htmlFor={`lod-${area.id}-${discipline.id}`} className="text-sm font-medium">
+                        LoD
+                      </Label>
+                      <Select 
+                        value={lodValue} 
+                        onValueChange={(value) => onLodChange(area.id, discipline.id, value)}
+                      >
+                        <SelectTrigger id={`lod-${area.id}-${discipline.id}`} data-testid={`select-lod-area-${index}-${discipline.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LOD_LEVELS.map((lod) => (
+                            <SelectItem key={lod.value} value={lod.value}>
+                              {lod.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </Card>
   );

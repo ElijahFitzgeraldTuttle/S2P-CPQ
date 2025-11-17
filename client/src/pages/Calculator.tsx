@@ -21,6 +21,8 @@ interface Area {
   buildingType: string;
   squareFeet: string;
   scope: string;
+  disciplines: string[];
+  disciplineLods: Record<string, string>;
 }
 
 export default function Calculator() {
@@ -37,10 +39,8 @@ export default function Calculator() {
     estimatedSqft: "",
   });
   const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full" },
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {} },
   ]);
-  const [disciplines, setDisciplines] = useState<string[]>([]);
-  const [disciplineLods, setDisciplineLods] = useState<Record<string, string>>({});
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
   const [distance, setDistance] = useState<number | null>(null);
@@ -126,7 +126,7 @@ export default function Calculator() {
   const addArea = () => {
     setAreas((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full" },
+      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {} },
     ]);
   };
 
@@ -134,17 +134,35 @@ export default function Calculator() {
     setAreas((prev) => prev.filter((area) => area.id !== id));
   };
 
-  const handleDisciplineChange = (disciplineId: string, checked: boolean) => {
-    setDisciplines((prev) =>
-      checked ? [...prev, disciplineId] : prev.filter((d) => d !== disciplineId)
+  const handleAreaDisciplineChange = (areaId: string, disciplineId: string, checked: boolean) => {
+    setAreas((prev) =>
+      prev.map((area) => {
+        if (area.id !== areaId) return area;
+        
+        const newDisciplines = checked
+          ? [...area.disciplines, disciplineId]
+          : area.disciplines.filter((d) => d !== disciplineId);
+        
+        const newLods = { ...area.disciplineLods };
+        if (checked && !newLods[disciplineId]) {
+          newLods[disciplineId] = "300";
+        }
+        
+        return { ...area, disciplines: newDisciplines, disciplineLods: newLods };
+      })
     );
-    if (checked && !disciplineLods[disciplineId]) {
-      setDisciplineLods((prev) => ({ ...prev, [disciplineId]: "300" }));
-    }
   };
 
-  const handleLodChange = (disciplineId: string, value: string) => {
-    setDisciplineLods((prev) => ({ ...prev, [disciplineId]: value }));
+  const handleAreaLodChange = (areaId: string, disciplineId: string, value: string) => {
+    setAreas((prev) =>
+      prev.map((area) => {
+        if (area.id !== areaId) return area;
+        return {
+          ...area,
+          disciplineLods: { ...area.disciplineLods, [disciplineId]: value },
+        };
+      })
+    );
   };
 
   const handleScopingDataChange = (field: string, value: string) => {
@@ -261,20 +279,13 @@ export default function Calculator() {
                   area={area}
                   index={index}
                   onChange={handleAreaChange}
+                  onDisciplineChange={handleAreaDisciplineChange}
+                  onLodChange={handleAreaLodChange}
                   onRemove={removeArea}
                   canRemove={areas.length > 1}
                 />
               ))}
             </div>
-
-            <Separator />
-
-            <DisciplineSelector
-              selectedDisciplines={disciplines}
-              disciplineLods={disciplineLods}
-              onDisciplineChange={handleDisciplineChange}
-              onLodChange={handleLodChange}
-            />
 
             <Separator />
 
