@@ -11,7 +11,6 @@ export default function Header() {
             data-testid="link-home"
           >
             <span className="text-2xl">S2P</span>
-            <span className="hidden sm:inline">Scan2Plan</span>
           </Link>
         </div>
       </div>
