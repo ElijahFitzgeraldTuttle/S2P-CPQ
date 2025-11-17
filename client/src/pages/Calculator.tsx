@@ -37,7 +37,7 @@ export default function Calculator() {
   const quoteId = params?.id;
 
   const { data: existingQuote, isLoading: isLoadingQuote } = useQuery<Quote>({
-    queryKey: ["/api/quotes", quoteId],
+    queryKey: ["/api", "quotes", quoteId],
     enabled: !!quoteId,
   });
 
@@ -203,7 +203,7 @@ export default function Calculator() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "quotes"] });
       toast({
         title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
         description: quoteId ? "Your changes have been saved." : "Your quote has been saved to the dashboard.",

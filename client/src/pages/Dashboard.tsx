@@ -15,7 +15,7 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   const { data: quotes = [], isLoading } = useQuery<Quote[]>({
-    queryKey: ["/api/quotes"],
+    queryKey: ["/api", "quotes"],
   });
 
   const deleteMutation = useMutation({
@@ -23,7 +23,7 @@ export default function Dashboard() {
       await apiRequest("DELETE", `/api/quotes/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "quotes"] });
       toast({
         title: "Quote deleted",
         description: "The quote has been successfully deleted.",
