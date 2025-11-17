@@ -10,9 +10,6 @@ import { Upload } from "lucide-react";
 
 interface ScopingFieldsProps {
   data: {
-    specificBuilding: string;
-    typeOfBuilding: string;
-    estimatedSqft: string;
     intExt: string;
     intExtOther: string;
     lodStandard: string;
@@ -90,53 +87,6 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Building Information */}
-      <Card className="p-4 bg-accent/50">
-        <h3 className="text-lg font-semibold mb-4">Building Information</h3>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="specific-building" className="text-sm font-medium">
-              Specific Building or Unit?
-            </Label>
-            <Input
-              id="specific-building"
-              placeholder="Enter building or unit details"
-              value={data.specificBuilding}
-              onChange={(e) => onChange('specificBuilding', e.target.value)}
-              data-testid="input-specific-building"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="type-of-building" className="text-sm font-medium">
-              Type of Building <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="type-of-building"
-              placeholder="e.g., Commercial Office, Residential, etc."
-              value={data.typeOfBuilding}
-              onChange={(e) => onChange('typeOfBuilding', e.target.value)}
-              data-testid="input-type-of-building"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="estimated-sqft" className="text-sm font-medium">
-              Estimated Total Square Footage <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="estimated-sqft"
-              type="number"
-              placeholder="0"
-              value={data.estimatedSqft}
-              onChange={(e) => onChange('estimatedSqft', e.target.value)}
-              className="font-mono"
-              data-testid="input-estimated-sqft"
-            />
-          </div>
-        </div>
-      </Card>
-
       {/* Scope Definition */}
       <Card className="p-4 bg-accent/50">
         <h3 className="text-lg font-semibold mb-4">Scope Definition</h3>

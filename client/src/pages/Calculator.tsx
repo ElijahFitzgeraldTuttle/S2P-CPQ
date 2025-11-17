@@ -11,6 +11,9 @@ import AdditionalServices from "@/components/AdditionalServices";
 import PricingSummary from "@/components/PricingSummary";
 import ScopingFields from "@/components/ScopingFields";
 import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Area {
   id: string;
@@ -28,6 +31,11 @@ export default function Calculator() {
     projectAddress: "",
     notes: "",
   });
+  const [buildingInfo, setBuildingInfo] = useState({
+    specificBuilding: "",
+    typeOfBuilding: "",
+    estimatedSqft: "",
+  });
   const [areas, setAreas] = useState<Area[]>([
     { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full" },
   ]);
@@ -38,9 +46,6 @@ export default function Calculator() {
   const [distance, setDistance] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
   const [scopingData, setScopingData] = useState({
-    specificBuilding: "",
-    typeOfBuilding: "",
-    estimatedSqft: "",
     intExt: "",
     intExtOther: "",
     lodStandard: "",
@@ -146,6 +151,10 @@ export default function Calculator() {
     setScopingData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleBuildingInfoChange = (field: string, value: string) => {
+    setBuildingInfo((prev) => ({ ...prev, [field]: value }));
+  };
+
   const handleRiskChange = (riskId: string, checked: boolean) => {
     setRisks((prev) =>
       checked ? [...prev, riskId] : prev.filter((r) => r !== riskId)
@@ -182,6 +191,54 @@ export default function Calculator() {
             <ScopingToggle enabled={scopingMode} onChange={setScopingMode} />
 
             <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
+
+            <Separator />
+
+            <Card className="p-4">
+              <h3 className="text-lg font-semibold mb-4">Building Information</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="specific-building" className="text-sm font-medium">
+                    Specific Building or Unit?
+                  </Label>
+                  <Input
+                    id="specific-building"
+                    placeholder="Enter building or unit details"
+                    value={buildingInfo.specificBuilding}
+                    onChange={(e) => handleBuildingInfoChange('specificBuilding', e.target.value)}
+                    data-testid="input-specific-building"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="type-of-building" className="text-sm font-medium">
+                    Type of Building <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="type-of-building"
+                    placeholder="e.g., Commercial Office, Residential, etc."
+                    value={buildingInfo.typeOfBuilding}
+                    onChange={(e) => handleBuildingInfoChange('typeOfBuilding', e.target.value)}
+                    data-testid="input-type-of-building"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="estimated-sqft" className="text-sm font-medium">
+                    Estimated Total Square Footage <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="estimated-sqft"
+                    type="number"
+                    placeholder="0"
+                    value={buildingInfo.estimatedSqft}
+                    onChange={(e) => handleBuildingInfoChange('estimatedSqft', e.target.value)}
+                    className="font-mono"
+                    data-testid="input-estimated-sqft"
+                  />
+                </div>
+              </div>
+            </Card>
 
             <Separator />
 
