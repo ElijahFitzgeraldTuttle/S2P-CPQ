@@ -212,7 +212,11 @@ export default function Calculator() {
 
   const handleRiskChange = (riskId: string, checked: boolean) => {
     setRisks((prev) =>
-      checked ? [...prev, riskId] : prev.filter((r) => r !== riskId)
+      checked 
+        ? prev.includes(riskId)
+          ? prev // Already exists, don't add duplicate
+          : [...prev, riskId]
+        : prev.filter((r) => r !== riskId)
     );
   };
 
