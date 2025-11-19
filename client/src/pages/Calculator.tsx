@@ -971,6 +971,32 @@ export default function Calculator() {
           upteamCost: upteamLineCost,
         });
       });
+      
+      // Grade Around Building pricing
+      if (area.gradeAroundBuilding && !isLandscape && !isACT) {
+        const sqft = Math.max(parseInt(area.squareFeet) || 0, 3000);
+        const gradeLod = area.gradeLod || "300";
+        
+        const gradeRates: Record<string, number> = {
+          "250": 0.54,
+          "300": 0.72,
+          "350": 0.90,
+        };
+        
+        const ratePerSqft = gradeRates[gradeLod] || 0.72;
+        const gradeTotal = sqft * ratePerSqft;
+        const gradeUpteamCost = gradeTotal * UPTEAM_MULTIPLIER;
+        
+        otherDisciplinesTotal += gradeTotal;
+        upteamCost += gradeUpteamCost; // Track upteam cost for grade work
+        
+        items.push({
+          label: `Grade Around Building (~20' topography) (${sqft.toLocaleString()} sqft, LOD ${gradeLod})`,
+          value: gradeTotal,
+          editable: true,
+          upteamCost: gradeUpteamCost,
+        });
+      }
     });
 
     const baseSubtotal = archBaseTotal + otherDisciplinesTotal;

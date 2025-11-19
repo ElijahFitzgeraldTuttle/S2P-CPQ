@@ -4,8 +4,8 @@ import { storage } from "./storage";
 import { insertQuoteSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
-import { writeFile, mkdir } from "fs/promises";
-import { join, dirname } from "path";
+import { writeFile } from "fs/promises";
+import { join } from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const upload = multer({
@@ -29,9 +29,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `${timestamp}_${safeFilename}`;
       const filepath = join(privateDir, filename);
 
-      // Ensure the directory exists
-      await mkdir(dirname(filepath), { recursive: true });
-      
       await writeFile(filepath, req.file.buffer);
 
       const url = `/objstore${filepath}`;
