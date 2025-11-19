@@ -130,9 +130,6 @@ export default function Calculator() {
 
   const handleProjectDetailChange = (field: string, value: string | boolean) => {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
-    if (field === "projectAddress" && typeof value === "string") {
-      setTimeout(() => setDistance(125), 1000);
-    }
   };
 
   const handleAreaChange = (id: string, field: keyof Area, value: string | boolean) => {
