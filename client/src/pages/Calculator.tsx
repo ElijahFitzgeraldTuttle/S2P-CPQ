@@ -20,7 +20,6 @@ import DisciplineSelector from "@/components/DisciplineSelector";
 import RiskFactors from "@/components/RiskFactors";
 import TravelCalculator from "@/components/TravelCalculator";
 import AdditionalServices from "@/components/AdditionalServices";
-import PaymentTerms from "@/components/PaymentTerms";
 import PricingSummary from "@/components/PricingSummary";
 import ScopingFields from "@/components/ScopingFields";
 import { Separator } from "@/components/ui/separator";
@@ -77,7 +76,6 @@ export default function Calculator() {
   const [distanceCalculated, setDistanceCalculated] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [services, setServices] = useState<Record<string, number>>({});
-  const [paymentTerms, setPaymentTerms] = useState("");
   const [scopingData, setScopingData] = useState({
     gradeAroundBuilding: "",
     gradeOther: "",
@@ -264,9 +262,20 @@ export default function Calculator() {
       setDistance(existingQuote.distance);
       setDistanceCalculated(!!existingQuote.distance);
       setServices(existingQuote.services as Record<string, number>);
-      setPaymentTerms((existingQuote as any).paymentTerms || "net30");
+      
+      const legacyPaymentTerms = (existingQuote as any).paymentTerms;
+      
       if (existingQuote.scopingData) {
-        setScopingData(existingQuote.scopingData as any);
+        const loadedScopingData = { ...(existingQuote.scopingData as any) };
+        if (legacyPaymentTerms && !loadedScopingData.paymentTerms) {
+          loadedScopingData.paymentTerms = legacyPaymentTerms;
+        }
+        setScopingData(loadedScopingData);
+      } else if (legacyPaymentTerms) {
+        setScopingData(prev => ({
+          ...prev,
+          paymentTerms: legacyPaymentTerms
+        }));
       }
     }
   }, [existingQuote]);
@@ -317,7 +326,6 @@ export default function Calculator() {
       dispatchLocation: dispatch,
       distance,
       services,
-      paymentTerms,
       scopingData: scopingMode ? scopingData : null,
       totalPrice,
       pricingBreakdown: {},
@@ -720,11 +728,11 @@ export default function Calculator() {
       }
     });
 
-    if (paymentTerms) {
+    if (scopingData.paymentTerms) {
       let percentage = 0;
-      if (paymentTerms === "net30") percentage = 0.05;
-      else if (paymentTerms === "net60") percentage = 0.10;
-      else if (paymentTerms === "net90") percentage = 0.15;
+      if (scopingData.paymentTerms === "net30") percentage = 0.05;
+      else if (scopingData.paymentTerms === "net60") percentage = 0.10;
+      else if (scopingData.paymentTerms === "net90") percentage = 0.15;
       
       if (percentage > 0) {
         const paymentTermAdjustment = runningTotal * percentage;
@@ -835,10 +843,6 @@ export default function Calculator() {
             <Separator />
 
             <AdditionalServices services={services} onServiceChange={handleServiceChange} />
-
-            <Separator />
-
-            <PaymentTerms value={paymentTerms} onChange={setPaymentTerms} />
 
             <Separator />
 
