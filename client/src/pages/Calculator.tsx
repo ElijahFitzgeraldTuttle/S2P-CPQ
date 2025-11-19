@@ -178,7 +178,9 @@ export default function Calculator() {
         if (area.id !== areaId) return area;
         
         const newDisciplines = checked
-          ? [...area.disciplines, disciplineId]
+          ? area.disciplines.includes(disciplineId)
+            ? area.disciplines // Already exists, don't add duplicate
+            : [...area.disciplines, disciplineId]
           : area.disciplines.filter((d) => d !== disciplineId);
         
         const newLods = { ...area.disciplineLods };
