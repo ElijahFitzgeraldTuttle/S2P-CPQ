@@ -21,15 +21,39 @@ export default function AdditionalServices({ services, onServiceChange }: Additi
   const [actEnabled, setActEnabled] = useState<string>(services.actSqft > 0 ? "yes" : "no");
   const actSqft = services.actSqft || 0;
   const actTotal = actSqft * ACT_RATE_PER_SQFT;
+  
+  const [scanningOption, setScanningOption] = useState<string>(
+    services.scanningFullDay > 0 ? "fullDay" : services.scanningHalfDay > 0 ? "halfDay" : "none"
+  );
 
   useEffect(() => {
     setActEnabled(services.actSqft > 0 ? "yes" : "no");
   }, [services.actSqft]);
+  
+  useEffect(() => {
+    setScanningOption(
+      services.scanningFullDay > 0 ? "fullDay" : services.scanningHalfDay > 0 ? "halfDay" : "none"
+    );
+  }, [services.scanningFullDay, services.scanningHalfDay]);
 
   const handleActEnabledChange = (value: string) => {
     setActEnabled(value);
     if (value !== "yes") {
       onServiceChange("actSqft", 0);
+    }
+  };
+  
+  const handleScanningOptionChange = (value: string) => {
+    setScanningOption(value);
+    if (value === "fullDay") {
+      onServiceChange("scanningFullDay", 1);
+      onServiceChange("scanningHalfDay", 0);
+    } else if (value === "halfDay") {
+      onServiceChange("scanningFullDay", 0);
+      onServiceChange("scanningHalfDay", 1);
+    } else {
+      onServiceChange("scanningFullDay", 0);
+      onServiceChange("scanningHalfDay", 0);
     }
   };
 
@@ -169,6 +193,51 @@ export default function AdditionalServices({ services, onServiceChange }: Additi
             </Card>
           );
         })}
+
+        {/* Scanning & Registration Only Service */}
+        <Card className="p-4">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Scanning & Registration Only
+              </Label>
+              <RadioGroup value={scanningOption} onValueChange={handleScanningOptionChange}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="none" id="scanning-none" data-testid="radio-scanning-none" />
+                    <Label htmlFor="scanning-none" className="cursor-pointer font-normal">None</Label>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fullDay" id="scanning-fullDay" data-testid="radio-scanning-fullDay" />
+                    <Label htmlFor="scanning-fullDay" className="cursor-pointer font-normal">
+                      Full Day (up to 10 hrs on-site)
+                    </Label>
+                  </div>
+                  {scanningOption === "fullDay" && (
+                    <span className="font-mono text-sm font-semibold text-primary">
+                      $2,500
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="halfDay" id="scanning-halfDay" data-testid="radio-scanning-halfDay" />
+                    <Label htmlFor="scanning-halfDay" className="cursor-pointer font-normal">
+                      Half Day (up to 4 hrs on-site)
+                    </Label>
+                  </div>
+                  {scanningOption === "halfDay" && (
+                    <span className="font-mono text-sm font-semibold text-primary">
+                      $1,500
+                    </span>
+                  )}
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+        </Card>
 
         <Card className="p-4">
           <div className="flex items-center justify-between">

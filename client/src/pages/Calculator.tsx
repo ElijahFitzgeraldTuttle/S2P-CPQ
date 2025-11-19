@@ -505,9 +505,9 @@ export default function Calculator() {
     if (risks.length > 0) {
       const riskMap: Record<string, { label: string; premium: number }> = {
         "flood": { label: "Flood", premium: 7 },
-        "occupied": { label: "Occupied", premium: 7 },
-        "hazardous": { label: "Hazardous", premium: 12 },
-        "noPower": { label: "No Power", premium: 15 },
+        "occupied": { label: "Occupied", premium: 15 },
+        "hazardous": { label: "Hazardous", premium: 25 },
+        "noPower": { label: "No Power", premium: 20 },
       };
       
       risks.forEach(risk => {
@@ -532,8 +532,9 @@ export default function Calculator() {
     const dispatchLabel = dispatchMap[dispatch] || dispatch;
     text += `Dispatch Location: ${dispatchLabel}\n`;
     if (distanceCalculated && distance !== null) {
+      const ratePerMile = dispatch === "brooklyn" ? 4 : 3;
       text += `Distance: ${distance} miles\n`;
-      text += `Travel Rate: $3.00 per mile\n`;
+      text += `Travel Rate: $${ratePerMile}.00 per mile\n`;
       const totalSqft = areas.reduce((sum, area) => {
         const isLandscape = area.buildingType === "14" || area.buildingType === "15";
         const inputValue = parseInt(area.squareFeet) || 0;
@@ -569,6 +570,10 @@ export default function Calculator() {
         } else if (serviceId === "actSqft") {
           const total = quantity * 5.00;
           text += `Scope of ACT: ${quantity.toLocaleString()} sqft @ $5.00 per sqft = $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n`;
+        } else if (serviceId === "scanningFullDay") {
+          text += `Scanning & Registration - Full Day (up to 10 hrs on-site): $2,500.00\n`;
+        } else if (serviceId === "scanningHalfDay") {
+          text += `Scanning & Registration - Half Day (up to 4 hrs on-site): $1,500.00\n`;
         } else {
           const serviceName = serviceId.charAt(0).toUpperCase() + serviceId.slice(1).replace(/([A-Z])/g, ' $1');
           text += `${serviceName}: ${quantity} unit${quantity > 1 ? 's' : ''} (rate not specified)\n`;
@@ -865,13 +870,13 @@ export default function Calculator() {
         let scopeDiscount = 0;
         let scopeLabel = "";
         if (!isLandscape && !isACT) {
-          if (scope === "interior" && discipline === "architecture") {
+          if (scope === "interior") {
             scopeDiscount = lineTotal * 0.25;
             scopeLabel = " (Interior Only -25%)";
-          } else if (scope === "exterior" && discipline === "architecture") {
+          } else if (scope === "exterior") {
             scopeDiscount = lineTotal * 0.50;
             scopeLabel = " (Exterior Only -50%)";
-          } else if (scope === "roof" && discipline === "architecture") {
+          } else if (scope === "roof") {
             scopeDiscount = lineTotal * 0.65;
             scopeLabel = " (Roof/Facades Only -65%)";
           }
@@ -906,18 +911,19 @@ export default function Calculator() {
     let archAfterRisk = archBaseTotal;
     if (risks.length > 0) {
       risks.forEach((risk) => {
-        let riskPercent = 0.07;
-        if (risk === "Hazardous") {
-          riskPercent = 0.12;
-        } else if (risk === "No Power") {
-          riskPercent = 0.15;
+        let riskPercent = 0.15; // Default: Occupied
+        if (risk === "hazardous") {
+          riskPercent = 0.25;
+        } else if (risk === "noPower") {
+          riskPercent = 0.20;
         }
         
         const premium = archBaseTotal * riskPercent;
         archAfterRisk += premium;
         
+        const riskLabel = risk === "occupied" ? "Occupied" : risk === "hazardous" ? "Hazardous" : "No Power";
         items.push({
-          label: `Risk Premium - ${risk} (+${Math.round(riskPercent * 100)}% on Architecture)`,
+          label: `Risk Premium - ${riskLabel} (+${Math.round(riskPercent * 100)}% on Architecture)`,
           value: premium,
           editable: true,
         });
@@ -927,7 +933,7 @@ export default function Calculator() {
     let runningTotal = archAfterRisk + otherDisciplinesTotal;
 
     if (distanceCalculated && distance && distance > 0) {
-      const ratePerMile = 3;
+      const ratePerMile = dispatch === "brooklyn" ? 4 : 3;
       let travelCost = distance * ratePerMile;
       
       const totalSqft = areas.reduce((sum, area) => {
@@ -942,7 +948,7 @@ export default function Calculator() {
       }
       
       items.push({
-        label: `Travel (${distance} mi @ $3/mi${distance > 75 && estimatedScanDays >= 2 ? ` + $${300 * estimatedScanDays} scan-day fee` : ''})`,
+        label: `Travel (${distance} mi @ $${ratePerMile}/mi${distance > 75 && estimatedScanDays >= 2 ? ` + $${300 * estimatedScanDays} scan-day fee` : ''})`,
         value: travelCost,
         editable: true,
       });
@@ -957,6 +963,8 @@ export default function Calculator() {
           matterport: 0.10,
           expeditedService: 0,
           actSqft: 5,
+          scanningFullDay: 2500,
+          scanningHalfDay: 1500,
         };
         
         let total = 0;
@@ -974,6 +982,12 @@ export default function Calculator() {
         } else if (serviceId === "cadDeliverable") {
           total = Math.max(quantity * serviceRates[serviceId], 300);
           label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;
+        } else if (serviceId === "scanningFullDay") {
+          total = 2500;
+          label = `Scanning & Registration - Full Day`;
+        } else if (serviceId === "scanningHalfDay") {
+          total = 1500;
+          label = `Scanning & Registration - Half Day`;
         } else if (serviceId === "expeditedService") {
           total = runningTotal * 0.20;
           label = `Expedited Service (+20% of total)`;
