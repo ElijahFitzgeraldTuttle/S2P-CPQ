@@ -828,6 +828,10 @@ export default function Calculator() {
     const items: PricingLineItem[] = [];
     let archBaseTotal = 0;
     let otherDisciplinesTotal = 0;
+    let upteamCost = 0; // Track internal vendor costs
+    
+    // Upteam multipliers (simplified - eventually from pricing_parameters table)
+    const UPTEAM_MULTIPLIER = 0.65; // Upteam costs are 65% of client rates
 
     areas.forEach((area) => {
       const isLandscape = area.buildingType === "14" || area.buildingType === "15";
@@ -892,6 +896,10 @@ export default function Calculator() {
         
         lineTotal -= scopeDiscount;
         
+        // Track upteam internal cost (before scope discount since that's client-side discount)
+        const upteamLineCost = (lineTotal + scopeDiscount) * UPTEAM_MULTIPLIER - scopeDiscount;
+        upteamCost += upteamLineCost;
+        
         if (discipline === "architecture") {
           archBaseTotal += lineTotal;
         } else {
@@ -920,6 +928,7 @@ export default function Calculator() {
         const gradeTotal = sqft * ratePerSqft;
         
         otherDisciplinesTotal += gradeTotal;
+        upteamCost += gradeTotal * UPTEAM_MULTIPLIER; // Track upteam cost for grade work
         
         items.push({
           label: `Grade Around Building (~20' topography) (${sqft.toLocaleString()} sqft, LOD ${gradeLod})`,
@@ -984,6 +993,7 @@ export default function Calculator() {
         editable: true,
       });
       runningTotal += travelCost;
+      upteamCost += travelCost; // Travel is a real cost
     }
 
     Object.entries(services).forEach(([serviceId, quantity]) => {
@@ -1004,24 +1014,31 @@ export default function Calculator() {
         if (serviceId === "matterport") {
           total = quantity * serviceRates[serviceId];
           label = `Matterport ($0.10/sqft × ${quantity.toLocaleString()} sqft)`;
+          upteamCost += total * UPTEAM_MULTIPLIER; // Real service cost
         } else if (serviceId === "actSqft") {
           total = quantity * serviceRates[serviceId];
           label = `ACT Modeling ($5/sqft × ${quantity.toLocaleString()} sqft)`;
+          upteamCost += total * UPTEAM_MULTIPLIER; // Real modeling cost
         } else if (serviceId === "georeferencing") {
           total = 1000;
           label = `Georeferencing`;
+          upteamCost += total * UPTEAM_MULTIPLIER; // Real service cost
         } else if (serviceId === "cadDeliverable") {
           total = Math.max(quantity * serviceRates[serviceId], 300);
           label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;
+          upteamCost += total * UPTEAM_MULTIPLIER; // Real CAD work cost
         } else if (serviceId === "scanningFullDay") {
           total = 2500;
           label = `Scanning & Registration - Full Day`;
+          upteamCost += total * UPTEAM_MULTIPLIER; // Real scanning cost
         } else if (serviceId === "scanningHalfDay") {
           total = 1500;
           label = `Scanning & Registration - Half Day`;
+          upteamCost += total * UPTEAM_MULTIPLIER; // Real scanning cost
         } else if (serviceId === "expeditedService") {
           total = runningTotal * 0.20;
           label = `Expedited Service (+20% of total)`;
+          // Don't add to upteam - this is pure markup
         }
         
         if (total > 0) {
@@ -1075,10 +1092,11 @@ export default function Calculator() {
       }
     }
 
-    return items;
+    return { items, clientTotal: runningTotal, upteamCost };
   };
 
-  const pricingItems = calculatePricing();
+  const pricingData = calculatePricing();
+  const pricingItems = pricingData.items;
 
   if (isLoadingQuote) {
     return (
@@ -1226,7 +1244,12 @@ export default function Calculator() {
           </div>
 
           <div className="lg:col-span-1">
-            <PricingSummary items={pricingItems} onEdit={(i, v) => console.log(`Edit ${i}: ${v}`)} />
+            <PricingSummary 
+              items={pricingItems} 
+              onEdit={(i, v) => console.log(`Edit ${i}: ${v}`)} 
+              totalClientPrice={pricingData.clientTotal}
+              totalUpteamCost={pricingData.upteamCost}
+            />
           </div>
         </div>
       </div>

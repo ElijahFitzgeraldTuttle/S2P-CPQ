@@ -14,9 +14,11 @@ interface PricingLineItem {
 interface PricingSummaryProps {
   items: PricingLineItem[];
   onEdit?: (index: number, value: number) => void;
+  totalClientPrice?: number;
+  totalUpteamCost?: number;
 }
 
-export default function PricingSummary({ items, onEdit }: PricingSummaryProps) {
+export default function PricingSummary({ items, onEdit, totalClientPrice, totalUpteamCost }: PricingSummaryProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const handleEdit = (index: number, value: string) => {
@@ -24,6 +26,11 @@ export default function PricingSummary({ items, onEdit }: PricingSummaryProps) {
     onEdit?.(index, numValue);
     setEditingIndex(null);
   };
+  
+  const profitMargin = totalClientPrice && totalUpteamCost ? totalClientPrice - totalUpteamCost : 0;
+  const profitMarginPercent = totalClientPrice && totalUpteamCost && totalUpteamCost > 0 
+    ? ((profitMargin / totalUpteamCost) * 100) 
+    : 0;
 
   return (
     <Card className="sticky top-20">
@@ -78,6 +85,43 @@ export default function PricingSummary({ items, onEdit }: PricingSummaryProps) {
             </div>
           </div>
         ))}
+        
+        {totalClientPrice !== undefined && totalUpteamCost !== undefined && (
+          <>
+            <Separator className="my-6" />
+            <div className="space-y-3 pt-2">
+              <h3 className="font-semibold text-sm text-muted-foreground">COST SUMMARY (Internal)</h3>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Total Client Price</span>
+                <span className="font-mono text-sm font-semibold">
+                  ${totalClientPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Total Upteam Cost</span>
+                <span className="font-mono text-sm text-muted-foreground">
+                  ${totalUpteamCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">Profit Margin</span>
+                <div className="text-right">
+                  <div className="font-mono text-sm font-bold text-green-600">
+                    ${profitMargin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="font-mono text-xs text-green-600">
+                    {profitMarginPercent.toFixed(1)}% markup
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
