@@ -46,6 +46,7 @@ interface PricingLineItem {
   editable?: boolean;
   isDiscount?: boolean;
   isTotal?: boolean;
+  upteamCost?: number;
 }
 
 export default function Calculator() {
@@ -955,6 +956,7 @@ export default function Calculator() {
           label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${areaLabel}, LOD ${lod})${scopeLabel}`,
           value: lineTotal,
           editable: true,
+          upteamCost: upteamLineCost,
         });
       });
       
@@ -971,14 +973,16 @@ export default function Calculator() {
         
         const ratePerSqft = gradeRates[gradeLod] || 0.72;
         const gradeTotal = sqft * ratePerSqft;
+        const gradeUpteamCost = gradeTotal * UPTEAM_MULTIPLIER;
         
         otherDisciplinesTotal += gradeTotal;
-        upteamCost += gradeTotal * UPTEAM_MULTIPLIER; // Track upteam cost for grade work
+        upteamCost += gradeUpteamCost; // Track upteam cost for grade work
         
         items.push({
           label: `Grade Around Building (~20' topography) (${sqft.toLocaleString()} sqft, LOD ${gradeLod})`,
           value: gradeTotal,
           editable: true,
+          upteamCost: gradeUpteamCost,
         });
       }
     });
@@ -1036,9 +1040,10 @@ export default function Calculator() {
         label: `Travel (${distance} mi @ $${ratePerMile}/mi${distance > 75 && estimatedScanDays >= 2 ? ` + $${300 * estimatedScanDays} scan-day fee` : ''})`,
         value: travelCost,
         editable: true,
+        upteamCost: travelCost, // Travel is a real cost
       });
       runningTotal += travelCost;
-      upteamCost += travelCost; // Travel is a real cost
+      upteamCost += travelCost;
     }
 
     Object.entries(services).forEach(([serviceId, quantity]) => {
@@ -1055,35 +1060,42 @@ export default function Calculator() {
         
         let total = 0;
         let label = "";
+        let serviceUpteamCost = 0;
         
         if (serviceId === "matterport") {
           total = quantity * serviceRates[serviceId];
           label = `Matterport ($0.10/sqft × ${quantity.toLocaleString()} sqft)`;
-          upteamCost += total * UPTEAM_MULTIPLIER; // Real service cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real service cost
+          upteamCost += serviceUpteamCost;
         } else if (serviceId === "actSqft") {
           total = quantity * serviceRates[serviceId];
           label = `ACT Modeling ($5/sqft × ${quantity.toLocaleString()} sqft)`;
-          upteamCost += total * UPTEAM_MULTIPLIER; // Real modeling cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real modeling cost
+          upteamCost += serviceUpteamCost;
         } else if (serviceId === "georeferencing") {
           total = 1000;
           label = `Georeferencing`;
-          upteamCost += total * UPTEAM_MULTIPLIER; // Real service cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real service cost
+          upteamCost += serviceUpteamCost;
         } else if (serviceId === "cadDeliverable") {
           total = Math.max(quantity * serviceRates[serviceId], 300);
           label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;
-          upteamCost += total * UPTEAM_MULTIPLIER; // Real CAD work cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real CAD work cost
+          upteamCost += serviceUpteamCost;
         } else if (serviceId === "scanningFullDay") {
           total = 2500;
           label = `Scanning & Registration - Full Day`;
-          upteamCost += total * UPTEAM_MULTIPLIER; // Real scanning cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real scanning cost
+          upteamCost += serviceUpteamCost;
         } else if (serviceId === "scanningHalfDay") {
           total = 1500;
           label = `Scanning & Registration - Half Day`;
-          upteamCost += total * UPTEAM_MULTIPLIER; // Real scanning cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real scanning cost
+          upteamCost += serviceUpteamCost;
         } else if (serviceId === "expeditedService") {
           total = runningTotal * 0.20;
           label = `Expedited Service (+20% of total)`;
-          // Don't add to upteam - this is pure markup
+          // Don't add to upteam - this is pure markup, serviceUpteamCost stays 0
         }
         
         if (total > 0) {
@@ -1091,6 +1103,7 @@ export default function Calculator() {
             label,
             value: total,
             editable: true,
+            upteamCost: serviceUpteamCost > 0 ? serviceUpteamCost : undefined,
           });
           runningTotal += total;
         }

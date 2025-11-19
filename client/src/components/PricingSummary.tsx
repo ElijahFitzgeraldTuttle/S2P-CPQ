@@ -9,6 +9,7 @@ interface PricingLineItem {
   editable?: boolean;
   isDiscount?: boolean;
   isTotal?: boolean;
+  upteamCost?: number;
 }
 
 interface PricingSummaryProps {
@@ -103,6 +104,13 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
                 <div className="flex items-center justify-end mt-1">
                   <span className="font-mono text-xs text-muted-foreground" data-testid={`text-rate-${index}`}>
                     ${sqftData.rate.toFixed(2)}/sqft
+                  </span>
+                </div>
+              )}
+              {item.upteamCost !== undefined && item.upteamCost > 0 && !item.isTotal && (
+                <div className="flex items-center justify-end mt-0.5">
+                  <span className="font-mono text-xs text-muted-foreground" data-testid={`text-upteam-${index}`}>
+                    Upteam: ${item.upteamCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               )}
