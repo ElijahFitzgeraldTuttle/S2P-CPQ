@@ -36,6 +36,8 @@ interface Area {
   scope: string;
   disciplines: string[];
   disciplineLods: Record<string, string>;
+  gradeAroundBuilding: boolean;
+  gradeLod: string;
 }
 
 interface PricingLineItem {
@@ -69,7 +71,7 @@ export default function Calculator() {
     notes: "",
   });
   const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {} },
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300" },
   ]);
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
@@ -129,14 +131,14 @@ export default function Calculator() {
     }
   };
 
-  const handleAreaChange = (id: string, field: keyof Area, value: string) => {
+  const handleAreaChange = (id: string, field: keyof Area, value: string | boolean) => {
     setAreas((prev) =>
       prev.map((area) => {
         if (area.id !== id) return area;
         
         const updatedArea = { ...area, [field]: value };
         
-        if (field === "buildingType") {
+        if (field === "buildingType" && typeof value === "string") {
           const isLandscape = value === "14" || value === "15";
           const isACT = value === "16";
           
@@ -157,7 +159,7 @@ export default function Calculator() {
   const addArea = () => {
     setAreas((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {} },
+      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300" },
     ]);
   };
 
@@ -426,6 +428,12 @@ export default function Calculator() {
           const discLabel = disciplineMap[disc] || disc;
           text += `    ${discLabel}: LOD ${lod}\n`;
         });
+        
+        if (area.gradeAroundBuilding) {
+          text += `  Grade Around Building (~20' topography): Yes\n`;
+          text += `    LOD: ${area.gradeLod || "300"}\n`;
+        }
+        
         text += "\n";
       });
     }
@@ -896,6 +904,29 @@ export default function Calculator() {
           editable: true,
         });
       });
+      
+      // Grade Around Building pricing
+      if (area.gradeAroundBuilding && !isLandscape && !isACT) {
+        const sqft = Math.max(parseInt(area.squareFeet) || 0, 3000);
+        const gradeLod = area.gradeLod || "300";
+        
+        const gradeRates: Record<string, number> = {
+          "250": 0.54,
+          "300": 0.72,
+          "350": 0.90,
+        };
+        
+        const ratePerSqft = gradeRates[gradeLod] || 0.72;
+        const gradeTotal = sqft * ratePerSqft;
+        
+        otherDisciplinesTotal += gradeTotal;
+        
+        items.push({
+          label: `Grade Around Building (~20' topography) (${sqft.toLocaleString()} sqft, LOD ${gradeLod})`,
+          value: gradeTotal,
+          editable: true,
+        });
+      }
     });
 
     const baseSubtotal = archBaseTotal + otherDisciplinesTotal;
