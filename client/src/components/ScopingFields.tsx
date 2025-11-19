@@ -42,6 +42,7 @@ interface ScopingFieldsProps {
     paymentTermsOther: string;
     paymentNotes: string;
     accountContact: string;
+    phoneNumber: string;
     designProContact: string;
     designProCompanyContact: string;
     otherContact: string;
@@ -498,6 +499,21 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               placeholder="Primary account contact"
               value={data.accountContact}
               onChange={(e) => onChange('accountContact', e.target.value)}
+              data-testid="input-account-contact"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone-number" className="text-sm font-medium">
+              Phone Number
+            </Label>
+            <Input
+              id="phone-number"
+              type="tel"
+              placeholder="Contact phone number"
+              value={data.phoneNumber}
+              onChange={(e) => onChange('phoneNumber', e.target.value)}
+              data-testid="input-phone-number"
             />
           </div>
 
@@ -510,6 +526,7 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               placeholder="Design professional contact"
               value={data.designProContact}
               onChange={(e) => onChange('designProContact', e.target.value)}
+              data-testid="input-design-pro-contact"
             />
           </div>
 
