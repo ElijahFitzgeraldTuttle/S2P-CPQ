@@ -23,6 +23,7 @@ const BUILDING_TYPES = [
   { value: "13", label: "Infrastructure / Roads / Bridges" },
   { value: "14", label: "Built Landscape" },
   { value: "15", label: "Natural Landscape" },
+  { value: "16", label: "ACT (Above/Below Acoustic Ceiling Tiles) [rate pending]" },
 ];
 
 const PROJECT_SCOPES = [
@@ -67,6 +68,8 @@ interface AreaInputProps {
 
 export default function AreaInput({ area, index, onChange, onDisciplineChange, onLodChange, onRemove, canRemove }: AreaInputProps) {
   const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+  const isACT = area.buildingType === "16";
+  const isSimplifiedUI = isLandscape || isACT;
   
   return (
     <Card className="p-4">
@@ -133,7 +136,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
           </div>
         </div>
 
-        {!isLandscape && (
+        {!isSimplifiedUI && (
           <div className="space-y-2">
             <Label htmlFor={`area-scope-${area.id}`} className="text-sm font-medium">
               Project Scope
@@ -155,7 +158,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
 
         <Separator className="my-4" />
 
-        {isLandscape ? (
+        {isSimplifiedUI ? (
           <div className="space-y-3">
             <h4 className="font-semibold text-sm">Level of Detail (LoD)</h4>
             <div className="space-y-2">
@@ -163,10 +166,10 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
                 Select LoD
               </Label>
               <Select 
-                value={area.disciplineLods["site"] || "300"} 
-                onValueChange={(value) => onLodChange(area.id, "site", value)}
+                value={area.disciplineLods[isACT ? "mepf" : "site"] || "300"} 
+                onValueChange={(value) => onLodChange(area.id, isACT ? "mepf" : "site", value)}
               >
-                <SelectTrigger id={`lod-${area.id}`} data-testid={`select-lod-landscape-${index}`}>
+                <SelectTrigger id={`lod-${area.id}`} data-testid={`select-lod-simplified-${index}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

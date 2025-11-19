@@ -4,9 +4,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Upload } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import FileUpload from "./FileUpload";
 
 interface ScopingFieldsProps {
   data: {
@@ -21,10 +22,13 @@ interface ScopingFieldsProps {
     bimVersion: string;
     customTemplate: string;
     customTemplateOther: string;
+    customTemplateFiles: any[];
     sqftAssumptions: string;
+    sqftAssumptionsFiles: any[];
     assumedGrossMargin: string;
     caveatsProfitability: string;
     projectNotes: string;
+    scopingDocuments: any[];
     mixedScope: string;
     insuranceRequirements: string;
     tierAScanningCost: string;
@@ -39,8 +43,10 @@ interface ScopingFieldsProps {
     paymentNotes: string;
     accountContact: string;
     designProContact: string;
+    designProCompanyContact: string;
     otherContact: string;
     proofLinks: string;
+    ndaFiles: any[];
     source: string;
     sourceNote: string;
     assist: string;
@@ -183,12 +189,11 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
           </div>
 
           {data.customTemplate === 'yes' && (
-            <div>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Template
-              </Button>
-            </div>
+            <FileUpload
+              label="Upload Template"
+              files={data.customTemplateFiles || []}
+              onChange={(files) => onChange('customTemplateFiles', files)}
+            />
           )}
         </div>
       </Card>
@@ -207,6 +212,11 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               value={data.sqftAssumptions}
               onChange={(e) => onChange('sqftAssumptions', e.target.value)}
               rows={3}
+            />
+            <FileUpload
+              label="Upload Supporting Documents"
+              files={data.sqftAssumptionsFiles || []}
+              onChange={(files) => onChange('sqftAssumptionsFiles', files)}
             />
           </div>
 
@@ -245,6 +255,11 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               value={data.projectNotes}
               onChange={(e) => onChange('projectNotes', e.target.value)}
               rows={4}
+            />
+            <FileUpload
+              label="Upload Scoping Documents"
+              files={data.scopingDocuments || []}
+              onChange={(files) => onChange('scopingDocuments', files)}
             />
           </div>
 
@@ -285,20 +300,28 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
             </Label>
             <RadioGroup value={data.tierAScanningCost} onValueChange={(val) => onChange('tierAScanningCost', val)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="low" id="tier-scan-low" />
-                <Label htmlFor="tier-scan-low" className="cursor-pointer">Low</Label>
+                <RadioGroupItem value="3500" id="tier-scan-3500" />
+                <Label htmlFor="tier-scan-3500" className="cursor-pointer">$3,500</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="medium" id="tier-scan-medium" />
-                <Label htmlFor="tier-scan-medium" className="cursor-pointer">Medium</Label>
+                <RadioGroupItem value="7000" id="tier-scan-7000" />
+                <Label htmlFor="tier-scan-7000" className="cursor-pointer">$7,000</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="high" id="tier-scan-high" />
-                <Label htmlFor="tier-scan-high" className="cursor-pointer">High</Label>
+                <RadioGroupItem value="10500" id="tier-scan-10500" />
+                <Label htmlFor="tier-scan-10500" className="cursor-pointer">$10,500</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="15000" id="tier-scan-15000" />
+                <Label htmlFor="tier-scan-15000" className="cursor-pointer">$15,000</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="18500" id="tier-scan-18500" />
+                <Label htmlFor="tier-scan-18500" className="cursor-pointer">$18,500</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="other" id="tier-scan-other" />
-                <Label htmlFor="tier-scan-other" className="cursor-pointer">Other:</Label>
+                <Label htmlFor="tier-scan-other" className="cursor-pointer">Other</Label>
               </div>
             </RadioGroup>
             {data.tierAScanningCost === 'other' && (
@@ -321,18 +344,33 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               value={data.tierAModelingCost}
               onChange={(e) => onChange('tierAModelingCost', e.target.value)}
             />
+            <a 
+              href="https://docs.google.com/spreadsheets/d/192MhTytrT01h05V3xOugBXm7dFcxl4ZMxcwuVUCQAuo/edit?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              View Modeling Cost Reference
+              <ExternalLink className="h-3 w-3" />
+            </a>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="tier-margin" className="text-sm font-medium">
               Tier A - Margin
             </Label>
-            <Input
-              id="tier-margin"
-              placeholder="e.g., 25%"
-              value={data.tierAMargin}
-              onChange={(e) => onChange('tierAMargin', e.target.value)}
-            />
+            <Select value={data.tierAMargin} onValueChange={(val) => onChange('tierAMargin', val)}>
+              <SelectTrigger id="tier-margin">
+                <SelectValue placeholder="Select margin" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2.352">2.352X (1.68 overhead X 1.4 min GM)</SelectItem>
+                <SelectItem value="2.5">2.5X</SelectItem>
+                <SelectItem value="3">3X</SelectItem>
+                <SelectItem value="3.5">3.5X</SelectItem>
+                <SelectItem value="4">4X</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </Card>
@@ -347,30 +385,30 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
             </Label>
             <RadioGroup value={data.estimatedTimeline} onValueChange={(val) => onChange('estimatedTimeline', val)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1-2weeks" id="timeline-1-2" />
-                <Label htmlFor="timeline-1-2" className="cursor-pointer">1-2 weeks</Label>
+                <RadioGroupItem value="1week" id="timeline-1week" />
+                <Label htmlFor="timeline-1week" className="cursor-pointer">~1 week</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3-4weeks" id="timeline-3-4" />
-                <Label htmlFor="timeline-3-4" className="cursor-pointer">3-4 weeks</Label>
+                <RadioGroupItem value="2weeks" id="timeline-2weeks" />
+                <Label htmlFor="timeline-2weeks" className="cursor-pointer">~2 weeks</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1-2months" id="timeline-1-2m" />
-                <Label htmlFor="timeline-1-2m" className="cursor-pointer">1-2 months</Label>
+                <RadioGroupItem value="3weeks" id="timeline-3weeks" />
+                <Label htmlFor="timeline-3weeks" className="cursor-pointer">~3 weeks</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="timeline-other" />
-                <Label htmlFor="timeline-other" className="cursor-pointer">Other:</Label>
+                <RadioGroupItem value="4weeks" id="timeline-4weeks" />
+                <Label htmlFor="timeline-4weeks" className="cursor-pointer">~4 weeks</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="5weeks" id="timeline-5weeks" />
+                <Label htmlFor="timeline-5weeks" className="cursor-pointer">~5 weeks</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="6weeks" id="timeline-6weeks" />
+                <Label htmlFor="timeline-6weeks" className="cursor-pointer">~6 weeks</Label>
               </div>
             </RadioGroup>
-            {data.estimatedTimeline === 'other' && (
-              <Input
-                placeholder="Specify timeline"
-                value={data.timelineOther}
-                onChange={(e) => onChange('timelineOther', e.target.value)}
-                className="mt-2"
-              />
-            )}
           </div>
 
           <div className="space-y-2">
@@ -398,20 +436,28 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
             </Label>
             <RadioGroup value={data.paymentTerms} onValueChange={(val) => onChange('paymentTerms', val)}>
               <div className="flex items-center space-x-2">
+                <RadioGroupItem value="partner" id="payment-partner" />
+                <Label htmlFor="payment-partner" className="cursor-pointer">Partner (no hold on production)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="owner" id="payment-owner" />
+                <Label htmlFor="payment-owner" className="cursor-pointer">Owner (hold if delay)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
                 <RadioGroupItem value="net30" id="payment-net30" />
-                <Label htmlFor="payment-net30" className="cursor-pointer">Net 30</Label>
+                <Label htmlFor="payment-net30" className="cursor-pointer">Net 30 +5%</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="net60" id="payment-net60" />
-                <Label htmlFor="payment-net60" className="cursor-pointer">Net 60</Label>
+                <Label htmlFor="payment-net60" className="cursor-pointer">Net 60 +10%</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="50-50" id="payment-50-50" />
-                <Label htmlFor="payment-50-50" className="cursor-pointer">50% upfront, 50% on delivery</Label>
+                <RadioGroupItem value="net90" id="payment-net90" />
+                <Label htmlFor="payment-net90" className="cursor-pointer">Net 90 +15%</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="other" id="payment-other" />
-                <Label htmlFor="payment-other" className="cursor-pointer">Other:</Label>
+                <Label htmlFor="payment-other" className="cursor-pointer">Other</Label>
               </div>
             </RadioGroup>
             {data.paymentTerms === 'other' && (
@@ -468,8 +514,20 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="design-pro-company-contact" className="text-sm font-medium">
+              Design Pro Company Contact Info (if not client)
+            </Label>
+            <Input
+              id="design-pro-company-contact"
+              placeholder="Company contact information"
+              value={data.designProCompanyContact}
+              onChange={(e) => onChange('designProCompanyContact', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="other-contact" className="text-sm font-medium">
-              Other Contact
+              Other Contact Info
             </Label>
             <Input
               id="other-contact"
@@ -490,6 +548,11 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
               onChange={(e) => onChange('proofLinks', e.target.value)}
               rows={2}
             />
+            <FileUpload
+              label="Upload NDA"
+              files={data.ndaFiles || []}
+              onChange={(files) => onChange('ndaFiles', files)}
+            />
           </div>
         </div>
       </Card>
@@ -502,12 +565,31 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
             <Label htmlFor="source" className="text-sm font-medium">
               Source
             </Label>
-            <Input
-              id="source"
-              placeholder="How did this lead come in?"
-              value={data.source}
-              onChange={(e) => onChange('source', e.target.value)}
-            />
+            <Select value={data.source} onValueChange={(val) => onChange('source', val)}>
+              <SelectTrigger id="source">
+                <SelectValue placeholder="Select source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ABM">ABM</SelectItem>
+                <SelectItem value="Cold outreach">Cold outreach</SelectItem>
+                <SelectItem value="Referral - Client">Referral - Client</SelectItem>
+                <SelectItem value="Referral - Partner">Referral - Partner</SelectItem>
+                <SelectItem value="Existing customer">Existing customer</SelectItem>
+                <SelectItem value="CEU">CEU</SelectItem>
+                <SelectItem value="Proof Vault">Proof Vault</SelectItem>
+                <SelectItem value="Spec/Standards">Spec/Standards</SelectItem>
+                <SelectItem value="Podcast">Podcast</SelectItem>
+                <SelectItem value="Site/SEO">Site/SEO</SelectItem>
+                <SelectItem value="Permit trigger">Permit trigger</SelectItem>
+                <SelectItem value="Compliance trigger">Compliance trigger</SelectItem>
+                <SelectItem value="Procurement trigger">Procurement trigger</SelectItem>
+                <SelectItem value="Event/Conference">Event/Conference</SelectItem>
+                <SelectItem value="Social">Social</SelectItem>
+                <SelectItem value="Vendor Onboarding">Vendor Onboarding</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Unknown">Unknown</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -527,28 +609,46 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
             <Label htmlFor="assist" className="text-sm font-medium">
               Assist
             </Label>
-            <Input
-              id="assist"
-              placeholder="Who assisted with this lead?"
-              value={data.assist}
-              onChange={(e) => onChange('assist', e.target.value)}
-            />
+            <Select value={data.assist} onValueChange={(val) => onChange('assist', val)}>
+              <SelectTrigger id="assist">
+                <SelectValue placeholder="Select assist" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ABM">ABM</SelectItem>
+                <SelectItem value="Cold outreach">Cold outreach</SelectItem>
+                <SelectItem value="Referral - Client">Referral - Client</SelectItem>
+                <SelectItem value="Referral - Partner">Referral - Partner</SelectItem>
+                <SelectItem value="Existing customer">Existing customer</SelectItem>
+                <SelectItem value="CEU">CEU</SelectItem>
+                <SelectItem value="Proof Vault">Proof Vault</SelectItem>
+                <SelectItem value="Spec/Standards">Spec/Standards</SelectItem>
+                <SelectItem value="Podcast">Podcast</SelectItem>
+                <SelectItem value="Site/SEO">Site/SEO</SelectItem>
+                <SelectItem value="Permit trigger">Permit trigger</SelectItem>
+                <SelectItem value="Compliance trigger">Compliance trigger</SelectItem>
+                <SelectItem value="Procurement trigger">Procurement trigger</SelectItem>
+                <SelectItem value="Event/Conference">Event/Conference</SelectItem>
+                <SelectItem value="Social">Social</SelectItem>
+                <SelectItem value="Vendor Onboarding">Vendor Onboarding</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+                <SelectItem value="Unknown">Unknown</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="probability-closing" className="text-sm font-medium">
-              Probability of Closing
+              Probability of Closing: {data.probabilityOfClosing || 50}%
             </Label>
-            <Select value={data.probabilityOfClosing} onValueChange={(val) => onChange('probabilityOfClosing', val)}>
-              <SelectTrigger id="probability-closing">
-                <SelectValue placeholder="Select probability" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="high">High (70-100%)</SelectItem>
-                <SelectItem value="medium">Medium (40-70%)</SelectItem>
-                <SelectItem value="low">Low (0-40%)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Slider
+              id="probability-closing"
+              min={0}
+              max={100}
+              step={5}
+              value={[parseInt(data.probabilityOfClosing) || 50]}
+              onValueChange={(vals) => onChange('probabilityOfClosing', vals[0].toString())}
+              className="w-full"
+            />
           </div>
 
           <div className="space-y-2">
@@ -557,20 +657,16 @@ export default function ScopingFields({ data, onChange }: ScopingFieldsProps) {
             </Label>
             <RadioGroup value={data.projectStatus} onValueChange={(val) => onChange('projectStatus', val)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="quoted" id="status-quoted" />
-                <Label htmlFor="status-quoted" className="cursor-pointer">Quoted</Label>
+                <RadioGroupItem value="proposal" id="status-proposal" />
+                <Label htmlFor="status-proposal" className="cursor-pointer">Proposal Phase</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="won" id="status-won" />
-                <Label htmlFor="status-won" className="cursor-pointer">Won</Label>
+                <RadioGroupItem value="inhand" id="status-inhand" />
+                <Label htmlFor="status-inhand" className="cursor-pointer">In Hand</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="lost" id="status-lost" />
-                <Label htmlFor="status-lost" className="cursor-pointer">Lost</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pending" id="status-pending" />
-                <Label htmlFor="status-pending" className="cursor-pointer">Pending</Label>
+                <RadioGroupItem value="urgent" id="status-urgent" />
+                <Label htmlFor="status-urgent" className="cursor-pointer">Urgent</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="other" id="status-other" />

@@ -3,9 +3,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 
 const RISK_FACTORS = [
-  { id: "occupied", label: "Occupied Building", premium: 500 },
-  { id: "hazardous", label: "Hazardous Conditions", premium: 1000 },
-  { id: "noPower", label: "No Power/HVAC", premium: 300 },
+  { id: "occupied", label: "Occupied Building (+7%)", premium: 500 },
+  { id: "hazardous", label: "Hazardous Conditions (+12%)", premium: 1000 },
+  { id: "noPower", label: "No Power/HVAC (+15%)", premium: 300 },
 ];
 
 interface RiskFactorsProps {

@@ -3,8 +3,47 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertQuoteSchema } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import { writeFile } from "fs/promises";
+import { join } from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+  });
+
+  app.post("/api/upload", upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const privateDir = process.env.PRIVATE_OBJECT_DIR;
+      if (!privateDir) {
+        return res.status(500).json({ error: "Object storage not configured" });
+      }
+
+      const timestamp = Date.now();
+      const safeFilename = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filename = `${timestamp}_${safeFilename}`;
+      const filepath = join(privateDir, filename);
+
+      await writeFile(filepath, req.file.buffer);
+
+      const url = `/objstore${filepath}`;
+
+      res.json({
+        url,
+        filename: req.file.originalname,
+        size: req.file.size,
+      });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ error: "Failed to upload file" });
+    }
+  });
+
   // Quote routes
   app.get("/api/quotes", async (req, res) => {
     try {

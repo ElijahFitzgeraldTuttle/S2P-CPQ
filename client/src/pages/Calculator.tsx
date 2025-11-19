@@ -90,10 +90,13 @@ export default function Calculator() {
     bimVersion: "",
     customTemplate: "",
     customTemplateOther: "",
+    customTemplateFiles: [] as any[],
     sqftAssumptions: "",
+    sqftAssumptionsFiles: [] as any[],
     assumedGrossMargin: "",
     caveatsProfitability: "",
     projectNotes: "",
+    scopingDocuments: [] as any[],
     mixedScope: "",
     insuranceRequirements: "",
     tierAScanningCost: "",
@@ -108,12 +111,14 @@ export default function Calculator() {
     paymentNotes: "",
     accountContact: "",
     designProContact: "",
+    designProCompanyContact: "",
     otherContact: "",
     proofLinks: "",
+    ndaFiles: [] as any[],
     source: "",
     sourceNote: "",
     assist: "",
-    probabilityOfClosing: "",
+    probabilityOfClosing: "50",
     projectStatus: "",
     projectStatusOther: "",
   });
@@ -134,9 +139,14 @@ export default function Calculator() {
         
         if (field === "buildingType") {
           const isLandscape = value === "14" || value === "15";
+          const isACT = value === "16";
+          
           if (isLandscape) {
             updatedArea.disciplines = ["site"];
             updatedArea.disciplineLods = { site: updatedArea.disciplineLods.site || "300" };
+          } else if (isACT) {
+            updatedArea.disciplines = ["mepf"];
+            updatedArea.disciplineLods = { mepf: updatedArea.disciplineLods.mepf || "300" };
           }
         }
         
@@ -538,10 +548,11 @@ export default function Calculator() {
 
     areas.forEach((area) => {
       const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+      const isACT = area.buildingType === "16";
       const inputValue = isLandscape ? parseFloat(area.squareFeet) || 0 : parseInt(area.squareFeet) || 0;
       
       const scope = area.scope || "full";
-      const disciplines = isLandscape ? ["site"] : (area.disciplines.length > 0 ? area.disciplines : []);
+      const disciplines = isLandscape ? ["site"] : isACT ? ["mepf"] : (area.disciplines.length > 0 ? area.disciplines : []);
       
       disciplines.forEach((discipline) => {
         const lod = area.disciplineLods[discipline] || "300";
@@ -554,6 +565,10 @@ export default function Calculator() {
           const perAcreRate = getLandscapePerAcreRate(area.buildingType, acres, lod);
           lineTotal = acres * perAcreRate;
           areaLabel = `${acres} acres (${sqft.toLocaleString()} sqft)`;
+        } else if (isACT) {
+          const sqft = Math.max(inputValue, 3000);
+          lineTotal = sqft * 2.00;
+          areaLabel = `${sqft.toLocaleString()} sqft`;
         } else {
           const sqft = Math.max(inputValue, 3000);
           
@@ -579,7 +594,7 @@ export default function Calculator() {
         
         let scopeDiscount = 0;
         let scopeLabel = "";
-        if (!isLandscape) {
+        if (!isLandscape && !isACT) {
           if (scope === "interior" && discipline === "architecture") {
             scopeDiscount = lineTotal * 0.25;
             scopeLabel = " (Interior Only -25%)";
@@ -621,11 +636,11 @@ export default function Calculator() {
     let archAfterRisk = archBaseTotal;
     if (risks.length > 0) {
       risks.forEach((risk) => {
-        let riskPercent = 0.15;
+        let riskPercent = 0.07;
         if (risk === "Hazardous") {
-          riskPercent = 0.25;
+          riskPercent = 0.12;
         } else if (risk === "No Power") {
-          riskPercent = 0.20;
+          riskPercent = 0.15;
         }
         
         const premium = archBaseTotal * riskPercent;
@@ -705,21 +720,21 @@ export default function Calculator() {
       }
     });
 
-    const paymentInterest: Record<string, number> = {
-      net30: 0,
-      net60: 0.10,
-      net90: 0.20,
-    };
-    
-    const interestRate = paymentInterest[paymentTerms] || 0;
-    if (interestRate > 0) {
-      const interestAmount = runningTotal * interestRate;
-      items.push({
-        label: `Payment Terms Interest (${paymentTerms.toUpperCase()} +${Math.round(interestRate * 100)}%)`,
-        value: interestAmount,
-        editable: true,
-      });
-      runningTotal += interestAmount;
+    if (paymentTerms) {
+      let percentage = 0;
+      if (paymentTerms === "net30") percentage = 0.05;
+      else if (paymentTerms === "net60") percentage = 0.10;
+      else if (paymentTerms === "net90") percentage = 0.15;
+      
+      if (percentage > 0) {
+        const paymentTermAdjustment = runningTotal * percentage;
+        items.push({
+          label: `Payment Terms Adjustment (+${Math.round(percentage * 100)}%)`,
+          value: paymentTermAdjustment,
+          editable: true,
+        });
+        runningTotal += paymentTermAdjustment;
+      }
     }
 
     if (items.length > 0) {
