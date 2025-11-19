@@ -38,6 +38,7 @@ const DISCIPLINES = [
   { id: "structure", label: "Structure", description: "Structural elements" },
   { id: "mepf", label: "MEPF", description: "Mechanical, Electrical, Plumbing, Fire" },
   { id: "site", label: "Site/Topography", description: "Site work and grading" },
+  { id: "matterport", label: "Matterport Virtual Tours", description: "Virtual tour generation at $0.10/sqft" },
 ];
 
 const LOD_LEVELS = [
@@ -223,7 +224,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
                       </div>
                     </div>
 
-                    {isSelected && (
+                    {isSelected && discipline.id !== "matterport" && (
                       <div className="space-y-2 pl-8">
                         <Label htmlFor={`lod-${area.id}-${discipline.id}`} className="text-sm font-medium">
                           LoD
