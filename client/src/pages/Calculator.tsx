@@ -77,7 +77,7 @@ export default function Calculator() {
   const [distanceCalculated, setDistanceCalculated] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [services, setServices] = useState<Record<string, number>>({});
-  const [paymentTerms, setPaymentTerms] = useState("net30");
+  const [paymentTerms, setPaymentTerms] = useState("");
   const [scopingData, setScopingData] = useState({
     gradeAroundBuilding: "",
     gradeOther: "",
