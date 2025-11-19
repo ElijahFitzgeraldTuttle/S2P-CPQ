@@ -21,7 +21,9 @@ import RiskFactors from "@/components/RiskFactors";
 import TravelCalculator from "@/components/TravelCalculator";
 import AdditionalServices from "@/components/AdditionalServices";
 import PricingSummary from "@/components/PricingSummary";
-import ScopingFields from "@/components/ScopingFields";
+import QuoteFields from "@/components/QuoteFields";
+import ScopeFields from "@/components/ScopeFields";
+import CRMFields from "@/components/CRMFields";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -793,60 +795,79 @@ export default function Calculator() {
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
-
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Project Areas</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addArea}
-                  data-testid="button-add-area"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Area
-                </Button>
+            {/* QUOTE SECTION */}
+            <div className="rounded-lg bg-blue-50/30 dark:bg-blue-950/10 p-6 space-y-6">
+              <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100">Quote</h2>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Project Areas</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addArea}
+                    data-testid="button-add-area"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Area
+                  </Button>
+                </div>
+                {areas.map((area, index) => (
+                  <AreaInput
+                    key={area.id}
+                    area={area}
+                    index={index}
+                    onChange={handleAreaChange}
+                    onDisciplineChange={handleAreaDisciplineChange}
+                    onLodChange={handleAreaLodChange}
+                    onRemove={removeArea}
+                    canRemove={areas.length > 1}
+                  />
+                ))}
               </div>
-              {areas.map((area, index) => (
-                <AreaInput
-                  key={area.id}
-                  area={area}
-                  index={index}
-                  onChange={handleAreaChange}
-                  onDisciplineChange={handleAreaDisciplineChange}
-                  onLodChange={handleAreaLodChange}
-                  onRemove={removeArea}
-                  canRemove={areas.length > 1}
-                />
-              ))}
+
+              <Separator />
+
+              <RiskFactors selectedRisks={risks} onRiskChange={handleRiskChange} />
+
+              <Separator />
+
+              <TravelCalculator
+                dispatchLocation={dispatch}
+                projectAddress={projectDetails.projectAddress}
+                distance={distance}
+                isCalculating={isCalculatingDistance}
+                onDispatchChange={setDispatch}
+                onAddressChange={(val) => handleProjectDetailChange("projectAddress", val as string)}
+                onCalculate={handleCalculateDistance}
+              />
+
+              <Separator />
+
+              <AdditionalServices services={services} onServiceChange={handleServiceChange} />
+
+              <Separator />
+
+              <QuoteFields data={scopingData} onChange={handleScopingDataChange} />
             </div>
 
-            <Separator />
+            {/* SCOPE SECTION */}
+            <div className="rounded-lg bg-green-50/30 dark:bg-green-950/10 p-6 space-y-6">
+              <h2 className="text-2xl font-bold text-green-900 dark:text-green-100">Scope</h2>
+              
+              <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
 
-            <RiskFactors selectedRisks={risks} onRiskChange={handleRiskChange} />
+              <Separator />
 
-            <Separator />
+              <ScopeFields data={scopingData} onChange={handleScopingDataChange} />
+            </div>
 
-            <TravelCalculator
-              dispatchLocation={dispatch}
-              projectAddress={projectDetails.projectAddress}
-              distance={distance}
-              isCalculating={isCalculatingDistance}
-              onDispatchChange={setDispatch}
-              onAddressChange={(val) => handleProjectDetailChange("projectAddress", val as string)}
-              onCalculate={handleCalculateDistance}
-            />
-
-            <Separator />
-
-            <AdditionalServices services={services} onServiceChange={handleServiceChange} />
-
-            <Separator />
-
-            <ScopingFields data={scopingData} onChange={handleScopingDataChange} />
+            {/* CRM SECTION */}
+            <div className="rounded-lg bg-amber-50/30 dark:bg-amber-950/10 p-6 space-y-6">
+              <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-100">CRM</h2>
+              
+              <CRMFields data={scopingData} onChange={handleScopingDataChange} />
+            </div>
 
             <div className="flex gap-4 pt-6">
               <Button 
