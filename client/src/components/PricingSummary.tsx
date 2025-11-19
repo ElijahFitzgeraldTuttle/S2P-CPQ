@@ -107,13 +107,6 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
                   </span>
                 </div>
               )}
-              {item.upteamCost !== undefined && item.upteamCost > 0 && !item.isTotal && (
-                <div className="flex items-center justify-end mt-0.5">
-                  <span className="font-mono text-xs text-muted-foreground" data-testid={`text-upteam-${index}`}>
-                    Upteam: ${item.upteamCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
             </div>
           );
         })}
@@ -131,9 +124,37 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
                 </span>
               </div>
               
+              <Separator className="my-3" />
+              
+              <div className="space-y-2">
+                <h4 className="font-semibold text-xs text-muted-foreground uppercase">Upteam Cost Breakdown</h4>
+                {items.filter(item => item.upteamCost !== undefined && item.upteamCost > 0).map((item, idx) => {
+                  const sqftData = extractSqftAndRate(item.label, item.upteamCost || 0);
+                  return (
+                    <div key={`upteam-${idx}`} className="pl-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{item.label}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          ${(item.upteamCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {sqftData && (
+                        <div className="flex items-center justify-end">
+                          <span className="font-mono text-xs text-muted-foreground/70">
+                            ${sqftData.rate.toFixed(2)}/sqft
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <Separator className="my-3" />
+              
               <div className="flex items-center justify-between">
-                <span className="text-sm">Total Upteam Cost</span>
-                <span className="font-mono text-sm text-muted-foreground">
+                <span className="text-sm font-semibold">Total Upteam Cost</span>
+                <span className="font-mono text-sm font-semibold text-muted-foreground">
                   ${totalUpteamCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
