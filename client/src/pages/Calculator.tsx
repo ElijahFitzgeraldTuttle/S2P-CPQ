@@ -86,8 +86,6 @@ export default function Calculator() {
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [services, setServices] = useState<Record<string, number>>({});
   const [scopingData, setScopingData] = useState({
-    gradeAroundBuilding: "",
-    gradeOther: "",
     interiorCadElevations: "",
     aboveBelowACT: "",
     aboveBelowACTOther: "",
@@ -450,16 +448,6 @@ export default function Calculator() {
         text += "\n";
       });
     }
-
-    text += "SITE & LANDSCAPE\n";
-    text += "----------------------------\n";
-    if (scopingData.gradeAroundBuilding) {
-      text += `Grade Around Building: ${scopingData.gradeAroundBuilding}\n`;
-      if (scopingData.gradeAroundBuilding === "other" && scopingData.gradeOther) {
-        text += `  Other: ${scopingData.gradeOther}\n`;
-      }
-    }
-    text += "\n";
 
     text += "DELIVERABLES\n";
     text += "----------------------------\n";

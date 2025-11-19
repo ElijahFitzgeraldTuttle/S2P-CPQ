@@ -8,8 +8,6 @@ import FileUpload from "./FileUpload";
 
 interface ScopeFieldsProps {
   data: {
-    gradeAroundBuilding: string;
-    gradeOther: string;
     interiorCadElevations: string;
     bimDeliverable: string[];
     bimDeliverableOther: string;
@@ -46,40 +44,6 @@ export default function ScopeFields({ data, onChange }: ScopeFieldsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Site & Landscape */}
-      <Card className="p-4 bg-accent/50">
-        <h3 className="text-lg font-semibold mb-4">Site & Landscape</h3>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Grade Around Building? (~20' topography)
-            </Label>
-            <RadioGroup value={data.gradeAroundBuilding} onValueChange={(val) => onChange('gradeAroundBuilding', val)}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="grade-yes" />
-                <Label htmlFor="grade-yes" className="cursor-pointer">Yes</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id="grade-no" />
-                <Label htmlFor="grade-no" className="cursor-pointer">No</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="grade-other" />
-                <Label htmlFor="grade-other" className="cursor-pointer">Other:</Label>
-              </div>
-            </RadioGroup>
-            {data.gradeAroundBuilding === 'other' && (
-              <Input
-                placeholder="Specify other"
-                value={data.gradeOther}
-                onChange={(e) => onChange('gradeOther', e.target.value)}
-                className="mt-2"
-              />
-            )}
-          </div>
-        </div>
-      </Card>
-
       {/* Deliverables */}
       <Card className="p-4 bg-accent/50">
         <h3 className="text-lg font-semibold mb-4">Deliverables</h3>
