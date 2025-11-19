@@ -59,6 +59,11 @@ export default function Calculator() {
     enabled: !!quoteId,
   });
 
+  // Fetch pricing matrix from database
+  const { data: pricingRates, isLoading: isLoadingPricing } = useQuery<any[]>({
+    queryKey: ["/api/pricing-matrix"],
+  });
+
   const [scopingMode] = useState(true);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
@@ -801,7 +806,36 @@ export default function Calculator() {
     });
   };
 
+  // Helper function to get area tier based on square footage
+  const getAreaTier = (sqft: number): string => {
+    if (sqft <= 5000) return "0-5k";
+    if (sqft <= 10000) return "5k-10k";
+    if (sqft <= 20000) return "10k-20k";
+    if (sqft <= 30000) return "20k-30k";
+    if (sqft <= 40000) return "30k-40k";
+    if (sqft <= 50000) return "40k-50k";
+    if (sqft <= 75000) return "50k-75k";
+    if (sqft <= 100000) return "75k-100k";
+    return "100k+";
+  };
+
+  // Helper function to look up pricing rate from database
+  const getPricingRate = (buildingTypeId: string, sqft: number, discipline: string, lod: string): number => {
+    if (!pricingRates) return 0;
+    
+    const areaTier = getAreaTier(sqft);
+    const rate = pricingRates.find((r: any) => 
+      r.building_type_id === parseInt(buildingTypeId) &&
+      r.area_tier === areaTier &&
+      r.discipline === discipline &&
+      r.lod === lod
+    );
+    
+    return rate ? parseFloat(rate.rate_per_sq_ft) : 0;
+  };
+
   const getLandscapePerAcreRate = (buildingType: string, acres: number, lod: string): number => {
+    // Landscape pricing still uses hardcoded rates (building types 14-15)
     const builtLandscapeRates: Record<string, number[]> = {
       "200": [875, 625, 375, 250, 160],
       "300": [1000, 750, 500, 375, 220],
@@ -859,23 +893,32 @@ export default function Calculator() {
         } else {
           const sqft = Math.max(inputValue, 3000);
           
-          let baseRatePerSqft = 2.50;
-          if (discipline === "mepf") {
-            baseRatePerSqft = 3.00;
-          } else if (discipline === "structure") {
-            baseRatePerSqft = 2.00;
-          } else if (discipline === "site") {
-            baseRatePerSqft = 1.50;
+          // Get rate from database pricing matrix
+          const ratePerSqft = getPricingRate(area.buildingType, sqft, discipline, lod);
+          
+          if (ratePerSqft > 0) {
+            lineTotal = sqft * ratePerSqft;
+          } else {
+            // Fallback to hardcoded rates if database rate not found
+            let baseRatePerSqft = 2.50;
+            if (discipline === "mepf") {
+              baseRatePerSqft = 3.00;
+            } else if (discipline === "structure") {
+              baseRatePerSqft = 2.00;
+            } else if (discipline === "site") {
+              baseRatePerSqft = 1.50;
+            }
+            
+            const lodMultiplier: Record<string, number> = {
+              "200": 1.0,
+              "300": 1.3,
+              "350": 1.5,
+            };
+            
+            const multiplier = lodMultiplier[lod] || 1.0;
+            lineTotal = sqft * baseRatePerSqft * multiplier;
           }
           
-          const lodMultiplier: Record<string, number> = {
-            "200": 1.0,
-            "300": 1.3,
-            "350": 1.5,
-          };
-          
-          const multiplier = lodMultiplier[lod] || 1.0;
-          lineTotal = sqft * baseRatePerSqft * multiplier;
           areaLabel = `${sqft.toLocaleString()} sqft`;
         }
         
@@ -1098,10 +1141,10 @@ export default function Calculator() {
   const pricingData = calculatePricing();
   const pricingItems = pricingData.items;
 
-  if (isLoadingQuote) {
+  if (isLoadingQuote || isLoadingPricing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading quote...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }

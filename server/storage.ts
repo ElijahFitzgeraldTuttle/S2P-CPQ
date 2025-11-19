@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users } from "@shared/schema";
+import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -13,6 +13,11 @@ export interface IStorage {
   getAllQuotes(): Promise<Quote[]>;
   updateQuote(id: string, quote: Partial<InsertQuote>): Promise<Quote | undefined>;
   deleteQuote(id: string): Promise<boolean>;
+  
+  // Pricing matrix operations
+  getAllPricingRates(): Promise<any[]>;
+  getPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined>;
+  updatePricingRate(id: number, ratePerSqFt: string): Promise<any | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -71,6 +76,39 @@ export class DbStorage implements IStorage {
   async deleteQuote(id: string): Promise<boolean> {
     const result = await db.delete(quotes).where(eq(quotes.id, id)).returning();
     return result.length > 0;
+  }
+  
+  // Pricing matrix methods
+  async getAllPricingRates(): Promise<any[]> {
+    return db.select().from(pricingMatrix);
+  }
+  
+  async getPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined> {
+    const [rate] = await db
+      .select()
+      .from(pricingMatrix)
+      .where(
+        and(
+          eq(pricingMatrix.buildingTypeId, buildingTypeId),
+          eq(pricingMatrix.areaTier, areaTier),
+          eq(pricingMatrix.discipline, discipline),
+          eq(pricingMatrix.lod, lod)
+        )
+      )
+      .limit(1);
+    return rate;
+  }
+  
+  async updatePricingRate(id: number, ratePerSqFt: string): Promise<any | undefined> {
+    const [updated] = await db
+      .update(pricingMatrix)
+      .set({ 
+        ratePerSqFt,
+        updatedAt: new Date(),
+      })
+      .where(eq(pricingMatrix.id, id))
+      .returning();
+    return updated;
   }
 }
 

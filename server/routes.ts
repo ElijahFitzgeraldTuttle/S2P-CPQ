@@ -179,6 +179,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pricing matrix routes
+  app.get("/api/pricing-matrix", async (req, res) => {
+    try {
+      const allRates = await storage.getAllPricingRates();
+      res.json(allRates);
+    } catch (error) {
+      console.error("Error fetching pricing rates:", error);
+      res.status(500).json({ error: "Failed to fetch pricing rates" });
+    }
+  });
+  
+  app.patch("/api/pricing-matrix/:id", async (req, res) => {
+    try {
+      const { ratePerSqFt } = req.body;
+      if (!ratePerSqFt) {
+        return res.status(400).json({ error: "ratePerSqFt is required" });
+      }
+      
+      const updated = await storage.updatePricingRate(parseInt(req.params.id), ratePerSqFt);
+      if (!updated) {
+        return res.status(404).json({ error: "Pricing rate not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating pricing rate:", error);
+      res.status(500).json({ error: "Failed to update pricing rate" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
