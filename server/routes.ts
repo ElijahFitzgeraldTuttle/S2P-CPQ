@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertQuoteSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -23,6 +23,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!privateDir) {
         return res.status(500).json({ error: "Object storage not configured" });
       }
+
+      // Ensure the private directory exists
+      await mkdir(privateDir, { recursive: true });
 
       const timestamp = Date.now();
       const safeFilename = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
