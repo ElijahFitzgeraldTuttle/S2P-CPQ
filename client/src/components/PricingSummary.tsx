@@ -27,6 +27,19 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
     setEditingIndex(null);
   };
   
+  // Extract square footage from label and calculate per-sqft rate
+  const extractSqftAndRate = (label: string, value: number): { sqft: number; rate: number } | null => {
+    // Match patterns like "(3,000 sqft" or "(3000 sqft"
+    const sqftMatch = label.match(/\(([0-9,]+)\s+sqft/i);
+    if (sqftMatch) {
+      const sqft = parseInt(sqftMatch[1].replace(/,/g, ''));
+      if (sqft > 0) {
+        return { sqft, rate: value / sqft };
+      }
+    }
+    return null;
+  };
+  
   const profitMargin = totalClientPrice && totalUpteamCost ? totalClientPrice - totalUpteamCost : 0;
   const profitMarginPercent = totalClientPrice && totalUpteamCost && totalUpteamCost > 0 
     ? ((profitMargin / totalUpteamCost) * 100) 
@@ -38,53 +51,64 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
         <CardTitle>Pricing Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {items.map((item, index) => (
-          <div key={index}>
-            {item.isTotal && index > 0 && <Separator className="my-4" />}
-            <div className="flex items-center justify-between">
-              <span
-                className={`text-sm ${
-                  item.isTotal
-                    ? "font-bold text-lg"
-                    : item.isDiscount
-                    ? "text-green-600"
-                    : ""
-                }`}
-              >
-                {item.label}
-              </span>
-              {item.editable && editingIndex === index ? (
-                <Input
-                  type="number"
-                  className="w-32 h-8 text-right font-mono"
-                  defaultValue={item.value}
-                  onBlur={(e) => handleEdit(index, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleEdit(index, e.currentTarget.value);
-                    }
-                  }}
-                  autoFocus
-                  data-testid={`input-edit-price-${index}`}
-                />
-              ) : (
+        {items.map((item, index) => {
+          const sqftData = extractSqftAndRate(item.label, item.value);
+          
+          return (
+            <div key={index}>
+              {item.isTotal && index > 0 && <Separator className="my-4" />}
+              <div className="flex items-center justify-between">
                 <span
-                  className={`font-mono ${
-                    item.isTotal ? "font-bold text-lg" : "text-sm"
-                  } ${
-                    item.isDiscount ? "text-green-600" : ""
-                  } ${
-                    item.editable ? "cursor-pointer hover:underline hover:text-primary" : ""
+                  className={`text-sm ${
+                    item.isTotal
+                      ? "font-bold text-lg"
+                      : item.isDiscount
+                      ? "text-green-600"
+                      : ""
                   }`}
-                  onClick={() => item.editable && setEditingIndex(index)}
-                  data-testid={`text-price-${index}`}
                 >
-                  {item.isDiscount && "- "}${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {item.label}
                 </span>
+                {item.editable && editingIndex === index ? (
+                  <Input
+                    type="number"
+                    className="w-32 h-8 text-right font-mono"
+                    defaultValue={item.value}
+                    onBlur={(e) => handleEdit(index, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleEdit(index, e.currentTarget.value);
+                      }
+                    }}
+                    autoFocus
+                    data-testid={`input-edit-price-${index}`}
+                  />
+                ) : (
+                  <span
+                    className={`font-mono ${
+                      item.isTotal ? "font-bold text-lg" : "text-sm"
+                    } ${
+                      item.isDiscount ? "text-green-600" : ""
+                    } ${
+                      item.editable ? "cursor-pointer hover:underline hover:text-primary" : ""
+                    }`}
+                    onClick={() => item.editable && setEditingIndex(index)}
+                    data-testid={`text-price-${index}`}
+                  >
+                    {item.isDiscount && "- "}${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
+              {sqftData && !item.isTotal && (
+                <div className="flex items-center justify-end mt-1">
+                  <span className="font-mono text-xs text-muted-foreground" data-testid={`text-rate-${index}`}>
+                    ${sqftData.rate.toFixed(2)}/sqft
+                  </span>
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         
         {totalClientPrice !== undefined && totalUpteamCost !== undefined && (
           <>
