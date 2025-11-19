@@ -86,7 +86,6 @@ export default function Calculator() {
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [services, setServices] = useState<Record<string, number>>({});
   const [scopingData, setScopingData] = useState({
-    interiorCadElevations: "",
     aboveBelowACT: "",
     aboveBelowACTOther: "",
     actSqft: "",
@@ -451,9 +450,6 @@ export default function Calculator() {
 
     text += "DELIVERABLES\n";
     text += "----------------------------\n";
-    if (scopingData.interiorCadElevations) {
-      text += `Interior CAD Elevations: ${scopingData.interiorCadElevations}\n`;
-    }
     if (scopingData.bimDeliverable && scopingData.bimDeliverable.length > 0) {
       text += `BIM Deliverable: ${scopingData.bimDeliverable.join(", ")}\n`;
       if (scopingData.bimDeliverable.includes("Other") && scopingData.bimDeliverableOther) {

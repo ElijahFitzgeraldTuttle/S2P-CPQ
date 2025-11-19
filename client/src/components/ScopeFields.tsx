@@ -8,7 +8,6 @@ import FileUpload from "./FileUpload";
 
 interface ScopeFieldsProps {
   data: {
-    interiorCadElevations: string;
     bimDeliverable: string[];
     bimDeliverableOther: string;
     bimVersion: string;
@@ -48,20 +47,6 @@ export default function ScopeFields({ data, onChange }: ScopeFieldsProps) {
       <Card className="p-4 bg-accent/50">
         <h3 className="text-lg font-semibold mb-4">Deliverables</h3>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="interior-cad-elevations" className="text-sm font-medium">
-              Interior CAD Elevations? How Many?
-            </Label>
-            <Input
-              id="interior-cad-elevations"
-              type="number"
-              placeholder="0"
-              value={data.interiorCadElevations}
-              onChange={(e) => onChange('interiorCadElevations', e.target.value)}
-              className="font-mono"
-            />
-          </div>
-
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               BIM Deliverable
