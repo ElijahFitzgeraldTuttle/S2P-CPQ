@@ -897,6 +897,11 @@ export default function Calculator() {
           const sqft = Math.max(inputValue, 3000);
           lineTotal = sqft * 2.00;
           areaLabel = `${sqft.toLocaleString()} sqft`;
+        } else if (discipline === "matterport") {
+          // Matterport Virtual Tours - flat $0.10/sqft rate
+          const sqft = Math.max(inputValue, 3000);
+          lineTotal = sqft * 0.10;
+          areaLabel = `${sqft.toLocaleString()} sqft`;
         } else {
           const sqft = Math.max(inputValue, 3000);
           
@@ -931,7 +936,8 @@ export default function Calculator() {
         
         let scopeDiscount = 0;
         let scopeLabel = "";
-        if (!isLandscape && !isACT) {
+        // Don't apply scope discounts to Matterport
+        if (!isLandscape && !isACT && discipline !== "matterport") {
           if (scope === "interior") {
             scopeDiscount = lineTotal * 0.25;
             scopeLabel = " (Interior Only -25%)";
@@ -957,7 +963,9 @@ export default function Calculator() {
         }
         
         items.push({
-          label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${areaLabel}, LOD ${lod})${scopeLabel}`,
+          label: discipline === "matterport" 
+            ? `Matterport Virtual Tours (${areaLabel})`
+            : `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${areaLabel}, LOD ${lod})${scopeLabel}`,
           value: lineTotal,
           editable: true,
           upteamCost: upteamLineCost,
@@ -1055,7 +1063,6 @@ export default function Calculator() {
         const serviceRates: Record<string, number> = {
           georeferencing: 1000,
           cadDeliverable: 300,
-          matterport: 0.10,
           expeditedService: 0,
           actSqft: 5,
           scanningFullDay: 2500,
@@ -1066,12 +1073,7 @@ export default function Calculator() {
         let label = "";
         let serviceUpteamCost = 0;
         
-        if (serviceId === "matterport") {
-          total = quantity * serviceRates[serviceId];
-          label = `Matterport ($0.10/sqft × ${quantity.toLocaleString()} sqft)`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real service cost
-          upteamCost += serviceUpteamCost;
-        } else if (serviceId === "actSqft") {
+        if (serviceId === "actSqft") {
           total = quantity * serviceRates[serviceId];
           label = `ACT Modeling ($5/sqft × ${quantity.toLocaleString()} sqft)`;
           serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real modeling cost

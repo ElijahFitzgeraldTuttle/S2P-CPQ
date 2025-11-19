@@ -8,6 +8,7 @@ const DISCIPLINES = [
   { id: "structure", label: "Structure", description: "Structural elements" },
   { id: "mepf", label: "MEPF", description: "Mechanical, Electrical, Plumbing, Fire" },
   { id: "site", label: "Site/Topography", description: "Site work and grading" },
+  { id: "matterport", label: "Matterport Virtual Tours", description: "Virtual tour generation at $0.10/sqft" },
 ];
 
 const LOD_LEVELS = [
@@ -66,15 +67,20 @@ export default function DisciplineSelector({
                     <p className="text-xs text-muted-foreground mt-1">
                       {discipline.description}
                     </p>
-                    {isSelected && (
+                    {isSelected && discipline.id !== "matterport" && (
                       <p className="text-xs text-primary font-mono mt-2">
                         Est. $2.50/sqft
+                      </p>
+                    )}
+                    {isSelected && discipline.id === "matterport" && (
+                      <p className="text-xs text-primary font-mono mt-2">
+                        $0.10/sqft
                       </p>
                     )}
                   </div>
                 </div>
 
-                {isSelected && (
+                {isSelected && discipline.id !== "matterport" && (
                   <div className="space-y-2 pl-8">
                     <Label htmlFor={`lod-${discipline.id}`} className="text-sm font-medium">
                       LoD
