@@ -3,9 +3,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 
 const RISK_FACTORS = [
-  { id: "occupied", label: "Occupied Building (+15%)", premium: 500 },
-  { id: "hazardous", label: "Hazardous Conditions (+25%)", premium: 1000 },
-  { id: "noPower", label: "No Power/HVAC (+20%)", premium: 300 },
+  { id: "occupied", label: "Occupied Building (+15%)" },
+  { id: "hazardous", label: "Hazardous Conditions (+25%)" },
+  { id: "noPower", label: "No Power/HVAC (+20%)" },
 ];
 
 interface RiskFactorsProps {
@@ -32,23 +32,16 @@ export default function RiskFactors({ selectedRisks, onRiskChange }: RiskFactors
               }`}
               onClick={() => onRiskChange(risk.id, !isSelected)}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id={risk.id}
-                    checked={isSelected}
-                    onCheckedChange={(checked) => onRiskChange(risk.id, checked as boolean)}
-                    data-testid={`checkbox-risk-${risk.id}`}
-                  />
-                  <Label htmlFor={risk.id} className="text-sm font-medium cursor-pointer">
-                    {risk.label}
-                  </Label>
-                </div>
-                {isSelected && (
-                  <span className="text-sm font-mono text-destructive">
-                    +${risk.premium}
-                  </span>
-                )}
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id={risk.id}
+                  checked={isSelected}
+                  onCheckedChange={(checked) => onRiskChange(risk.id, checked as boolean)}
+                  data-testid={`checkbox-risk-${risk.id}`}
+                />
+                <Label htmlFor={risk.id} className="text-sm font-medium cursor-pointer">
+                  {risk.label}
+                </Label>
               </div>
             </Card>
           );
