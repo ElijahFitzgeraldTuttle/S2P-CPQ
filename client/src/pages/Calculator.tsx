@@ -825,13 +825,13 @@ export default function Calculator() {
     
     const areaTier = getAreaTier(sqft);
     const rate = pricingRates.find((r: any) => 
-      r.building_type_id === parseInt(buildingTypeId) &&
-      r.area_tier === areaTier &&
+      r.buildingTypeId === parseInt(buildingTypeId) &&
+      r.areaTier === areaTier &&
       r.discipline === discipline &&
       r.lod === lod
     );
     
-    return rate ? parseFloat(rate.rate_per_sq_ft) : 0;
+    return rate ? parseFloat(rate.ratePerSqFt) : 0;
   };
 
   const getLandscapePerAcreRate = (buildingType: string, acres: number, lod: string): number => {
