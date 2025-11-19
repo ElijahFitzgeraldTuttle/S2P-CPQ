@@ -5,15 +5,14 @@ import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Download, FileText, FileSpreadsheet, Files } from "lucide-react";
+import { Plus, Save, Download, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
@@ -262,7 +261,7 @@ export default function Calculator() {
       setRisks(existingQuote.risks as string[]);
       setDispatch(existingQuote.dispatchLocation);
       setDistance(existingQuote.distance);
-      setDistanceCalculated(!!existingQuote.distance);
+      setDistanceCalculated(existingQuote.distance !== null && existingQuote.distance !== undefined);
       setServices(existingQuote.services as Record<string, number>);
       
       const legacyPaymentTerms = (existingQuote as any).paymentTerms;
@@ -336,195 +335,456 @@ export default function Calculator() {
     saveQuoteMutation.mutate(quoteData);
   };
 
-  const exportQuote = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFontSize(20);
-    doc.text("S2P - Scan2Plan", 14, 20);
-    
-    doc.setFontSize(16);
-    doc.text("Quote", 14, 30);
-    
-    doc.setFontSize(10);
-    doc.text(`Quote #: ${existingQuote?.quoteNumber || "Draft"}`, 14, 38);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 44);
-    
-    doc.setFontSize(12);
-    doc.text("Project Information", 14, 54);
-    doc.setFontSize(10);
-    doc.text(`Client: ${projectDetails.clientName || "N/A"}`, 14, 61);
-    doc.text(`Project: ${projectDetails.projectName}`, 14, 67);
-    doc.text(`Address: ${projectDetails.projectAddress}`, 14, 73);
-    doc.text(`Building Type: ${projectDetails.typeOfBuilding}`, 14, 79);
-    
-    const pricingTableData = pricingItems.map(item => [
-      item.label,
-      `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    ]);
-    
-    autoTable(doc, {
-      startY: 88,
-      head: [['Item', 'Amount']],
-      body: pricingTableData,
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] },
-      styles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 130 },
-        1: { cellWidth: 50, halign: 'right' }
-      }
-    });
-    
-    if (projectDetails.notes) {
-      const finalY = (doc as any).lastAutoTable.finalY || 88;
-      doc.setFontSize(12);
-      doc.text("Notes", 14, finalY + 10);
-      doc.setFontSize(9);
-      const splitNotes = doc.splitTextToSize(projectDetails.notes, pageWidth - 28);
-      doc.text(splitNotes, 14, finalY + 17);
-    }
-    
-    doc.save(`quote-${projectDetails.projectName || "draft"}-${Date.now()}.pdf`);
-
-    toast({
-      title: "Quote exported",
-      description: "Quote has been downloaded as PDF",
-    });
+  const downloadTextFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  const exportScope = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFontSize(20);
-    doc.text("S2P - Scan2Plan", 14, 20);
-    
-    doc.setFontSize(16);
-    doc.text("Scoping Sheet", 14, 30);
-    
-    doc.setFontSize(10);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 38);
-    
-    doc.setFontSize(12);
-    doc.text("Project Information", 14, 48);
-    doc.setFontSize(10);
-    doc.text(`Client: ${projectDetails.clientName || "N/A"}`, 14, 55);
-    doc.text(`Project: ${projectDetails.projectName}`, 14, 61);
-    doc.text(`Address: ${projectDetails.projectAddress}`, 14, 67);
-    doc.text(`Building Type: ${projectDetails.typeOfBuilding}`, 14, 73);
-    
-    let yPos = 83;
-    doc.setFontSize(12);
-    doc.text("Scoping Details", 14, yPos);
-    yPos += 7;
-    
-    doc.setFontSize(9);
-    const scopeEntries = Object.entries(scopingData).filter(([_, value]) => value);
-    
-    scopeEntries.forEach(([key, value]) => {
-      if (yPos > 270) {
-        doc.addPage();
-        yPos = 20;
-      }
-      
-      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-      const valueStr = Array.isArray(value) ? value.join(', ') : String(value);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${label}:`, 14, yPos);
-      doc.setFont('helvetica', 'normal');
-      
-      const splitValue = doc.splitTextToSize(valueStr, pageWidth - 28);
-      doc.text(splitValue, 14, yPos + 5);
-      yPos += 5 + (splitValue.length * 4);
-    });
-    
-    doc.save(`scope-${projectDetails.projectName || "draft"}-${Date.now()}.pdf`);
+  const formatScopeData = () => {
+    const buildingTypeMap: Record<string, string> = {
+      "1": "Commercial - Simple",
+      "2": "Residential - Standard",
+      "3": "Residential - Luxury",
+      "4": "Commercial / Office",
+      "5": "Retail / Restaurants",
+      "6": "Kitchen / Catering Facilities",
+      "7": "Education",
+      "8": "Hotel / Theatre / Museum",
+      "9": "Hospitals / Mixed Use",
+      "10": "Mechanical / Utility Rooms",
+      "11": "Warehouse / Storage",
+      "12": "Religious Buildings",
+      "13": "Infrastructure / Roads / Bridges",
+      "14": "Built Landscape",
+      "15": "Natural Landscape",
+      "16": "ACT (Above/Below Acoustic Ceiling Tiles) [rate pending]",
+    };
 
+    const disciplineMap: Record<string, string> = {
+      "architecture": "Architecture",
+      "structure": "Structure",
+      "mepf": "MEPF",
+      "site": "Site/Topography",
+    };
+
+    const scopeMap: Record<string, string> = {
+      "full": "Full Building",
+      "interior": "Interior Only",
+      "exterior": "Exterior Only",
+      "roof": "Roof/Facades Only",
+    };
+
+    let text = "============================\n";
+    text += "SCOPING DETAILS\n";
+    text += "============================\n\n";
+
+    text += "PROJECT INFORMATION\n";
+    text += "----------------------------\n";
+    text += `Client: ${projectDetails.clientName || "N/A"}\n`;
+    text += `Project: ${projectDetails.projectName || "N/A"}\n`;
+    text += `Address: ${projectDetails.projectAddress || "N/A"}\n`;
+    text += `Specific Building: ${projectDetails.specificBuilding || "N/A"}\n`;
+    text += `Type of Building: ${projectDetails.typeOfBuilding || "N/A"}\n`;
+    text += `Has Basement: ${projectDetails.hasBasement ? "Yes" : "No"}\n`;
+    text += `Has Attic: ${projectDetails.hasAttic ? "Yes" : "No"}\n`;
+    if (projectDetails.notes) {
+      text += `Notes: ${projectDetails.notes}\n`;
+    }
+    text += "\n";
+
+    if (areas.length > 0) {
+      text += "AREAS\n";
+      text += "----------------------------\n";
+      areas.forEach((area, index) => {
+        const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+        const buildingTypeLabel = buildingTypeMap[area.buildingType] || area.buildingType;
+        const scopeLabel = scopeMap[area.scope] || area.scope;
+        
+        text += `Area ${index + 1}:\n`;
+        text += `  Name: ${area.name || "N/A"}\n`;
+        text += `  Building Type: ${buildingTypeLabel}\n`;
+        if (isLandscape) {
+          const acres = parseFloat(area.squareFeet) || 0;
+          const sqft = acres * 43560;
+          text += `  Area: ${acres} acres (${sqft.toLocaleString()} sqft)\n`;
+        } else {
+          text += `  Square Feet: ${area.squareFeet || "N/A"}\n`;
+        }
+        text += `  Scope: ${scopeLabel}\n`;
+        
+        const disciplineLabels = area.disciplines.map(d => disciplineMap[d] || d);
+        text += `  Disciplines: ${disciplineLabels.join(", ") || "None"}\n`;
+        
+        Object.entries(area.disciplineLods).forEach(([disc, lod]) => {
+          const discLabel = disciplineMap[disc] || disc;
+          text += `    ${discLabel}: LOD ${lod}\n`;
+        });
+        text += "\n";
+      });
+    }
+
+    text += "SITE & LANDSCAPE\n";
+    text += "----------------------------\n";
+    if (scopingData.gradeAroundBuilding) {
+      text += `Grade Around Building: ${scopingData.gradeAroundBuilding}\n`;
+      if (scopingData.gradeAroundBuilding === "other" && scopingData.gradeOther) {
+        text += `  Other: ${scopingData.gradeOther}\n`;
+      }
+    }
+    text += "\n";
+
+    text += "DELIVERABLES\n";
+    text += "----------------------------\n";
+    if (scopingData.interiorCadElevations) {
+      text += `Interior CAD Elevations: ${scopingData.interiorCadElevations}\n`;
+    }
+    if (scopingData.bimDeliverable && scopingData.bimDeliverable.length > 0) {
+      text += `BIM Deliverable: ${scopingData.bimDeliverable.join(", ")}\n`;
+      if (scopingData.bimDeliverable.includes("Other") && scopingData.bimDeliverableOther) {
+        text += `  Other: ${scopingData.bimDeliverableOther}\n`;
+      }
+    }
+    if (scopingData.bimVersion) {
+      text += `BIM Version: ${scopingData.bimVersion}\n`;
+    }
+    if (scopingData.customTemplate) {
+      text += `Custom Template: ${scopingData.customTemplate}\n`;
+      if (scopingData.customTemplate === "other" && scopingData.customTemplateOther) {
+        text += `  Other: ${scopingData.customTemplateOther}\n`;
+      }
+    }
+    text += "\n";
+
+    text += "ASSUMPTIONS\n";
+    text += "----------------------------\n";
+    if (scopingData.sqftAssumptions) {
+      text += `SQFT Assumptions: ${scopingData.sqftAssumptions}\n`;
+    }
+    if (scopingData.assumedGrossMargin) {
+      text += `Assumed Gross Margin: ${scopingData.assumedGrossMargin}\n`;
+    }
+    if (scopingData.caveatsProfitability) {
+      text += `Caveats/Profitability: ${scopingData.caveatsProfitability}\n`;
+    }
+    if (scopingData.projectNotes) {
+      text += `Project Notes: ${scopingData.projectNotes}\n`;
+    }
+    if (scopingData.mixedScope) {
+      text += `Mixed Scope: ${scopingData.mixedScope}\n`;
+    }
+    if (scopingData.insuranceRequirements) {
+      text += `Insurance Requirements: ${scopingData.insuranceRequirements}\n`;
+    }
+    text += "\n";
+
+    text += "CONTACTS\n";
+    text += "----------------------------\n";
+    if (scopingData.accountContact) {
+      text += `Account Contact: ${scopingData.accountContact}\n`;
+    }
+    if (scopingData.designProContact) {
+      text += `Design Pro Contact: ${scopingData.designProContact}\n`;
+    }
+    if (scopingData.designProCompanyContact) {
+      text += `Design Pro Company Contact: ${scopingData.designProCompanyContact}\n`;
+    }
+    if (scopingData.otherContact) {
+      text += `Other Contact: ${scopingData.otherContact}\n`;
+    }
+    text += "\n";
+
+    text += "RISK FACTORS\n";
+    text += "----------------------------\n";
+    if (risks.length > 0) {
+      const riskMap: Record<string, { label: string; premium: number }> = {
+        "flood": { label: "Flood", premium: 7 },
+        "occupied": { label: "Occupied", premium: 7 },
+        "hazardous": { label: "Hazardous", premium: 12 },
+        "noPower": { label: "No Power", premium: 15 },
+      };
+      
+      risks.forEach(risk => {
+        const riskInfo = riskMap[risk] || { 
+          label: risk.charAt(0).toUpperCase() + risk.slice(1).replace(/([A-Z])/g, ' $1'), 
+          premium: 7 
+        };
+        text += `${riskInfo.label}: +${riskInfo.premium}% premium on Architecture base\n`;
+      });
+    } else {
+      text += `No risk factors selected\n`;
+    }
+    text += "\n";
+
+    text += "TRAVEL & DISPATCH\n";
+    text += "----------------------------\n";
+    const dispatchMap: Record<string, string> = {
+      "troy": "Troy, NY",
+      "woodstock": "Woodstock, NY",
+      "brooklyn": "Brooklyn, NY",
+    };
+    const dispatchLabel = dispatchMap[dispatch] || dispatch;
+    text += `Dispatch Location: ${dispatchLabel}\n`;
+    if (distanceCalculated && distance !== null) {
+      text += `Distance: ${distance} miles\n`;
+      text += `Travel Rate: $3.00 per mile\n`;
+      const totalSqft = areas.reduce((sum, area) => {
+        const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+        const inputValue = parseInt(area.squareFeet) || 0;
+        return sum + (isLandscape ? inputValue * 43560 : inputValue);
+      }, 0);
+      const estimatedScanDays = Math.ceil(totalSqft / 10000);
+      text += `Estimated Scan Days: ${estimatedScanDays}\n`;
+      if (distance > 75 && estimatedScanDays >= 2) {
+        text += `Scan-Day Surcharge: $300 per day (applies when distance > 75 miles and scan days >= 2)\n`;
+      } else {
+        text += `Scan-Day Surcharge: Not applicable (${distance <= 75 ? 'distance ≤ 75 miles' : 'scan days < 2'})\n`;
+      }
+    } else {
+      text += `Distance: Not calculated\n`;
+    }
+    text += "\n";
+
+    text += "ADDITIONAL SERVICES\n";
+    text += "----------------------------\n";
+    const servicesEntries = Object.entries(services).filter(([_, qty]) => qty > 0);
+    if (servicesEntries.length > 0) {
+      servicesEntries.forEach(([serviceId, quantity]) => {
+        if (serviceId === "georeferencing") {
+          text += `Georeferencing: $1,000.00 flat rate per building or site\n`;
+        } else if (serviceId === "cadDeliverable") {
+          const total = Math.max(quantity * 300, 300);
+          text += `CAD Deliverable (PDF & DWG): ${quantity} set${quantity > 1 ? 's' : ''} @ $300 per set (minimum $300) = $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n`;
+        } else if (serviceId === "matterport") {
+          const total = quantity * 0.10;
+          text += `Matterport Virtual Tours: ${quantity.toLocaleString()} sqft @ $0.10 per sqft = $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n`;
+        } else if (serviceId === "expeditedService") {
+          text += `Expedited Service: +20% of total (calculated in quote)\n`;
+        } else if (serviceId === "actSqft") {
+          const total = quantity * 5.00;
+          text += `Scope of ACT: ${quantity.toLocaleString()} sqft @ $5.00 per sqft = $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n`;
+        } else {
+          const serviceName = serviceId.charAt(0).toUpperCase() + serviceId.slice(1).replace(/([A-Z])/g, ' $1');
+          text += `${serviceName}: ${quantity} unit${quantity > 1 ? 's' : ''} (rate not specified)\n`;
+        }
+      });
+    } else {
+      text += `No additional services selected\n`;
+    }
+    text += "\n";
+
+    text += "TIMELINE & PAYMENT\n";
+    text += "----------------------------\n";
+    if (scopingData.estimatedTimeline) {
+      text += `Estimated Timeline: ${scopingData.estimatedTimeline}\n`;
+    }
+    if (scopingData.timelineNotes) {
+      text += `Timeline Notes: ${scopingData.timelineNotes}\n`;
+    }
+    if (scopingData.paymentTerms) {
+      text += `Payment Terms: ${scopingData.paymentTerms}\n`;
+      if (scopingData.paymentTerms === "other" && scopingData.paymentTermsOther) {
+        text += `  Other: ${scopingData.paymentTermsOther}\n`;
+      }
+    }
+    if (scopingData.paymentNotes) {
+      text += `Payment Notes: ${scopingData.paymentNotes}\n`;
+    }
+    text += "\n";
+
+    return text;
+  };
+
+  const formatQuoteDataInternal = () => {
+    let text = "============================\n";
+    text += "QUOTE - INTERNAL\n";
+    text += "============================\n\n";
+
+    text += `Quote #: ${existingQuote?.quoteNumber || "Draft"}\n`;
+    text += `Date: ${new Date().toLocaleDateString()}\n\n`;
+
+    text += "PROJECT INFORMATION\n";
+    text += "----------------------------\n";
+    text += `Client: ${projectDetails.clientName || "N/A"}\n`;
+    text += `Project: ${projectDetails.projectName || "N/A"}\n`;
+    text += `Address: ${projectDetails.projectAddress || "N/A"}\n`;
+    text += `Building Type: ${projectDetails.typeOfBuilding || "N/A"}\n\n`;
+
+    text += "PRICING BREAKDOWN\n";
+    text += "----------------------------\n";
+    pricingItems.forEach(item => {
+      const amount = `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      text += `${item.label.padEnd(60)} ${amount.padStart(15)}\n`;
+    });
+
+    if (projectDetails.notes) {
+      text += "\nNOTES\n";
+      text += "----------------------------\n";
+      text += `${projectDetails.notes}\n`;
+    }
+
+    return text;
+  };
+
+  const formatQuoteDataClient = () => {
+    let text = "============================\n";
+    text += "QUOTE\n";
+    text += "============================\n\n";
+
+    text += `Quote #: ${existingQuote?.quoteNumber || "Draft"}\n`;
+    text += `Date: ${new Date().toLocaleDateString()}\n\n`;
+
+    text += "PROJECT INFORMATION\n";
+    text += "----------------------------\n";
+    text += `Client: ${projectDetails.clientName || "N/A"}\n`;
+    text += `Project: ${projectDetails.projectName || "N/A"}\n`;
+    text += `Address: ${projectDetails.projectAddress || "N/A"}\n`;
+    text += `Building Type: ${projectDetails.typeOfBuilding || "N/A"}\n\n`;
+
+    const grandTotalItem = pricingItems.find(item => item.isTotal);
+    const effectivePriceItem = pricingItems.find(item => item.label.includes("Effective Price"));
+    
+    text += "PRICING SUMMARY\n";
+    text += "----------------------------\n";
+    if (grandTotalItem) {
+      const amount = `$${grandTotalItem.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      text += `Grand Total: ${amount}\n`;
+    }
+    if (effectivePriceItem) {
+      const amount = `$${effectivePriceItem.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      text += `${effectivePriceItem.label}: ${amount}\n`;
+    }
+
+    if (projectDetails.notes) {
+      text += "\nNOTES\n";
+      text += "----------------------------\n";
+      text += `${projectDetails.notes}\n`;
+    }
+
+    return text;
+  };
+
+  const formatCRMData = () => {
+    let text = "============================\n";
+    text += "CRM DATA\n";
+    text += "============================\n\n";
+
+    text += `Quote #: ${existingQuote?.quoteNumber || "Draft"}\n`;
+    text += `Date: ${new Date().toLocaleDateString()}\n\n`;
+
+    text += "PROJECT INFORMATION\n";
+    text += "----------------------------\n";
+    text += `Client: ${projectDetails.clientName || "N/A"}\n`;
+    text += `Project: ${projectDetails.projectName || "N/A"}\n\n`;
+
+    text += "LEAD TRACKING\n";
+    text += "----------------------------\n";
+    if (scopingData.source) {
+      text += `Source: ${scopingData.source}\n`;
+      if (scopingData.sourceNote) {
+        text += `  Note: ${scopingData.sourceNote}\n`;
+      }
+    }
+    if (scopingData.assist) {
+      text += `Assist: ${scopingData.assist}\n`;
+    }
+    if (scopingData.probabilityOfClosing) {
+      text += `Probability of Closing: ${scopingData.probabilityOfClosing}%\n`;
+    }
+    if (scopingData.projectStatus) {
+      text += `Project Status: ${scopingData.projectStatus}\n`;
+      if (scopingData.projectStatus === "other" && scopingData.projectStatusOther) {
+        text += `  Other: ${scopingData.projectStatusOther}\n`;
+      }
+    }
+    text += "\n";
+
+    text += "TIER A PRICING\n";
+    text += "----------------------------\n";
+    if (scopingData.tierAScanningCost) {
+      text += `Tier A Scanning Cost: ${scopingData.tierAScanningCost}\n`;
+      if (scopingData.tierAScanningCost === "other" && scopingData.tierAScanningCostOther) {
+        text += `  Other: ${scopingData.tierAScanningCostOther}\n`;
+      }
+    }
+    if (scopingData.tierAModelingCost) {
+      text += `Tier A Modeling Cost: ${scopingData.tierAModelingCost}\n`;
+    }
+    if (scopingData.tierAMargin) {
+      text += `Tier A Margin: ${scopingData.tierAMargin}\n`;
+    }
+    text += "\n";
+
+    if (scopingData.proofLinks) {
+      text += "PROOF LINKS\n";
+      text += "----------------------------\n";
+      text += `${scopingData.proofLinks}\n\n`;
+    }
+
+    return text;
+  };
+
+  const exportScopeOnly = () => {
+    const content = formatScopeData();
+    downloadTextFile(content, `scope-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
     toast({
       title: "Scope exported",
-      description: "Scoping data has been downloaded as PDF",
+      description: "Scope data has been downloaded as text file",
     });
   };
 
-  const exportBoth = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFontSize(20);
-    doc.text("S2P - Scan2Plan", 14, 20);
-    
-    doc.setFontSize(16);
-    doc.text("Complete Project Export", 14, 30);
-    
-    doc.setFontSize(10);
-    doc.text(`Quote #: ${existingQuote?.quoteNumber || "Draft"}`, 14, 38);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 44);
-    
-    doc.setFontSize(12);
-    doc.text("Project Information", 14, 54);
-    doc.setFontSize(10);
-    doc.text(`Client: ${projectDetails.clientName || "N/A"}`, 14, 61);
-    doc.text(`Project: ${projectDetails.projectName}`, 14, 67);
-    doc.text(`Address: ${projectDetails.projectAddress}`, 14, 73);
-    doc.text(`Building Type: ${projectDetails.typeOfBuilding}`, 14, 79);
-    
-    const pricingTableData = pricingItems.map(item => [
-      item.label,
-      `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    ]);
-    
-    autoTable(doc, {
-      startY: 88,
-      head: [['Item', 'Amount']],
-      body: pricingTableData,
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] },
-      styles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 130 },
-        1: { cellWidth: 50, halign: 'right' }
-      }
-    });
-    
-    let yPos = (doc as any).lastAutoTable.finalY + 15;
-    
-    if (yPos > 250) {
-      doc.addPage();
-      yPos = 20;
-    }
-    
-    doc.setFontSize(12);
-    doc.text("Scoping Details", 14, yPos);
-    yPos += 7;
-    
-    doc.setFontSize(9);
-    const scopeEntries = Object.entries(scopingData).filter(([_, value]) => value);
-    
-    scopeEntries.forEach(([key, value]) => {
-      if (yPos > 270) {
-        doc.addPage();
-        yPos = 20;
-      }
-      
-      const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-      const valueStr = Array.isArray(value) ? value.join(', ') : String(value);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${label}:`, 14, yPos);
-      doc.setFont('helvetica', 'normal');
-      
-      const splitValue = doc.splitTextToSize(valueStr, pageWidth - 28);
-      doc.text(splitValue, 14, yPos + 5);
-      yPos += 5 + (splitValue.length * 4);
-    });
-    
-    doc.save(`complete-${projectDetails.projectName || "draft"}-${Date.now()}.pdf`);
-
+  const exportScopeQuoteClient = () => {
+    let content = formatScopeData();
+    content += "\n\n";
+    content += formatQuoteDataClient();
+    downloadTextFile(content, `scope-quote-client-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
     toast({
-      title: "Export complete",
-      description: "Complete project has been downloaded as PDF",
+      title: "Scope + Quote exported",
+      description: "Scope and quote (client version) downloaded as text file",
+    });
+  };
+
+  const exportScopeQuoteInternal = () => {
+    let content = formatScopeData();
+    content += "\n\n";
+    content += formatQuoteDataInternal();
+    downloadTextFile(content, `scope-quote-internal-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    toast({
+      title: "Scope + Quote exported",
+      description: "Scope and quote (internal version) downloaded as text file",
+    });
+  };
+
+  const exportQuoteClient = () => {
+    const content = formatQuoteDataClient();
+    downloadTextFile(content, `quote-client-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    toast({
+      title: "Quote exported",
+      description: "Quote (client version) has been downloaded as text file",
+    });
+  };
+
+  const exportQuoteInternal = () => {
+    const content = formatQuoteDataInternal();
+    downloadTextFile(content, `quote-internal-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    toast({
+      title: "Quote exported",
+      description: "Quote (internal version) has been downloaded as text file",
+    });
+  };
+
+  const exportCRMOnly = () => {
+    const content = formatCRMData();
+    downloadTextFile(content, `crm-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    toast({
+      title: "CRM data exported",
+      description: "CRM data has been downloaded as text file",
     });
   };
 
@@ -888,17 +1148,32 @@ export default function Calculator() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportQuote} data-testid="button-export-quote">
+                  <DropdownMenuItem onClick={exportScopeOnly} data-testid="button-export-scope-only">
                     <FileText className="h-4 w-4 mr-2" />
-                    Export Quote
+                    Scope Only
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportScope} data-testid="button-export-scope">
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Export Scope
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportScopeQuoteClient} data-testid="button-export-scope-quote-client">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Scope + Quote (Client)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportBoth} data-testid="button-export-both">
-                    <Files className="h-4 w-4 mr-2" />
-                    Export Both
+                  <DropdownMenuItem onClick={exportScopeQuoteInternal} data-testid="button-export-scope-quote-internal">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Scope + Quote (Internal)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Quote Only (Client)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportQuoteInternal} data-testid="button-export-quote-internal">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Quote Only (Internal)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportCRMOnly} data-testid="button-export-crm-only">
+                    <FileText className="h-4 w-4 mr-2" />
+                    CRM Only
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
