@@ -124,12 +124,12 @@ export default function PricingMatrixEditor({
                                 }
                               }}
                               autoFocus
-                              data-testid={`input-rate-${tierIdx}`}
+                              data-testid={`input-rate-${tier}-${disc}-${lod}`}
                             />
                           ) : (
                             <span
                               className={`font-mono text-sm ${rateRecord ? 'cursor-pointer hover:text-primary hover:underline' : 'text-muted-foreground'}`}
-                              data-testid={`text-rate-${tierIdx}`}
+                              data-testid={`text-rate-${tier}-${disc}-${lod}`}
                             >
                               {rateRecord ? `$${rateValue.toFixed(2)}` : 'N/A'}
                             </span>
