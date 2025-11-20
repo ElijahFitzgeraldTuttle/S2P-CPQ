@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix, upteamPricingMatrix } from "@shared/schema";
+import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -23,6 +23,10 @@ export interface IStorage {
   getAllUpteamPricingRates(): Promise<any[]>;
   getUpteamPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined>;
   updateUpteamPricingRate(id: number, ratePerSqFt: string): Promise<any | undefined>;
+  
+  // Pricing parameters operations
+  getAllPricingParameters(): Promise<any[]>;
+  updatePricingParameter(id: number, parameterValue: string): Promise<any | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -145,6 +149,23 @@ export class DbStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(upteamPricingMatrix.id, id))
+      .returning();
+    return updated;
+  }
+  
+  // Pricing parameters methods
+  async getAllPricingParameters(): Promise<any[]> {
+    return db.select().from(pricingParameters);
+  }
+  
+  async updatePricingParameter(id: number, parameterValue: string): Promise<any | undefined> {
+    const [updated] = await db
+      .update(pricingParameters)
+      .set({ 
+        parameterValue,
+        updatedAt: new Date(),
+      })
+      .where(eq(pricingParameters.id, id))
       .returning();
     return updated;
   }
