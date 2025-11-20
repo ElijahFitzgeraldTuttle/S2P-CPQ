@@ -115,6 +115,8 @@ export default function Calculator() {
     paymentTermsOther: "",
     paymentNotes: "",
     accountContact: "",
+    accountContactEmail: "",
+    accountContactPhone: "",
     phoneNumber: "",
     designProContact: "",
     designProCompanyContact: "",
@@ -541,6 +543,12 @@ export default function Calculator() {
     text += "----------------------------\n";
     if (scopingData.accountContact) {
       text += `Account Contact: ${scopingData.accountContact}\n`;
+      if (scopingData.accountContactEmail) {
+        text += `  Email: ${scopingData.accountContactEmail}\n`;
+      }
+      if (scopingData.accountContactPhone) {
+        text += `  Phone: ${scopingData.accountContactPhone}\n`;
+      }
     }
     if (scopingData.phoneNumber) {
       text += `Phone Number: ${scopingData.phoneNumber}\n`;

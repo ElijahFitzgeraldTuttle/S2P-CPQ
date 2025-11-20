@@ -21,6 +21,8 @@ interface ScopeFieldsProps {
     mixedScope: string;
     insuranceRequirements: string;
     accountContact: string;
+    accountContactEmail: string;
+    accountContactPhone: string;
     designProContact: string;
     designProCompanyContact: string;
     otherContact: string;
@@ -202,10 +204,41 @@ export default function ScopeFields({ data, onChange }: ScopeFieldsProps) {
             </Label>
             <Input
               id="account-contact"
-              placeholder="Primary account contact"
+              placeholder="Primary account contact name"
               value={data.accountContact}
               onChange={(e) => onChange('accountContact', e.target.value)}
+              data-testid="input-account-contact"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="account-contact-email" className="text-sm font-medium">
+                Account Contact Email
+              </Label>
+              <Input
+                id="account-contact-email"
+                type="email"
+                placeholder="email@example.com"
+                value={data.accountContactEmail}
+                onChange={(e) => onChange('accountContactEmail', e.target.value)}
+                data-testid="input-account-contact-email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="account-contact-phone" className="text-sm font-medium">
+                Account Contact Phone
+              </Label>
+              <Input
+                id="account-contact-phone"
+                type="tel"
+                placeholder="(555) 123-4567"
+                value={data.accountContactPhone}
+                onChange={(e) => onChange('accountContactPhone', e.target.value)}
+                data-testid="input-account-contact-phone"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
