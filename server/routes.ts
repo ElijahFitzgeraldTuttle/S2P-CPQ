@@ -260,11 +260,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/pricing-parameters/:id", async (req, res) => {
     try {
       const { parameterValue } = req.body;
-      if (parameterValue === undefined || parameterValue === null) {
-        return res.status(400).json({ error: "parameterValue is required" });
+      if (parameterValue === undefined || parameterValue === null || parameterValue === "") {
+        return res.status(400).json({ error: "parameterValue is required and cannot be empty" });
       }
       
-      const updated = await storage.updatePricingParameter(parseInt(req.params.id), String(parameterValue));
+      // Validate that the parameter value is a number or can be converted to one
+      const numericValue = Number(parameterValue);
+      if (isNaN(numericValue)) {
+        return res.status(400).json({ error: "parameterValue must be a valid number" });
+      }
+      
+      const updated = await storage.updatePricingParameter(parseInt(req.params.id), parameterValue.toString());
       if (!updated) {
         return res.status(404).json({ error: "Pricing parameter not found" });
       }

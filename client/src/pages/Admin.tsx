@@ -155,17 +155,11 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pricing-parameters"] });
-      toast({
-        title: "Parameters saved",
-        description: "Pricing parameters have been updated successfully",
-      });
+      // Toast is handled in handleSaveParameters for better aggregate feedback
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update pricing parameters",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Error is handled in handleSaveParameters for better aggregate feedback
+      throw error;
     },
   });
 
@@ -174,13 +168,49 @@ export default function Admin() {
   };
 
   const handleSaveParameters = async () => {
-    // Save all changed parameters
+    if (Object.keys(params).length === 0) return;
+    
+    // Save all changed parameters with proper error handling
     const updates = Object.entries(params).map(([id, value]) => 
       updateParameterMutation.mutateAsync({ id: parseInt(id), parameterValue: value })
+        .catch((error) => ({ error, id }))
     );
     
-    await Promise.all(updates);
-    setParams({});
+    const results = await Promise.allSettled(updates);
+    
+    const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value?.error));
+    
+    if (failures.length === 0) {
+      toast({
+        title: "Parameters saved",
+        description: `Successfully updated ${results.length} parameters`,
+      });
+      setParams({});
+    } else if (failures.length < results.length) {
+      toast({
+        title: "Partial save",
+        description: `${results.length - failures.length} of ${results.length} parameters updated. ${failures.length} failed.`,
+        variant: "destructive",
+      });
+      // Keep failed params in state for retry
+      const failedIds = failures.map(f => {
+        if (f.status === 'fulfilled' && f.value?.id) return f.value.id;
+        return null;
+      }).filter(Boolean);
+      setParams(prev => {
+        const newParams: Record<number, string> = {};
+        failedIds.forEach(id => {
+          if (id && prev[id]) newParams[id] = prev[id];
+        });
+        return newParams;
+      });
+    } else {
+      toast({
+        title: "Save failed",
+        description: "Failed to update any parameters. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleClientRateChange = (rateId: number, newRate: number) => {
