@@ -17,7 +17,7 @@ const AREA_TIERS = [
 ];
 
 const DISCIPLINES = ["architecture", "structure", "mepf", "site"];
-const LOD_LEVELS = ["200", "300", "350"];
+const LOD_LEVELS = ["200", "300", "350", "350+"];
 
 interface PricingRate {
   id: number;
