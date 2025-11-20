@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, serial, decimal, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -30,12 +30,13 @@ export const pricingMatrix = pgTable("pricing_matrix", {
 });
 
 export const upteamPricingMatrix = pgTable("upteam_pricing_matrix", {
-  id: integer("id").primaryKey(),
+  id: serial("id").primaryKey(),
   buildingTypeId: integer("building_type_id").notNull(),
   areaTier: text("area_tier").notNull(),
   discipline: text("discipline").notNull(),
   lod: text("lod").notNull(),
   ratePerSqFt: decimal("rate_per_sq_ft", { precision: 10, scale: 4 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
