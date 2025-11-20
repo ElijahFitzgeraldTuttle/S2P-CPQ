@@ -6,6 +6,20 @@ A professional web-based pricing calculator for Scan-to-BIM (Building Informatio
 
 ## Recent Changes
 
+### Upteam Pricing Database Integration (November 2025)
+- Integrated upteam pricing matrix from database for accurate internal vendor cost calculations
+- Added API endpoint `/api/upteam-pricing-matrix` to fetch upteam pricing rates
+- Created `getUpteamPricingRate()` function to look up rates by building type, area tier, discipline, and LoD
+- Updated cost calculation logic to use actual upteam rates from database instead of simple 0.65 multiplier
+- Applied scope discounts proportionally to both client pricing and upteam costs
+- Fallback to 0.65 multiplier for special cases (landscape, ACT, Matterport) and when database rate not found
+- Cost Summary now displays actual vendor costs from database for accurate profit margin calculations
+
+### Account Contact Fields Enhancement (November 2025)
+- Added dedicated email and phone fields under Account Contact in Contacts & Communication section
+- Contact information now displays in structured format: name, email, and phone on separate lines
+- Enhanced data organization for better CRM integration and client communication
+
 ### Landscape Pricing Implementation (November 2025)
 - Added two landscape building types: "Built Landscape" (14) and "Natural Landscape" (15)
 - Landscape areas use per-acre pricing instead of per-square-foot pricing

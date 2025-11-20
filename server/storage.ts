@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix } from "@shared/schema";
+import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix, upteamPricingMatrix } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -18,6 +18,10 @@ export interface IStorage {
   getAllPricingRates(): Promise<any[]>;
   getPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined>;
   updatePricingRate(id: number, ratePerSqFt: string): Promise<any | undefined>;
+  
+  // Upteam pricing matrix operations
+  getAllUpteamPricingRates(): Promise<any[]>;
+  getUpteamPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -109,6 +113,27 @@ export class DbStorage implements IStorage {
       .where(eq(pricingMatrix.id, id))
       .returning();
     return updated;
+  }
+  
+  // Upteam pricing matrix methods
+  async getAllUpteamPricingRates(): Promise<any[]> {
+    return db.select().from(upteamPricingMatrix);
+  }
+  
+  async getUpteamPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined> {
+    const [rate] = await db
+      .select()
+      .from(upteamPricingMatrix)
+      .where(
+        and(
+          eq(upteamPricingMatrix.buildingTypeId, buildingTypeId),
+          eq(upteamPricingMatrix.areaTier, areaTier),
+          eq(upteamPricingMatrix.discipline, discipline),
+          eq(upteamPricingMatrix.lod, lod)
+        )
+      )
+      .limit(1);
+    return rate;
   }
 }
 

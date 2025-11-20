@@ -66,6 +66,11 @@ export default function Calculator() {
     queryKey: ["/api/pricing-matrix"],
   });
 
+  // Fetch upteam pricing matrix from database
+  const { data: upteamPricingRates, isLoading: isLoadingUpteamPricing } = useQuery<any[]>({
+    queryKey: ["/api/upteam-pricing-matrix"],
+  });
+
   const [scopingMode] = useState(true);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
@@ -903,6 +908,21 @@ export default function Calculator() {
     return rate ? parseFloat(rate.ratePerSqFt) : 0;
   };
 
+  // Helper function to look up upteam pricing rate from database
+  const getUpteamPricingRate = (buildingTypeId: string, sqft: number, discipline: string, lod: string): number => {
+    if (!upteamPricingRates) return 0;
+    
+    const areaTier = getAreaTier(sqft);
+    const rate = upteamPricingRates.find((r: any) => 
+      r.buildingTypeId === parseInt(buildingTypeId) &&
+      r.areaTier === areaTier &&
+      r.discipline === discipline &&
+      r.lod === lod
+    );
+    
+    return rate ? parseFloat(rate.ratePerSqFt) : 0;
+  };
+
   const getLandscapePerAcreRate = (buildingType: string, acres: number, lod: string): number => {
     // Landscape pricing still uses hardcoded rates (building types 14-15)
     const builtLandscapeRates: Record<string, number[]> = {
@@ -933,8 +953,8 @@ export default function Calculator() {
     let otherDisciplinesTotal = 0;
     let upteamCost = 0; // Track internal vendor costs
     
-    // Upteam multipliers (simplified - eventually from pricing_parameters table)
-    const UPTEAM_MULTIPLIER = 0.65; // Upteam costs are 65% of client rates
+    // Fallback upteam multiplier if database rate not found
+    const UPTEAM_MULTIPLIER_FALLBACK = 0.65;
 
     areas.forEach((area) => {
       const isLandscape = area.buildingType === "14" || area.buildingType === "15";
@@ -948,6 +968,7 @@ export default function Calculator() {
         const lod = area.disciplineLods[discipline] || "300";
         let lineTotal = 0;
         let areaLabel = "";
+        let upteamLineCost = 0;
         
         if (isLandscape) {
           const acres = inputValue;
@@ -955,15 +976,21 @@ export default function Calculator() {
           const perAcreRate = getLandscapePerAcreRate(area.buildingType, acres, lod);
           lineTotal = acres * perAcreRate;
           areaLabel = `${acres} acres (${sqft.toLocaleString()} sqft)`;
+          // For landscape, use fallback multiplier since we don't have per-acre upteam rates
+          upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
         } else if (isACT) {
           const sqft = Math.max(inputValue, 3000);
           lineTotal = sqft * 2.00;
           areaLabel = `${sqft.toLocaleString()} sqft`;
+          // For ACT, use fallback multiplier
+          upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
         } else if (discipline === "matterport") {
           // Matterport Virtual Tours - flat $0.10/sqft rate
           const sqft = Math.max(inputValue, 3000);
           lineTotal = sqft * 0.10;
           areaLabel = `${sqft.toLocaleString()} sqft`;
+          // For Matterport, use fallback multiplier
+          upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
         } else {
           const sqft = Math.max(inputValue, 3000);
           
@@ -993,29 +1020,40 @@ export default function Calculator() {
             lineTotal = sqft * baseRatePerSqft * multiplier;
           }
           
+          // Get upteam rate from database
+          const upteamRatePerSqft = getUpteamPricingRate(area.buildingType, sqft, discipline, lod);
+          if (upteamRatePerSqft > 0) {
+            upteamLineCost = sqft * upteamRatePerSqft;
+          } else {
+            // Fallback to multiplier if upteam rate not found
+            upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
+          }
+          
           areaLabel = `${sqft.toLocaleString()} sqft`;
         }
         
         let scopeDiscount = 0;
+        let upteamScopeDiscount = 0;
         let scopeLabel = "";
         // Don't apply scope discounts to Matterport
         if (!isLandscape && !isACT && discipline !== "matterport") {
           if (scope === "interior") {
             scopeDiscount = lineTotal * 0.25;
+            upteamScopeDiscount = upteamLineCost * 0.25;
             scopeLabel = " (Interior Only -25%)";
           } else if (scope === "exterior") {
             scopeDiscount = lineTotal * 0.50;
+            upteamScopeDiscount = upteamLineCost * 0.50;
             scopeLabel = " (Exterior Only -50%)";
           } else if (scope === "roof") {
             scopeDiscount = lineTotal * 0.65;
+            upteamScopeDiscount = upteamLineCost * 0.65;
             scopeLabel = " (Roof/Facades Only -65%)";
           }
         }
         
         lineTotal -= scopeDiscount;
-        
-        // Track upteam internal cost (before scope discount since that's client-side discount)
-        const upteamLineCost = (lineTotal + scopeDiscount) * UPTEAM_MULTIPLIER - scopeDiscount;
+        upteamLineCost -= upteamScopeDiscount;
         upteamCost += upteamLineCost;
         
         if (discipline === "architecture") {
@@ -1047,7 +1085,7 @@ export default function Calculator() {
         
         const ratePerSqft = gradeRates[gradeLod] || 0.72;
         const gradeTotal = sqft * ratePerSqft;
-        const gradeUpteamCost = gradeTotal * UPTEAM_MULTIPLIER;
+        const gradeUpteamCost = gradeTotal * UPTEAM_MULTIPLIER_FALLBACK;
         
         otherDisciplinesTotal += gradeTotal;
         upteamCost += gradeUpteamCost; // Track upteam cost for grade work
@@ -1138,27 +1176,27 @@ export default function Calculator() {
         if (serviceId === "actSqft") {
           total = quantity * serviceRates[serviceId];
           label = `ACT Modeling ($5/sqft × ${quantity.toLocaleString()} sqft)`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real modeling cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real modeling cost
           upteamCost += serviceUpteamCost;
         } else if (serviceId === "georeferencing") {
           total = 1000;
           label = `Georeferencing`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real service cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real service cost
           upteamCost += serviceUpteamCost;
         } else if (serviceId === "cadDeliverable") {
           total = Math.max(quantity * serviceRates[serviceId], 300);
           label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real CAD work cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real CAD work cost
           upteamCost += serviceUpteamCost;
         } else if (serviceId === "scanningFullDay") {
           total = 2500;
           label = `Scanning & Registration - Full Day`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real scanning cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real scanning cost
           upteamCost += serviceUpteamCost;
         } else if (serviceId === "scanningHalfDay") {
           total = 1500;
           label = `Scanning & Registration - Half Day`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER; // Real scanning cost
+          serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real scanning cost
           upteamCost += serviceUpteamCost;
         } else if (serviceId === "expeditedService") {
           total = runningTotal * 0.20;

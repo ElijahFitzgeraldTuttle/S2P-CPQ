@@ -216,6 +216,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upteam pricing matrix routes
+  app.get("/api/upteam-pricing-matrix", async (req, res) => {
+    try {
+      const allRates = await storage.getAllUpteamPricingRates();
+      res.json(allRates);
+    } catch (error) {
+      console.error("Error fetching upteam pricing rates:", error);
+      res.status(500).json({ error: "Failed to fetch upteam pricing rates" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
