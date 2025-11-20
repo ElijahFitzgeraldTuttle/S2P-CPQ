@@ -6,6 +6,18 @@ A professional web-based pricing calculator for Scan-to-BIM (Building Informatio
 
 ## Recent Changes
 
+### Admin Pricing Parameters Implementation (November 2025)
+- Integrated database-driven pricing parameters for all configurable system values
+- Added API endpoints `/api/pricing-parameters` (GET) and `/api/pricing-parameters/:id` (PATCH)
+- Implemented type-aware validation: numeric validation for 'number'/'percentage' types, text pass-through for future text parameters
+- Added Promise.allSettled error handling for multi-parameter saves with aggregate success/failure reporting
+- Created PARAMETER_LABELS mapping for display names and CATEGORY_TITLES for grouping
+- Parameters organized into 6 categories: Risk Premiums, Travel Costs, Scope Discounts, Additional Services, Payment Terms, General
+- End-to-end type preservation: database stores as text, API returns numbers for numeric types and strings for text types
+- Admin UI dynamically groups 33 parameters by category with real-time React Query cache invalidation
+- Robust error handling with detailed user feedback for full success, partial save, and full failure scenarios
+- Server-side validation returns 400 with parameter-specific error messages for invalid inputs
+
 ### Upteam Pricing Database Integration (November 2025)
 - Integrated upteam pricing matrix from database for accurate internal vendor cost calculations
 - Added API endpoint `/api/upteam-pricing-matrix` to fetch upteam pricing rates
