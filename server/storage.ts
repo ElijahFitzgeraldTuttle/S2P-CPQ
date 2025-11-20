@@ -22,6 +22,7 @@ export interface IStorage {
   // Upteam pricing matrix operations
   getAllUpteamPricingRates(): Promise<any[]>;
   getUpteamPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined>;
+  updateUpteamPricingRate(id: number, ratePerSqFt: string): Promise<any | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -134,6 +135,18 @@ export class DbStorage implements IStorage {
       )
       .limit(1);
     return rate;
+  }
+  
+  async updateUpteamPricingRate(id: number, ratePerSqFt: string): Promise<any | undefined> {
+    const [updated] = await db
+      .update(upteamPricingMatrix)
+      .set({ 
+        ratePerSqFt,
+        updatedAt: new Date(),
+      })
+      .where(eq(upteamPricingMatrix.id, id))
+      .returning();
+    return updated;
   }
 }
 

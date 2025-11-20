@@ -1,11 +1,31 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PricingMatrixEditor from "@/components/PricingMatrixEditor";
-import { Save } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+
+const BUILDING_TYPES = [
+  { id: 1, name: "Commercial / Office" },
+  { id: 2, name: "Industrial / Warehouse" },
+  { id: 3, name: "Retail" },
+  { id: 4, name: "Healthcare" },
+  { id: 5, name: "Educational" },
+  { id: 6, name: "Residential (Single Family)" },
+  { id: 7, name: "Residential (Multi-Family)" },
+  { id: 8, name: "Hospitality" },
+  { id: 9, name: "Religious / Community" },
+  { id: 10, name: "Sports / Recreation" },
+  { id: 11, name: "Transportation / Infrastructure" },
+  { id: 12, name: "Mixed-Use" },
+  { id: 13, name: "Historic / Preservation" },
+];
 
 //todo: remove mock functionality
 const PARAMETER_GROUPS = [
@@ -46,11 +66,79 @@ const PARAMETER_GROUPS = [
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("parameters");
+  const [matrixTab, setMatrixTab] = useState("client");
+  const [selectedBuildingType, setSelectedBuildingType] = useState<number>(1);
   const [params, setParams] = useState<Record<string, number>>({});
-  const [matrixRates, setMatrixRates] = useState<Record<string, number>>({});
+  const { toast } = useToast();
+
+  // Fetch client pricing matrix
+  const { data: clientPricingRates, isLoading: isLoadingClientRates } = useQuery<any[]>({
+    queryKey: ["/api/pricing-matrix"],
+  });
+
+  // Fetch upteam pricing matrix
+  const { data: upteamPricingRates, isLoading: isLoadingUpteamRates } = useQuery<any[]>({
+    queryKey: ["/api/upteam-pricing-matrix"],
+  });
+
+  // Update pricing rate mutation (client pricing)
+  const updateClientRateMutation = useMutation({
+    mutationFn: async ({ id, ratePerSqFt }: { id: number; ratePerSqFt: string }) => {
+      return await apiRequest("PATCH", `/api/pricing-matrix/${id}`, { ratePerSqFt });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricing-matrix"] });
+      toast({
+        title: "Rate updated",
+        description: "Client pricing rate has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update client pricing rate",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update pricing rate mutation (upteam pricing)
+  const updateUpteamRateMutation = useMutation({
+    mutationFn: async ({ id, ratePerSqFt }: { id: number; ratePerSqFt: string }) => {
+      return await apiRequest("PATCH", `/api/upteam-pricing-matrix/${id}`, { ratePerSqFt });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/upteam-pricing-matrix"] });
+      toast({
+        title: "Rate updated",
+        description: "Upteam pricing rate has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update upteam pricing rate",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleParamChange = (key: string, value: number) => {
     setParams((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleClientRateChange = (rateId: number, newRate: number) => {
+    updateClientRateMutation.mutate({
+      id: rateId,
+      ratePerSqFt: newRate.toString(),
+    });
+  };
+
+  const handleUpteamRateChange = (rateId: number, newRate: number) => {
+    updateUpteamRateMutation.mutate({
+      id: rateId,
+      ratePerSqFt: newRate.toString(),
+    });
   };
 
   return (
@@ -113,20 +201,75 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="matrix" className="mt-6 space-y-6">
-            <PricingMatrixEditor
-              buildingType="Commercial / Office"
-              rates={matrixRates}
-              onRateChange={(key, value) =>
-                setMatrixRates((prev) => ({ ...prev, [key]: value }))
-              }
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Building Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select
+                  value={selectedBuildingType.toString()}
+                  onValueChange={(value) => setSelectedBuildingType(parseInt(value))}
+                >
+                  <SelectTrigger className="w-full max-w-md" data-testid="select-building-type">
+                    <SelectValue placeholder="Select building type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUILDING_TYPES.map((type) => (
+                      <SelectItem key={type.id} value={type.id.toString()}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
 
-            <div className="flex justify-end">
-              <Button size="lg" data-testid="button-save-matrix">
-                <Save className="h-4 w-4 mr-2" />
-                Save Matrix Rates
-              </Button>
-            </div>
+            <Tabs value={matrixTab} onValueChange={setMatrixTab}>
+              <TabsList>
+                <TabsTrigger value="client" data-testid="tab-client-pricing">
+                  Client Pricing Matrix
+                </TabsTrigger>
+                <TabsTrigger value="upteam" data-testid="tab-upteam-pricing">
+                  Upteam Pricing Matrix
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="client" className="mt-6">
+                {isLoadingClientRates ? (
+                  <Card>
+                    <CardContent className="flex items-center justify-center p-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <PricingMatrixEditor
+                    buildingType={BUILDING_TYPES.find(b => b.id === selectedBuildingType)?.name || ""}
+                    buildingTypeId={selectedBuildingType}
+                    rates={clientPricingRates || []}
+                    onRateChange={handleClientRateChange}
+                    isUpteam={false}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="upteam" className="mt-6">
+                {isLoadingUpteamRates ? (
+                  <Card>
+                    <CardContent className="flex items-center justify-center p-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <PricingMatrixEditor
+                    buildingType={BUILDING_TYPES.find(b => b.id === selectedBuildingType)?.name || ""}
+                    buildingTypeId={selectedBuildingType}
+                    rates={upteamPricingRates || []}
+                    onRateChange={handleUpteamRateChange}
+                    isUpteam={true}
+                  />
+                )}
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>

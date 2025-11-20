@@ -227,6 +227,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/upteam-pricing-matrix/:id", async (req, res) => {
+    try {
+      const { ratePerSqFt } = req.body;
+      if (!ratePerSqFt) {
+        return res.status(400).json({ error: "ratePerSqFt is required" });
+      }
+      
+      const updated = await storage.updateUpteamPricingRate(parseInt(req.params.id), ratePerSqFt);
+      if (!updated) {
+        return res.status(404).json({ error: "Upteam pricing rate not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating upteam pricing rate:", error);
+      res.status(500).json({ error: "Failed to update upteam pricing rate" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
