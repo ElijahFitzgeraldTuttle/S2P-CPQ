@@ -246,6 +246,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pricing parameters routes
+  app.get("/api/pricing-parameters", async (req, res) => {
+    try {
+      const allParameters = await storage.getAllPricingParameters();
+      res.json(allParameters);
+    } catch (error) {
+      console.error("Error fetching pricing parameters:", error);
+      res.status(500).json({ error: "Failed to fetch pricing parameters" });
+    }
+  });
+
+  app.patch("/api/pricing-parameters/:id", async (req, res) => {
+    try {
+      const { parameterValue } = req.body;
+      if (parameterValue === undefined || parameterValue === null) {
+        return res.status(400).json({ error: "parameterValue is required" });
+      }
+      
+      const updated = await storage.updatePricingParameter(parseInt(req.params.id), String(parameterValue));
+      if (!updated) {
+        return res.status(404).json({ error: "Pricing parameter not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating pricing parameter:", error);
+      res.status(500).json({ error: "Failed to update pricing parameter" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
