@@ -250,7 +250,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/pricing-parameters", async (req, res) => {
     try {
       const allParameters = await storage.getAllPricingParameters();
-      res.json(allParameters);
+      // Convert parameterValue to number for numeric types
+      const typedParameters = allParameters.map(param => ({
+        ...param,
+        parameterValue: (param.parameterType === 'number' || param.parameterType === 'percentage') 
+          ? Number(param.parameterValue)
+          : param.parameterValue
+      }));
+      res.json(typedParameters);
     } catch (error) {
       console.error("Error fetching pricing parameters:", error);
       res.status(500).json({ error: "Failed to fetch pricing parameters" });
@@ -270,12 +277,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "parameterValue must be a valid number" });
       }
       
-      const updated = await storage.updatePricingParameter(parseInt(req.params.id), parameterValue.toString());
+      // Store as string in database but maintain numeric precision
+      const updated = await storage.updatePricingParameter(parseInt(req.params.id), numericValue.toString());
       if (!updated) {
         return res.status(404).json({ error: "Pricing parameter not found" });
       }
       
-      res.json(updated);
+      // Return with proper numeric type in response
+      const typedResponse = {
+        ...updated,
+        parameterValue: (updated.parameterType === 'number' || updated.parameterType === 'percentage')
+          ? Number(updated.parameterValue)
+          : updated.parameterValue
+      };
+      
+      res.json(typedResponse);
     } catch (error) {
       console.error("Error updating pricing parameter:", error);
       res.status(500).json({ error: "Failed to update pricing parameter" });
