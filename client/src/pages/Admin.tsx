@@ -27,49 +27,74 @@ const BUILDING_TYPES = [
   { id: 13, name: "Historic / Preservation" },
 ];
 
-//todo: remove mock functionality
-const PARAMETER_GROUPS = [
-  {
-    title: "Risk Factors",
-    params: [
-      { key: "occupied_building", label: "Occupied Building Premium", value: 500 },
-      { key: "hazardous_conditions", label: "Hazardous Conditions Premium", value: 1000 },
-      { key: "no_power_hvac", label: "No Power/HVAC Premium", value: 300 },
-    ],
-  },
-  {
-    title: "Travel Costs",
-    params: [
-      { key: "travel_rate_per_mile", label: "Travel Rate (per mile)", value: 1.50 },
-      { key: "travel_distance_threshold", label: "Distance Threshold (miles)", value: 100 },
-      { key: "travel_scan_day_fee", label: "Scan Day Fee (over threshold)", value: 500 },
-    ],
-  },
-  {
-    title: "Scope Discounts",
-    params: [
-      { key: "discount_interior", label: "Interior Only Discount (%)", value: 25 },
-      { key: "discount_exterior", label: "Exterior Only Discount (%)", value: 50 },
-      { key: "discount_roof", label: "Roof/Facades Discount (%)", value: 65 },
-    ],
-  },
-  {
-    title: "Additional Services",
-    params: [
-      { key: "service_matterport", label: "Matterport (per unit)", value: 150 },
-      { key: "service_georeferencing", label: "Georeferencing (per unit)", value: 500 },
-      { key: "service_scan_half", label: "Scanning - Half Day", value: 750 },
-      { key: "service_scan_full", label: "Scanning - Full Day", value: 1500 },
-    ],
-  },
-];
+// Map of category names for display
+const CATEGORY_TITLES: Record<string, string> = {
+  risk: "Risk Factors",
+  travel: "Travel Costs",
+  discount: "Scope Discounts",
+  service: "Additional Services",
+  payment: "Payment Terms",
+  general: "General Parameters",
+};
+
+// Map of parameter keys to human-readable labels
+const PARAMETER_LABELS: Record<string, string> = {
+  risk_occupied: "Occupied Building Premium (%)",
+  risk_hazardous: "Hazardous Conditions Premium (%)",
+  risk_no_power: "No Power/HVAC Premium (%)",
+  risk_occupied_tier_a: "Occupied Building - Tier A (%)",
+  risk_hazardous_tier_a: "Hazardous Conditions - Tier A (%)",
+  risk_no_power_tier_a: "No Power/HVAC - Tier A (%)",
+  travel_cost_troy: "Travel Cost - Troy ($/mile)",
+  travel_cost_brooklyn: "Travel Cost - Brooklyn ($/mile)",
+  travel_scan_day_fee: "Scan Day Fee (>75mi, ≥2 days)",
+  travel_distance_threshold: "Distance Threshold (miles)",
+  travel_min_days: "Min Days for Scan Day Fee",
+  discount_interior_only: "Interior Only Discount (%)",
+  discount_exterior_only: "Exterior Only Discount (%)",
+  discount_mixed_interior: "Mixed - Interior Portion (%)",
+  discount_mixed_exterior: "Mixed - Exterior Portion (%)",
+  discount_roof_facades: "Roof/Facades Only (%)",
+  service_matterport: "Matterport ($/sqft)",
+  service_georeferencing: "Georeferencing (per building/site)",
+  service_scanning_full_day: "Scanning - Full Day",
+  service_scanning_half_day: "Scanning - Half Day",
+  service_expedited: "Expedited Service Fee (%)",
+  payment_net30_interest: "Net 30 Interest (%)",
+  payment_net60_interest: "Net 60 Interest (%)",
+  payment_net90_interest: "Net 90 Interest (%)",
+  minimum_sqft_service: "Minimum Sqft (Tier B & C)",
+  cad_conversion_minimum: "CAD Conversion Minimum",
+  tier_a_overhead_markup: "Tier A Overhead Markup (%)",
+  tier_a_gm_markup_min: "Tier A GM Markup Min (%)",
+  tier_a_gm_markup_max: "Tier A GM Markup Max (%)",
+  tier_a_threshold: "Tier A Threshold (sqft)",
+  landscape_acres_threshold: "Landscape Tier A Threshold (acres)",
+  landscape_tier_a_overhead: "Landscape Tier A Overhead (%)",
+  landscape_tier_a_gm: "Landscape Tier A GM (%)",
+};
+
+interface PricingParameter {
+  id: number;
+  parameterKey: string;
+  parameterValue: string;
+  parameterType: string;
+  description: string | null;
+  category: string | null;
+  updatedAt: string | null;
+}
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("parameters");
   const [matrixTab, setMatrixTab] = useState("client");
   const [selectedBuildingType, setSelectedBuildingType] = useState<number>(1);
-  const [params, setParams] = useState<Record<string, number>>({});
+  const [params, setParams] = useState<Record<number, string>>({});
   const { toast } = useToast();
+
+  // Fetch pricing parameters
+  const { data: pricingParameters, isLoading: isLoadingParameters } = useQuery<PricingParameter[]>({
+    queryKey: ["/api/pricing-parameters"],
+  });
 
   // Fetch client pricing matrix
   const { data: clientPricingRates, isLoading: isLoadingClientRates } = useQuery<any[]>({
@@ -123,8 +148,39 @@ export default function Admin() {
     },
   });
 
-  const handleParamChange = (key: string, value: number) => {
-    setParams((prev) => ({ ...prev, [key]: value }));
+  // Update pricing parameter mutation
+  const updateParameterMutation = useMutation({
+    mutationFn: async ({ id, parameterValue }: { id: number; parameterValue: string }) => {
+      return await apiRequest("PATCH", `/api/pricing-parameters/${id}`, { parameterValue });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricing-parameters"] });
+      toast({
+        title: "Parameters saved",
+        description: "Pricing parameters have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update pricing parameters",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleParamChange = (id: number, value: string) => {
+    setParams((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSaveParameters = async () => {
+    // Save all changed parameters
+    const updates = Object.entries(params).map(([id, value]) => 
+      updateParameterMutation.mutateAsync({ id: parseInt(id), parameterValue: value })
+    );
+    
+    await Promise.all(updates);
+    setParams({});
   };
 
   const handleClientRateChange = (rateId: number, newRate: number) => {
@@ -140,6 +196,16 @@ export default function Admin() {
       ratePerSqFt: newRate.toString(),
     });
   };
+
+  // Group parameters by category
+  const groupedParameters = (pricingParameters || []).reduce((groups, param) => {
+    const category = param.category || 'general';
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(param);
+    return groups;
+  }, {} as Record<string, PricingParameter[]>);
 
   return (
     <div className="min-h-screen bg-background">
@@ -162,42 +228,66 @@ export default function Admin() {
           </TabsList>
 
           <TabsContent value="parameters" className="mt-6 space-y-6">
-            {PARAMETER_GROUPS.map((group) => (
-              <Card key={group.title}>
-                <CardHeader>
-                  <CardTitle>{group.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {group.params.map((param) => (
-                      <div key={param.key} className="space-y-2">
-                        <Label htmlFor={param.key} className="text-sm font-medium">
-                          {param.label}
-                        </Label>
-                        <Input
-                          id={param.key}
-                          type="number"
-                          step="0.01"
-                          value={params[param.key] ?? param.value}
-                          onChange={(e) =>
-                            handleParamChange(param.key, parseFloat(e.target.value) || 0)
-                          }
-                          className="font-mono"
-                          data-testid={`input-param-${param.key}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
+            {isLoadingParameters ? (
+              <Card>
+                <CardContent className="flex items-center justify-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              <>
+                {Object.entries(groupedParameters).map(([category, parameters]) => (
+                  <Card key={category}>
+                    <CardHeader>
+                      <CardTitle>{CATEGORY_TITLES[category] || category}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {parameters.map((param) => (
+                          <div key={param.id} className="space-y-2">
+                            <Label htmlFor={`param-${param.id}`} className="text-sm font-medium">
+                              {PARAMETER_LABELS[param.parameterKey] || param.description || param.parameterKey}
+                            </Label>
+                            <Input
+                              id={`param-${param.id}`}
+                              type="number"
+                              step="0.01"
+                              value={params[param.id] ?? param.parameterValue}
+                              onChange={(e) =>
+                                handleParamChange(param.id, e.target.value)
+                              }
+                              className="font-mono"
+                              data-testid={`input-param-${param.parameterKey}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
 
-            <div className="flex justify-end">
-              <Button size="lg" data-testid="button-save-parameters">
-                <Save className="h-4 w-4 mr-2" />
-                Save Parameters
-              </Button>
-            </div>
+                <div className="flex justify-end">
+                  <Button 
+                    size="lg" 
+                    onClick={handleSaveParameters}
+                    disabled={Object.keys(params).length === 0 || updateParameterMutation.isPending}
+                    data-testid="button-save-parameters"
+                  >
+                    {updateParameterMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Parameters
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="matrix" className="mt-6 space-y-6">
