@@ -363,19 +363,36 @@ export default function Calculator() {
 
     const allFiles = [
       ...(scopingData.customTemplateFiles || []),
-      ...(scopingData.ndaFiles || []),
+      ...(scopingData.sqftAssumptionsFiles || []),
       ...(scopingData.scopingDocuments || []),
+      ...(scopingData.ndaFiles || []),
     ];
+
+    console.log('Scope data for zip:', {
+      customTemplateFiles: scopingData.customTemplateFiles,
+      sqftAssumptionsFiles: scopingData.sqftAssumptionsFiles,
+      scopingDocuments: scopingData.scopingDocuments,
+      ndaFiles: scopingData.ndaFiles,
+      allFilesCount: allFiles.length
+    });
 
     for (const file of allFiles) {
       if (file.url) {
+        console.log(`Fetching file: ${file.name} from ${file.url}`);
         try {
           const response = await fetch(file.url);
+          if (!response.ok) {
+            console.error(`Failed to fetch ${file.name}: ${response.status} ${response.statusText}`);
+            continue;
+          }
           const blob = await response.blob();
           zip.file(file.name, blob);
+          console.log(`Added file to zip: ${file.name}`);
         } catch (error) {
           console.error(`Failed to fetch file ${file.name}:`, error);
         }
+      } else {
+        console.log(`File ${file.name} has no URL`);
       }
     }
 
