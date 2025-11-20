@@ -3,47 +3,51 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertQuoteSchema } from "@shared/schema";
 import { z } from "zod";
-import multer from "multer";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 },
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error accessing object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
   });
 
-  app.post("/api/upload", upload.single('file'), async (req, res) => {
+  app.post("/api/objects/upload", async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
 
-      const privateDir = process.env.PRIVATE_OBJECT_DIR;
-      if (!privateDir) {
-        return res.status(500).json({ error: "Object storage not configured" });
-      }
-
-      // Ensure the private directory exists
-      await mkdir(privateDir, { recursive: true });
-
-      const timestamp = Date.now();
-      const safeFilename = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const filename = `${timestamp}_${safeFilename}`;
-      const filepath = join(privateDir, filename);
-
-      await writeFile(filepath, req.file.buffer);
-
-      const url = `/objstore${filepath}`;
-
-      res.json({
-        url,
-        filename: req.file.originalname,
-        size: req.file.size,
+  app.put("/api/objects/finalize", async (req, res) => {
+    if (!req.body.fileURL) {
+      return res.status(400).json({ error: "fileURL is required" });
+    }
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(
+        req.body.fileURL,
+      );
+      res.status(200).json({
+        objectPath: objectPath,
       });
     } catch (error) {
-      console.error("Error uploading file:", error);
-      res.status(500).json({ error: "Failed to upload file" });
+      console.error("Error finalizing upload:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

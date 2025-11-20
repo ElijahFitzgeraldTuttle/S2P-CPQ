@@ -48,24 +48,30 @@ export default function FileUpload({
 
     try {
       for (const file of selectedFiles) {
-        const formData = new FormData();
-        formData.append('file', file);
+        const uploadResponse = await apiRequest("POST", "/api/objects/upload", {});
+        const uploadData = await uploadResponse.json();
+        const { uploadURL } = uploadData;
 
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
+        const putResponse = await fetch(uploadURL, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+          },
         });
 
-        if (!response.ok) {
-          throw new Error("Upload failed");
+        if (!putResponse.ok) {
+          throw new Error("Upload to storage failed");
         }
 
-        const data = await response.json();
+        const finalizeResponse = await apiRequest("PUT", "/api/objects/finalize", {
+          fileURL: uploadURL,
+        });
+        const finalizeData = await finalizeResponse.json();
 
         uploadedFiles.push({
           name: file.name,
-          url: data.url,
+          url: finalizeData.objectPath,
           size: file.size,
         });
       }
@@ -76,6 +82,7 @@ export default function FileUpload({
         description: `${uploadedFiles.length} file(s) uploaded`,
       });
     } catch (error) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
         description: "Failed to upload files. Please try again.",
