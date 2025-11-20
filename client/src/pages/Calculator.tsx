@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Plus, Save, Download, FileText } from "lucide-react";
+import JSZip from "jszip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -350,6 +351,39 @@ export default function Calculator() {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadZipFile = async (textContent: string, textFilename: string, zipFilename: string) => {
+    const zip = new JSZip();
+    zip.file(textFilename, textContent);
+
+    const allFiles = [
+      ...(scopingData.customTemplateFiles || []),
+      ...(scopingData.ndaFiles || []),
+      ...(scopingData.scopingDocuments || []),
+    ];
+
+    for (const file of allFiles) {
+      if (file.url) {
+        try {
+          const response = await fetch(file.url);
+          const blob = await response.blob();
+          zip.file(file.name, blob);
+        } catch (error) {
+          console.error(`Failed to fetch file ${file.name}:`, error);
+        }
+      }
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = zipFilename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -740,34 +774,52 @@ export default function Calculator() {
     return text;
   };
 
-  const exportScopeOnly = () => {
+  const exportScopeOnly = async () => {
     const content = formatScopeData();
-    downloadTextFile(content, `scope-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    const timestamp = Date.now();
+    const projectName = projectDetails.projectName || "draft";
+    await downloadZipFile(
+      content, 
+      `scope-${projectName}-${timestamp}.txt`,
+      `scope-${projectName}-${timestamp}.zip`
+    );
     toast({
       title: "Scope exported",
-      description: "Scope data has been downloaded as text file",
+      description: "Scope data and attachments downloaded as zip file",
     });
   };
 
-  const exportScopeQuoteClient = () => {
+  const exportScopeQuoteClient = async () => {
     let content = formatScopeData();
     content += "\n\n";
     content += formatQuoteDataClient();
-    downloadTextFile(content, `scope-quote-client-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    const timestamp = Date.now();
+    const projectName = projectDetails.projectName || "draft";
+    await downloadZipFile(
+      content,
+      `scope-quote-client-${projectName}-${timestamp}.txt`,
+      `scope-quote-client-${projectName}-${timestamp}.zip`
+    );
     toast({
       title: "Scope + Quote exported",
-      description: "Scope and quote (client version) downloaded as text file",
+      description: "Scope, quote (client version), and attachments downloaded as zip file",
     });
   };
 
-  const exportScopeQuoteInternal = () => {
+  const exportScopeQuoteInternal = async () => {
     let content = formatScopeData();
     content += "\n\n";
     content += formatQuoteDataInternal();
-    downloadTextFile(content, `scope-quote-internal-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
+    const timestamp = Date.now();
+    const projectName = projectDetails.projectName || "draft";
+    await downloadZipFile(
+      content,
+      `scope-quote-internal-${projectName}-${timestamp}.txt`,
+      `scope-quote-internal-${projectName}-${timestamp}.zip`
+    );
     toast({
       title: "Scope + Quote exported",
-      description: "Scope and quote (internal version) downloaded as text file",
+      description: "Scope, quote (internal version), and attachments downloaded as zip file",
     });
   };
 
