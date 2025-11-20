@@ -271,22 +271,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "parameterValue is required and cannot be empty" });
       }
       
-      // Validate that the parameter value is a number or can be converted to one
-      const numericValue = Number(parameterValue);
-      if (isNaN(numericValue)) {
-        return res.status(400).json({ error: "parameterValue must be a valid number" });
+      // Fetch existing parameter to check its type
+      const allParameters = await storage.getAllPricingParameters();
+      const existingParam = allParameters.find(p => p.id === parseInt(req.params.id));
+      
+      if (!existingParam) {
+        return res.status(404).json({ error: "Pricing parameter not found" });
       }
       
-      // Store as string in database but maintain numeric precision
-      const updated = await storage.updatePricingParameter(parseInt(req.params.id), numericValue.toString());
+      // Validate based on parameter type
+      let valueToStore: string;
+      const isNumericType = existingParam.parameterType === 'number' || existingParam.parameterType === 'percentage';
+      
+      if (isNumericType) {
+        const numericValue = Number(parameterValue);
+        if (isNaN(numericValue)) {
+          return res.status(400).json({ error: `Parameter '${existingParam.parameterKey}' requires a numeric value` });
+        }
+        valueToStore = numericValue.toString();
+      } else {
+        valueToStore = String(parameterValue);
+      }
+      
+      // Store in database
+      const updated = await storage.updatePricingParameter(parseInt(req.params.id), valueToStore);
       if (!updated) {
         return res.status(404).json({ error: "Pricing parameter not found" });
       }
       
-      // Return with proper numeric type in response
+      // Return with proper type in response
       const typedResponse = {
         ...updated,
-        parameterValue: (updated.parameterType === 'number' || updated.parameterType === 'percentage')
+        parameterValue: isNumericType 
           ? Number(updated.parameterValue)
           : updated.parameterValue
       };
