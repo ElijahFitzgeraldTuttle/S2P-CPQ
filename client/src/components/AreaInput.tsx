@@ -251,56 +251,6 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
               );
             })}
             
-            <Separator className="my-4" />
-            
-            {/* Grade Around Building */}
-            <Card className={`p-3 transition-colors ${area.gradeAroundBuilding ? "border-primary bg-accent" : ""}`}>
-              <div className="space-y-3">
-                <div 
-                  className="flex items-start gap-3 cursor-pointer hover-elevate rounded p-2 -m-2"
-                  onClick={() => onChange(area.id, 'gradeAroundBuilding', !area.gradeAroundBuilding)}
-                >
-                  <Checkbox
-                    id={`${area.id}-grade`}
-                    checked={area.gradeAroundBuilding}
-                    onCheckedChange={(checked) => onChange(area.id, 'gradeAroundBuilding', checked as boolean)}
-                    data-testid={`checkbox-area-${index}-grade`}
-                  />
-                  <div className="flex-1">
-                    <Label
-                      htmlFor={`${area.id}-grade`}
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      Grade Around Building? (~20' topography)
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Topographical modeling around building
-                    </p>
-                  </div>
-                </div>
-
-                {area.gradeAroundBuilding && (
-                  <div className="space-y-2 pl-8">
-                    <Label htmlFor={`grade-lod-${area.id}`} className="text-sm font-medium">
-                      LoD
-                    </Label>
-                    <Select 
-                      value={area.gradeLod || "300"} 
-                      onValueChange={(value) => onChange(area.id, 'gradeLod', value)}
-                    >
-                      <SelectTrigger id={`grade-lod-${area.id}`} data-testid={`select-grade-lod-area-${index}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="250">250</SelectItem>
-                        <SelectItem value="300">300</SelectItem>
-                        <SelectItem value="350">350</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </Card>
           </div>
         )}
       </div>
