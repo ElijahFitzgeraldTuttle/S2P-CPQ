@@ -717,17 +717,12 @@ export default function Calculator() {
     text += `Building Type: ${projectDetails.typeOfBuilding || "N/A"}\n\n`;
 
     const grandTotalItem = pricingItems.find(item => item.isTotal);
-    const effectivePriceItem = pricingItems.find(item => item.label.includes("Effective Price"));
     
     text += "PRICING SUMMARY\n";
     text += "----------------------------\n";
     if (grandTotalItem) {
       const amount = `$${grandTotalItem.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       text += `Grand Total: ${amount}\n`;
-    }
-    if (effectivePriceItem) {
-      const amount = `$${effectivePriceItem.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      text += `${effectivePriceItem.label}: ${amount}\n`;
     }
 
     if (projectDetails.notes) {
@@ -1209,20 +1204,6 @@ export default function Calculator() {
         editable: true,
         isTotal: true,
       });
-
-      const totalSqft = areas.reduce((sum, area) => {
-        const isLandscape = area.buildingType === "14" || area.buildingType === "15";
-        const inputValue = parseInt(area.squareFeet) || 0;
-        return sum + (isLandscape ? inputValue * 43560 : inputValue);
-      }, 0);
-      if (totalSqft > 0) {
-        const effectivePricePerSqft = runningTotal / totalSqft;
-        items.push({
-          label: `Effective Price per Sq Ft (${totalSqft.toLocaleString()} sqft)`,
-          value: effectivePricePerSqft,
-          editable: false,
-        });
-      }
     }
 
     return { items, clientTotal: runningTotal, upteamCost };
