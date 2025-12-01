@@ -100,13 +100,6 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
                   </span>
                 )}
               </div>
-              {sqftData && !item.isTotal && (
-                <div className="flex items-center justify-end mt-1">
-                  <span className="font-mono text-xs text-muted-foreground" data-testid={`text-rate-${index}`}>
-                    ${sqftData.rate.toFixed(2)}/sqft
-                  </span>
-                </div>
-              )}
             </div>
           );
         })}
