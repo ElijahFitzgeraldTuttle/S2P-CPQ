@@ -1121,10 +1121,8 @@ export default function Calculator() {
         label: `Travel (${distance} mi @ $${ratePerMile}/mi${distance > 75 && estimatedScanDays >= 2 ? ` + ${estimatedScanDays} scan-days @ $300/day` : ''})`,
         value: travelCost,
         editable: true,
-        upteamCost: travelCost, // Travel is a real cost
       });
       runningTotal += travelCost;
-      upteamCost += travelCost;
     }
 
     Object.entries(services).forEach(([serviceId, quantity]) => {
