@@ -806,9 +806,8 @@ export default function Calculator() {
     return text;
   };
 
-  const exportScopeOnly = async () => {
+  const exportScopeWithAttachments = async () => {
     try {
-      console.log('Starting scope PDF generation...');
       const pdfBlob = await generateScopePDF(
         projectDetails,
         areas,
@@ -821,7 +820,6 @@ export default function Calculator() {
         existingQuote?.quoteNumber,
         true
       );
-      console.log('PDF blob generated:', pdfBlob);
       
       if (pdfBlob) {
         const zip = new JSZip();
@@ -836,7 +834,6 @@ export default function Calculator() {
           ...(scopingData.scopingDocuments || []),
           ...(scopingData.ndaFiles || []),
         ];
-        console.log('Files to add:', allFiles.length);
         
         for (const file of allFiles) {
           if (file.url) {
@@ -852,7 +849,6 @@ export default function Calculator() {
           }
         }
         
-        console.log('Generating zip...');
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
@@ -862,9 +858,6 @@ export default function Calculator() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        console.log('Download triggered');
-      } else {
-        console.error('PDF blob was null or undefined');
       }
       
       toast({
@@ -873,9 +866,35 @@ export default function Calculator() {
       });
     } catch (error: any) {
       console.error('Failed to generate PDF:', error);
-      console.error('Error name:', error?.name);
-      console.error('Error message:', error?.message);
-      console.error('Error stack:', error?.stack);
+      toast({
+        title: "Export failed",
+        description: error?.message || "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportScopeLinksOnly = async () => {
+    try {
+      await generateScopePDF(
+        projectDetails,
+        areas,
+        risks,
+        dispatch,
+        distance,
+        distanceCalculated,
+        services,
+        scopingData,
+        existingQuote?.quoteNumber,
+        false
+      );
+      
+      toast({
+        title: "Scope exported",
+        description: "Scope PDF downloaded with clickable attachment links",
+      });
+    } catch (error: any) {
+      console.error('Failed to generate PDF:', error);
       toast({
         title: "Export failed",
         description: error?.message || "Failed to generate PDF. Please try again.",
@@ -1572,18 +1591,13 @@ export default function Calculator() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportScopeOnly} data-testid="button-export-scope-only">
+                  <DropdownMenuItem onClick={exportScopeWithAttachments} data-testid="button-export-scope-attachments">
                     <FileText className="h-4 w-4 mr-2" />
-                    Scope Only
+                    Scope (Attachments Included)
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportScopeQuoteClient} data-testid="button-export-scope-quote-client">
+                  <DropdownMenuItem onClick={exportScopeLinksOnly} data-testid="button-export-scope-links">
                     <FileText className="h-4 w-4 mr-2" />
-                    Scope + Quote (Client)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportScopeQuoteInternal} data-testid="button-export-scope-quote-internal">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Scope + Quote (Internal)
+                    Scope (Links Only)
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
