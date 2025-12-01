@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Plus, Save, Download, FileText } from "lucide-react";
 import JSZip from "jszip";
 import {
+  generateScopePDF,
+  generateQuoteClientPDF,
+  generateQuoteInternalPDF,
+  generateCRMPDF,
+  generateScopeQuotePDF,
+} from "@/lib/pdfExport";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -800,79 +807,292 @@ export default function Calculator() {
   };
 
   const exportScopeOnly = async () => {
-    const content = formatScopeData();
-    const timestamp = Date.now();
-    const projectName = projectDetails.projectName || "draft";
-    await downloadZipFile(
-      content, 
-      `scope-${projectName}-${timestamp}.txt`,
-      `scope-${projectName}-${timestamp}.zip`
-    );
-    toast({
-      title: "Scope exported",
-      description: "Scope data and attachments downloaded as zip file",
-    });
+    try {
+      const pdfBlob = await generateScopePDF(
+        projectDetails,
+        areas,
+        risks,
+        dispatch,
+        distance,
+        distanceCalculated,
+        services,
+        scopingData,
+        existingQuote?.quoteNumber,
+        true
+      );
+      
+      if (pdfBlob) {
+        const zip = new JSZip();
+        const timestamp = Date.now();
+        const projectName = projectDetails.projectName || "draft";
+        
+        zip.file(`scope-${projectName}.pdf`, pdfBlob);
+        
+        const allFiles = [
+          ...(scopingData.customTemplateFiles || []),
+          ...(scopingData.sqftAssumptionsFiles || []),
+          ...(scopingData.scopingDocuments || []),
+          ...(scopingData.ndaFiles || []),
+        ];
+        
+        for (const file of allFiles) {
+          if (file.url) {
+            try {
+              const response = await fetch(file.url);
+              if (response.ok) {
+                const blob = await response.blob();
+                zip.file(file.name, blob);
+              }
+            } catch (error) {
+              console.error(`Failed to fetch file ${file.name}:`, error);
+            }
+          }
+        }
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `scope-${projectName}-${timestamp}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      toast({
+        title: "Scope exported",
+        description: "Scope PDF and attachments downloaded as zip file",
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const exportScopeQuoteClient = async () => {
-    let content = formatScopeData();
-    content += "\n\n";
-    content += formatQuoteDataClient();
-    const timestamp = Date.now();
-    const projectName = projectDetails.projectName || "draft";
-    await downloadZipFile(
-      content,
-      `scope-quote-client-${projectName}-${timestamp}.txt`,
-      `scope-quote-client-${projectName}-${timestamp}.zip`
-    );
-    toast({
-      title: "Scope + Quote exported",
-      description: "Scope, quote (client version), and attachments downloaded as zip file",
-    });
+    try {
+      const pdfBlob = await generateScopeQuotePDF(
+        projectDetails,
+        areas,
+        risks,
+        dispatch,
+        distance,
+        distanceCalculated,
+        services,
+        scopingData,
+        pricingItems,
+        false,
+        undefined,
+        undefined,
+        existingQuote?.quoteNumber,
+        true
+      );
+      
+      if (pdfBlob) {
+        const zip = new JSZip();
+        const timestamp = Date.now();
+        const projectName = projectDetails.projectName || "draft";
+        
+        zip.file(`scope-quote-client-${projectName}.pdf`, pdfBlob);
+        
+        const allFiles = [
+          ...(scopingData.customTemplateFiles || []),
+          ...(scopingData.sqftAssumptionsFiles || []),
+          ...(scopingData.scopingDocuments || []),
+          ...(scopingData.ndaFiles || []),
+        ];
+        
+        for (const file of allFiles) {
+          if (file.url) {
+            try {
+              const response = await fetch(file.url);
+              if (response.ok) {
+                const blob = await response.blob();
+                zip.file(file.name, blob);
+              }
+            } catch (error) {
+              console.error(`Failed to fetch file ${file.name}:`, error);
+            }
+          }
+        }
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `scope-quote-client-${projectName}-${timestamp}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      toast({
+        title: "Scope + Quote exported",
+        description: "Scope, quote (client version), and attachments downloaded as zip file",
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const exportScopeQuoteInternal = async () => {
-    let content = formatScopeData();
-    content += "\n\n";
-    content += formatQuoteDataInternal();
-    const timestamp = Date.now();
-    const projectName = projectDetails.projectName || "draft";
-    await downloadZipFile(
-      content,
-      `scope-quote-internal-${projectName}-${timestamp}.txt`,
-      `scope-quote-internal-${projectName}-${timestamp}.zip`
-    );
-    toast({
-      title: "Scope + Quote exported",
-      description: "Scope, quote (internal version), and attachments downloaded as zip file",
-    });
+    const grandTotalItem = pricingItems.find(item => item.isTotal);
+    const totalClientPrice = grandTotalItem?.value || 0;
+    const totalUpteamCost = pricingItems
+      .filter(item => item.upteamCost !== undefined)
+      .reduce((sum, item) => sum + (item.upteamCost || 0), 0);
+    
+    try {
+      const pdfBlob = await generateScopeQuotePDF(
+        projectDetails,
+        areas,
+        risks,
+        dispatch,
+        distance,
+        distanceCalculated,
+        services,
+        scopingData,
+        pricingItems,
+        true,
+        totalClientPrice,
+        totalUpteamCost,
+        existingQuote?.quoteNumber,
+        true
+      );
+      
+      if (pdfBlob) {
+        const zip = new JSZip();
+        const timestamp = Date.now();
+        const projectName = projectDetails.projectName || "draft";
+        
+        zip.file(`scope-quote-internal-${projectName}.pdf`, pdfBlob);
+        
+        const allFiles = [
+          ...(scopingData.customTemplateFiles || []),
+          ...(scopingData.sqftAssumptionsFiles || []),
+          ...(scopingData.scopingDocuments || []),
+          ...(scopingData.ndaFiles || []),
+        ];
+        
+        for (const file of allFiles) {
+          if (file.url) {
+            try {
+              const response = await fetch(file.url);
+              if (response.ok) {
+                const blob = await response.blob();
+                zip.file(file.name, blob);
+              }
+            } catch (error) {
+              console.error(`Failed to fetch file ${file.name}:`, error);
+            }
+          }
+        }
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `scope-quote-internal-${projectName}-${timestamp}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      
+      toast({
+        title: "Scope + Quote exported",
+        description: "Scope, quote (internal version), and attachments downloaded as zip file",
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const exportQuoteClient = () => {
-    const content = formatQuoteDataClient();
-    downloadTextFile(content, `quote-client-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
-    toast({
-      title: "Quote exported",
-      description: "Quote (client version) has been downloaded as text file",
-    });
+  const exportQuoteClient = async () => {
+    try {
+      await generateQuoteClientPDF(
+        projectDetails,
+        pricingItems,
+        existingQuote?.quoteNumber
+      );
+      toast({
+        title: "Quote exported",
+        description: "Quote (client version) has been downloaded as PDF",
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const exportQuoteInternal = () => {
-    const content = formatQuoteDataInternal();
-    downloadTextFile(content, `quote-internal-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
-    toast({
-      title: "Quote exported",
-      description: "Quote (internal version) has been downloaded as text file",
-    });
+  const exportQuoteInternal = async () => {
+    const grandTotalItem = pricingItems.find(item => item.isTotal);
+    const totalClientPrice = grandTotalItem?.value || 0;
+    const totalUpteamCost = pricingItems
+      .filter(item => item.upteamCost !== undefined)
+      .reduce((sum, item) => sum + (item.upteamCost || 0), 0);
+    
+    try {
+      await generateQuoteInternalPDF(
+        projectDetails,
+        pricingItems,
+        totalClientPrice,
+        totalUpteamCost,
+        existingQuote?.quoteNumber
+      );
+      toast({
+        title: "Quote exported",
+        description: "Quote (internal version) has been downloaded as PDF",
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const exportCRMOnly = () => {
-    const content = formatCRMData();
-    downloadTextFile(content, `crm-${projectDetails.projectName || "draft"}-${Date.now()}.txt`);
-    toast({
-      title: "CRM data exported",
-      description: "CRM data has been downloaded as text file",
-    });
+  const exportCRMOnly = async () => {
+    try {
+      await generateCRMPDF(
+        projectDetails,
+        scopingData,
+        existingQuote?.quoteNumber
+      );
+      toast({
+        title: "CRM data exported",
+        description: "CRM data has been downloaded as PDF",
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast({
+        title: "Export failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Helper function to get area tier based on square footage
