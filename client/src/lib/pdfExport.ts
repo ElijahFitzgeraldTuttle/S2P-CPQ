@@ -1,13 +1,6 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import logoUrl from '@assets/Scan2Plan_2021_logo_variations+[Recovered]-03_1764552312533.webp';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
 
 const COLORS = {
   primary: [59, 130, 246] as [number, number, number],
@@ -325,7 +318,7 @@ export async function generateScopePDF(
       ];
     });
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Area Name', 'Building Type', 'Size', 'Scope', 'Disciplines']],
       body: areaRows,
@@ -353,7 +346,7 @@ export async function generateScopePDF(
       },
     });
     
-    y = doc.lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 10;
   }
   
   y = checkPageBreak(doc, y, 50);
@@ -596,7 +589,7 @@ export async function generateQuoteInternalPDF(
       `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
   ]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: y,
     head: [['Description', 'Amount']],
     body: rows,
@@ -621,7 +614,7 @@ export async function generateQuoteInternalPDF(
     margin: { left: 20, right: 20 },
   });
   
-  y = doc.lastAutoTable.finalY + 10;
+  y = (doc as any).lastAutoTable.finalY + 10;
   
   const grandTotalItem = pricingItems.find(item => item.isTotal);
   if (grandTotalItem) {
@@ -809,7 +802,7 @@ export async function generateScopeQuotePDF(
       ];
     });
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Area', 'Type', 'Size', 'Scope', 'Disciplines']],
       body: areaRows,
@@ -837,7 +830,7 @@ export async function generateScopeQuotePDF(
       },
     });
     
-    y = doc.lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 10;
   }
   
   y = checkPageBreak(doc, y, 80);
@@ -851,7 +844,7 @@ export async function generateScopeQuotePDF(
         `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Description', 'Amount']],
       body: rows,
@@ -876,7 +869,7 @@ export async function generateScopeQuotePDF(
       margin: { left: 20, right: 20 },
     });
     
-    y = doc.lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 8;
   }
   
   const grandTotalItem = pricingItems.find(item => item.isTotal);
