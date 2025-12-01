@@ -1118,7 +1118,7 @@ export default function Calculator() {
       }
       
       items.push({
-        label: `Travel (${distance} mi @ $${ratePerMile}/mi${distance > 75 && estimatedScanDays >= 2 ? ` + $${300 * estimatedScanDays} scan-day fee` : ''})`,
+        label: `Travel (${distance} mi @ $${ratePerMile}/mi${distance > 75 && estimatedScanDays >= 2 ? ` + ${estimatedScanDays} scan-days @ $300/day` : ''})`,
         value: travelCost,
         editable: true,
         upteamCost: travelCost, // Travel is a real cost
