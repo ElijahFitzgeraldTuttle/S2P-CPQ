@@ -117,33 +117,53 @@ const SCOPE_MAP: Record<string, string> = {
   "roof": "Roof/Facades Only",
 };
 
-async function loadLogoAsBase64(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
-        reject(new Error('Could not get canvas context'));
-      }
-    };
-    img.onerror = () => reject(new Error('Failed to load logo'));
-    img.src = logoUrl;
+async function loadLogoAsBase64(): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          } else {
+            console.warn('Could not get canvas context for logo');
+            resolve(null);
+          }
+        } catch (e) {
+          console.warn('Failed to convert logo to base64:', e);
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        console.warn('Failed to load logo image');
+        resolve(null);
+      };
+      img.src = logoUrl;
+    } catch (e) {
+      console.warn('Error in logo loading:', e);
+      resolve(null);
+    }
   });
 }
 
-function addHeader(doc: jsPDF, logoBase64: string, title: string, quoteNumber?: string) {
+function addHeader(doc: jsPDF, logoBase64: string | null, title: string, quoteNumber?: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  try {
-    doc.addImage(logoBase64, 'PNG', 20, 15, 50, 15);
-  } catch (e) {
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', 20, 15, 50, 15);
+    } catch (e) {
+      doc.setFontSize(16);
+      doc.setTextColor(...COLORS.primary);
+      doc.text('Scan2Plan', 20, 25);
+    }
+  } else {
     doc.setFontSize(16);
     doc.setTextColor(...COLORS.primary);
     doc.text('Scan2Plan', 20, 25);
@@ -246,12 +266,7 @@ export async function generateScopePDF(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  let logoBase64 = '';
-  try {
-    logoBase64 = await loadLogoAsBase64();
-  } catch (e) {
-    console.warn('Could not load logo:', e);
-  }
+  const logoBase64 = await loadLogoAsBase64();
   
   let y = addHeader(doc, logoBase64, 'Scoping Document', quoteNumber);
   
@@ -480,12 +495,7 @@ export async function generateQuoteClientPDF(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  let logoBase64 = '';
-  try {
-    logoBase64 = await loadLogoAsBase64();
-  } catch (e) {
-    console.warn('Could not load logo:', e);
-  }
+  const logoBase64 = await loadLogoAsBase64();
   
   let y = addHeader(doc, logoBase64, 'Quote', quoteNumber);
   
@@ -564,12 +574,7 @@ export async function generateQuoteInternalPDF(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  let logoBase64 = '';
-  try {
-    logoBase64 = await loadLogoAsBase64();
-  } catch (e) {
-    console.warn('Could not load logo:', e);
-  }
+  const logoBase64 = await loadLogoAsBase64();
   
   let y = addHeader(doc, logoBase64, 'Quote - Internal', quoteNumber);
   
@@ -676,12 +681,7 @@ export async function generateCRMPDF(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  let logoBase64 = '';
-  try {
-    logoBase64 = await loadLogoAsBase64();
-  } catch (e) {
-    console.warn('Could not load logo:', e);
-  }
+  const logoBase64 = await loadLogoAsBase64();
   
   let y = addHeader(doc, logoBase64, 'CRM Data', quoteNumber);
   
@@ -761,12 +761,7 @@ export async function generateScopeQuotePDF(
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  let logoBase64 = '';
-  try {
-    logoBase64 = await loadLogoAsBase64();
-  } catch (e) {
-    console.warn('Could not load logo:', e);
-  }
+  const logoBase64 = await loadLogoAsBase64();
   
   const title = isInternal ? 'Scope & Quote - Internal' : 'Scope & Quote';
   let y = addHeader(doc, logoBase64, title, quoteNumber);
