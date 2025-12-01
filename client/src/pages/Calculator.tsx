@@ -806,75 +806,7 @@ export default function Calculator() {
     return text;
   };
 
-  const exportScopeWithAttachments = async () => {
-    try {
-      const pdfBlob = await generateScopePDF(
-        projectDetails,
-        areas,
-        risks,
-        dispatch,
-        distance,
-        distanceCalculated,
-        services,
-        scopingData,
-        existingQuote?.quoteNumber,
-        true
-      );
-      
-      if (pdfBlob) {
-        const zip = new JSZip();
-        const timestamp = Date.now();
-        const projectName = projectDetails.projectName || "draft";
-        
-        zip.file(`scope-${projectName}.pdf`, pdfBlob);
-        
-        const allFiles = [
-          ...(scopingData.customTemplateFiles || []),
-          ...(scopingData.sqftAssumptionsFiles || []),
-          ...(scopingData.scopingDocuments || []),
-          ...(scopingData.ndaFiles || []),
-        ];
-        
-        for (const file of allFiles) {
-          if (file.url) {
-            try {
-              const response = await fetch(file.url);
-              if (response.ok) {
-                const blob = await response.blob();
-                zip.file(file.name, blob);
-              }
-            } catch (fetchError) {
-              console.error(`Failed to fetch file ${file.name}:`, fetchError);
-            }
-          }
-        }
-        
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `scope-${projectName}-${timestamp}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-      
-      toast({
-        title: "Scope exported",
-        description: "Scope PDF and attachments downloaded as zip file",
-      });
-    } catch (error: any) {
-      console.error('Failed to generate PDF:', error);
-      toast({
-        title: "Export failed",
-        description: error?.message || "Failed to generate PDF. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const exportScopeLinksOnly = async () => {
+  const exportScope = async () => {
     try {
       await generateScopePDF(
         projectDetails,
@@ -891,7 +823,7 @@ export default function Calculator() {
       
       toast({
         title: "Scope exported",
-        description: "Scope PDF downloaded with clickable attachment links",
+        description: "Scope PDF downloaded",
       });
     } catch (error: any) {
       console.error('Failed to generate PDF:', error);
@@ -1591,13 +1523,9 @@ export default function Calculator() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportScopeWithAttachments} data-testid="button-export-scope-attachments">
+                  <DropdownMenuItem onClick={exportScope} data-testid="button-export-scope">
                     <FileText className="h-4 w-4 mr-2" />
-                    Scope (Attachments Included)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportScopeLinksOnly} data-testid="button-export-scope-links">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Scope (Links Only)
+                    Scope
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
