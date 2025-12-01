@@ -40,6 +40,12 @@ interface ProjectDetails {
   notes?: string;
 }
 
+interface UploadedFile {
+  name: string;
+  url: string;
+  size: number;
+}
+
 interface ScopingData {
   bimDeliverable?: string[];
   bimDeliverableOther?: string;
@@ -75,6 +81,10 @@ interface ScopingData {
   tierAModelingCost?: string;
   tierAMargin?: string;
   proofLinks?: string;
+  customTemplateFiles?: UploadedFile[];
+  sqftAssumptionsFiles?: UploadedFile[];
+  scopingDocuments?: UploadedFile[];
+  ndaFiles?: UploadedFile[];
 }
 
 const BUILDING_TYPE_MAP: Record<string, string> = {
@@ -242,6 +252,59 @@ function checkPageBreak(doc: jsPDF, currentY: number, neededSpace: number = 40):
     return 30;
   }
   return currentY;
+}
+
+function addAttachmentsSection(doc: jsPDF, scopingData: ScopingData, y: number, pageWidth: number): number {
+  const allFiles: { category: string; files: UploadedFile[] }[] = [];
+  
+  if (scopingData.customTemplateFiles && scopingData.customTemplateFiles.length > 0) {
+    allFiles.push({ category: 'Custom Templates', files: scopingData.customTemplateFiles });
+  }
+  if (scopingData.sqftAssumptionsFiles && scopingData.sqftAssumptionsFiles.length > 0) {
+    allFiles.push({ category: 'SQFT Assumptions', files: scopingData.sqftAssumptionsFiles });
+  }
+  if (scopingData.scopingDocuments && scopingData.scopingDocuments.length > 0) {
+    allFiles.push({ category: 'Scoping Documents', files: scopingData.scopingDocuments });
+  }
+  if (scopingData.ndaFiles && scopingData.ndaFiles.length > 0) {
+    allFiles.push({ category: 'NDA Documents', files: scopingData.ndaFiles });
+  }
+  
+  if (allFiles.length === 0) return y;
+  
+  y = checkPageBreak(doc, y, 50);
+  y = addSectionTitle(doc, 'ATTACHMENTS', y);
+  
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  
+  for (const { category, files } of allFiles) {
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.muted);
+    doc.text(category + ':', 24, y);
+    y += 5;
+    
+    for (const file of files) {
+      y = checkPageBreak(doc, y, 10);
+      
+      const fullUrl = file.url.startsWith('http') ? file.url : `${baseUrl}${file.url}`;
+      const fileSizeKB = Math.round(file.size / 1024);
+      const displayText = `${file.name} (${fileSizeKB} KB)`;
+      
+      doc.setTextColor(...COLORS.primary);
+      doc.setFontSize(8);
+      doc.textWithLink(displayText, 30, y, { url: fullUrl });
+      
+      y += 5;
+    }
+    y += 3;
+  }
+  
+  doc.setTextColor(...COLORS.muted);
+  doc.setFontSize(7);
+  doc.text('Note: Click on file names to open attachments. Files are also included in the export zip.', 24, y);
+  y += 8;
+  
+  return y;
 }
 
 export async function generateScopePDF(
@@ -469,6 +532,8 @@ export async function generateScopePDF(
       y = addField(doc, 'Insurance', scopingData.insuranceRequirements, y, pageWidth);
     }
   }
+  
+  y = addAttachmentsSection(doc, scopingData, y, pageWidth);
   
   addFooter(doc);
   
@@ -932,6 +997,8 @@ export async function generateScopeQuotePDF(
     }
     y = addField(doc, 'Payment', terms, y, pageWidth);
   }
+  
+  y = addAttachmentsSection(doc, scopingData, y, pageWidth);
   
   addFooter(doc);
   
