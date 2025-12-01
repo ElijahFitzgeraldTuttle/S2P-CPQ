@@ -808,6 +808,7 @@ export default function Calculator() {
 
   const exportScopeOnly = async () => {
     try {
+      console.log('Starting scope PDF generation...');
       const pdfBlob = await generateScopePDF(
         projectDetails,
         areas,
@@ -820,6 +821,7 @@ export default function Calculator() {
         existingQuote?.quoteNumber,
         true
       );
+      console.log('PDF blob generated:', pdfBlob);
       
       if (pdfBlob) {
         const zip = new JSZip();
@@ -834,6 +836,7 @@ export default function Calculator() {
           ...(scopingData.scopingDocuments || []),
           ...(scopingData.ndaFiles || []),
         ];
+        console.log('Files to add:', allFiles.length);
         
         for (const file of allFiles) {
           if (file.url) {
@@ -843,12 +846,13 @@ export default function Calculator() {
                 const blob = await response.blob();
                 zip.file(file.name, blob);
               }
-            } catch (error) {
-              console.error(`Failed to fetch file ${file.name}:`, error);
+            } catch (fetchError) {
+              console.error(`Failed to fetch file ${file.name}:`, fetchError);
             }
           }
         }
         
+        console.log('Generating zip...');
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
@@ -858,17 +862,23 @@ export default function Calculator() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        console.log('Download triggered');
+      } else {
+        console.error('PDF blob was null or undefined');
       }
       
       toast({
         title: "Scope exported",
         description: "Scope PDF and attachments downloaded as zip file",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate PDF:', error);
+      console.error('Error name:', error?.name);
+      console.error('Error message:', error?.message);
+      console.error('Error stack:', error?.stack);
       toast({
         title: "Export failed",
-        description: "Failed to generate PDF. Please try again.",
+        description: error?.message || "Failed to generate PDF. Please try again.",
         variant: "destructive",
       });
     }
