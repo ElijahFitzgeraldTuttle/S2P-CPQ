@@ -835,6 +835,119 @@ export default function Calculator() {
     }
   };
 
+  const exportJSON = () => {
+    const exportData = {
+      schemaVersion: "1.0.0",
+      exportedAt: new Date().toISOString(),
+      quoteNumber: existingQuote?.quoteNumber || null,
+      projectDetails: {
+        clientName: projectDetails.clientName,
+        projectName: projectDetails.projectName,
+        projectAddress: projectDetails.projectAddress,
+        specificBuilding: projectDetails.specificBuilding,
+        typeOfBuilding: projectDetails.typeOfBuilding,
+        hasBasement: projectDetails.hasBasement,
+        hasAttic: projectDetails.hasAttic,
+        notes: projectDetails.notes,
+      },
+      areas: areas.map(area => ({
+        id: area.id,
+        name: area.name,
+        buildingType: area.buildingType,
+        squareFeet: area.squareFeet,
+        scope: area.scope,
+        disciplines: area.disciplines,
+        disciplineLods: area.disciplineLods,
+        gradeAroundBuilding: area.gradeAroundBuilding,
+        gradeLod: area.gradeLod,
+      })),
+      risks,
+      travel: {
+        dispatchLocation: dispatch,
+        distance: distance,
+        distanceCalculated: distanceCalculated,
+      },
+      additionalServices: services,
+      scopingData: {
+        aboveBelowACT: scopingData.aboveBelowACT,
+        aboveBelowACTOther: scopingData.aboveBelowACTOther,
+        actSqft: scopingData.actSqft,
+        bimDeliverable: scopingData.bimDeliverable,
+        bimDeliverableOther: scopingData.bimDeliverableOther,
+        bimVersion: scopingData.bimVersion,
+        customTemplate: scopingData.customTemplate,
+        customTemplateOther: scopingData.customTemplateOther,
+        sqftAssumptions: scopingData.sqftAssumptions,
+        assumedGrossMargin: scopingData.assumedGrossMargin,
+        caveatsProfitability: scopingData.caveatsProfitability,
+        projectNotes: scopingData.projectNotes,
+        mixedScope: scopingData.mixedScope,
+        insuranceRequirements: scopingData.insuranceRequirements,
+        tierAScanningCost: scopingData.tierAScanningCost,
+        tierAScanningCostOther: scopingData.tierAScanningCostOther,
+        tierAModelingCost: scopingData.tierAModelingCost,
+        tierAMargin: scopingData.tierAMargin,
+        estimatedTimeline: scopingData.estimatedTimeline,
+        timelineOther: scopingData.timelineOther,
+        timelineNotes: scopingData.timelineNotes,
+        paymentTerms: scopingData.paymentTerms,
+        paymentTermsOther: scopingData.paymentTermsOther,
+        paymentNotes: scopingData.paymentNotes,
+        proofLinks: scopingData.proofLinks,
+      },
+      crmData: {
+        accountContact: scopingData.accountContact,
+        accountContactEmail: scopingData.accountContactEmail,
+        accountContactPhone: scopingData.accountContactPhone,
+        phoneNumber: scopingData.phoneNumber,
+        designProContact: scopingData.designProContact,
+        designProCompanyContact: scopingData.designProCompanyContact,
+        otherContact: scopingData.otherContact,
+        source: scopingData.source,
+        sourceNote: scopingData.sourceNote,
+        assist: scopingData.assist,
+        probabilityOfClosing: scopingData.probabilityOfClosing,
+        projectStatus: scopingData.projectStatus,
+        projectStatusOther: scopingData.projectStatusOther,
+      },
+      attachments: {
+        customTemplateFiles: (scopingData.customTemplateFiles || []).map(f => ({ name: f.name, url: f.url })),
+        sqftAssumptionsFiles: (scopingData.sqftAssumptionsFiles || []).map(f => ({ name: f.name, url: f.url })),
+        scopingDocuments: (scopingData.scopingDocuments || []).map(f => ({ name: f.name, url: f.url })),
+        ndaFiles: (scopingData.ndaFiles || []).map(f => ({ name: f.name, url: f.url })),
+      },
+      pricing: {
+        lineItems: pricingItems.map(item => ({
+          label: item.label,
+          value: item.value,
+          isDiscount: item.isDiscount || false,
+          isTotal: item.isTotal || false,
+          upteamCost: item.upteamCost,
+        })),
+        totalClientPrice: pricingData.clientTotal,
+        totalUpteamCost: pricingData.upteamCost,
+      },
+    };
+
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const projectName = projectDetails.projectName || "draft";
+    const timestamp = Date.now();
+    a.download = `quote-${projectName}-${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "JSON exported",
+      description: "Quote data exported as JSON file",
+    });
+  };
+
   const exportScopeQuoteClient = async () => {
     try {
       const pdfBlob = await generateScopeQuotePDF(
@@ -1540,6 +1653,11 @@ export default function Calculator() {
                   <DropdownMenuItem onClick={exportCRMOnly} data-testid="button-export-crm-only">
                     <FileText className="h-4 w-4 mr-2" />
                     CRM Only
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportJSON} data-testid="button-export-json">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export All (JSON)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
