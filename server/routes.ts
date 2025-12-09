@@ -246,6 +246,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CAD pricing matrix routes
+  app.get("/api/cad-pricing-matrix", async (req, res) => {
+    try {
+      const allRates = await storage.getAllCadPricingRates();
+      res.json(allRates);
+    } catch (error) {
+      console.error("Error fetching CAD pricing rates:", error);
+      res.status(500).json({ error: "Failed to fetch CAD pricing rates" });
+    }
+  });
+
   // Pricing parameters routes
   app.get("/api/pricing-parameters", async (req, res) => {
     try {

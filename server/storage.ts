@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters } from "@shared/schema";
+import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters, cadPricingMatrix } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -27,6 +27,10 @@ export interface IStorage {
   // Pricing parameters operations
   getAllPricingParameters(): Promise<any[]>;
   updatePricingParameter(id: number, parameterValue: string): Promise<any | undefined>;
+  
+  // CAD pricing matrix operations
+  getAllCadPricingRates(): Promise<any[]>;
+  getCadPricingRate(areaTier: string, packageType: string): Promise<any | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -168,6 +172,25 @@ export class DbStorage implements IStorage {
       .where(eq(pricingParameters.id, id))
       .returning();
     return updated;
+  }
+  
+  // CAD pricing matrix methods
+  async getAllCadPricingRates(): Promise<any[]> {
+    return db.select().from(cadPricingMatrix);
+  }
+  
+  async getCadPricingRate(areaTier: string, packageType: string): Promise<any | undefined> {
+    const [rate] = await db
+      .select()
+      .from(cadPricingMatrix)
+      .where(
+        and(
+          eq(cadPricingMatrix.areaTier, areaTier),
+          eq(cadPricingMatrix.packageType, packageType)
+        )
+      )
+      .limit(1);
+    return rate;
   }
 }
 

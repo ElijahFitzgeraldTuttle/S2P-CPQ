@@ -46,6 +46,8 @@ interface Area {
   disciplineLods: Record<string, string>;
   gradeAroundBuilding: boolean;
   gradeLod: string;
+  includeCad: boolean;
+  additionalElevations: number;
 }
 
 interface PricingLineItem {
@@ -78,6 +80,16 @@ export default function Calculator() {
     queryKey: ["/api/upteam-pricing-matrix"],
   });
 
+  // Fetch CAD pricing matrix from database
+  const { data: cadPricingRates } = useQuery<any[]>({
+    queryKey: ["/api/cad-pricing-matrix"],
+  });
+
+  // Fetch pricing parameters from database
+  const { data: pricingParametersData } = useQuery<any[]>({
+    queryKey: ["/api/pricing-parameters"],
+  });
+
   const [scopingMode] = useState(true);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
@@ -90,7 +102,7 @@ export default function Calculator() {
     notes: "",
   });
   const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300" },
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
   ]);
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
@@ -152,7 +164,12 @@ export default function Calculator() {
       prev.map((area) => {
         if (area.id !== id) return area;
         
-        const updatedArea = { ...area, [field]: value };
+        let processedValue: any = value;
+        if (field === "additionalElevations" && typeof value === "string") {
+          processedValue = parseInt(value) || 0;
+        }
+        
+        const updatedArea = { ...area, [field]: processedValue };
         
         if (field === "buildingType" && typeof value === "string") {
           const isLandscape = value === "14" || value === "15";
@@ -161,9 +178,13 @@ export default function Calculator() {
           if (isLandscape) {
             updatedArea.disciplines = ["site"];
             updatedArea.disciplineLods = { site: updatedArea.disciplineLods.site || "300" };
+            updatedArea.includeCad = false;
+            updatedArea.additionalElevations = 0;
           } else if (isACT) {
             updatedArea.disciplines = ["mepf"];
             updatedArea.disciplineLods = { mepf: updatedArea.disciplineLods.mepf || "300" };
+            updatedArea.includeCad = false;
+            updatedArea.additionalElevations = 0;
           }
         }
         
@@ -175,7 +196,7 @@ export default function Calculator() {
   const addArea = () => {
     setAreas((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300" },
+      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
     ]);
   };
 
@@ -1212,6 +1233,82 @@ export default function Calculator() {
     return rate ? parseFloat(rate.ratePerSqFt) : 0;
   };
 
+  // Helper function to determine CAD package type based on discipline count
+  const getCadPackageType = (disciplineCount: number): string => {
+    if (disciplineCount >= 3) return "a_s_mep_site";
+    if (disciplineCount === 2) return "a_s_site";
+    return "basic_architecture";
+  };
+
+  // Helper function to get area tier for CAD pricing
+  const getCadAreaTier = (sqft: number): string => {
+    if (sqft >= 100000) return "100k+";
+    if (sqft >= 75000) return "75k-100k";
+    if (sqft >= 50000) return "50k-75k";
+    if (sqft >= 40000) return "40k-50k";
+    if (sqft >= 30000) return "30k-40k";
+    if (sqft >= 20000) return "20k-30k";
+    if (sqft >= 10000) return "10k-20k";
+    if (sqft >= 5000) return "5k-10k";
+    return "0-5k";
+  };
+
+  // Helper function to get CAD rate from database
+  const getCadPricingRate = (sqft: number, disciplineCount: number): number => {
+    if (!cadPricingRates || cadPricingRates.length === 0) return 0;
+    
+    const areaTier = getCadAreaTier(sqft);
+    const packageType = getCadPackageType(disciplineCount);
+    
+    const rate = cadPricingRates.find(
+      r => r.areaTier === areaTier && r.packageType === packageType
+    );
+    
+    return rate ? parseFloat(rate.ratePerSqFt) : 0;
+  };
+
+  // Helper function to calculate additional elevations/sections pricing
+  const calculateAdditionalElevationsPrice = (quantity: number): number => {
+    if (quantity <= 0) return 0;
+    
+    // Tiered pricing: $25/ea for 1-10, $20/ea for 10-20, $15/ea for 20-100, $10/ea for 100-300, $5/ea for 300+
+    let total = 0;
+    let remaining = quantity;
+    
+    // First 10 at $25/ea
+    const tier1 = Math.min(remaining, 10);
+    total += tier1 * 25;
+    remaining -= tier1;
+    
+    // Next 10 (10-20) at $20/ea
+    if (remaining > 0) {
+      const tier2 = Math.min(remaining, 10);
+      total += tier2 * 20;
+      remaining -= tier2;
+    }
+    
+    // Next 80 (20-100) at $15/ea
+    if (remaining > 0) {
+      const tier3 = Math.min(remaining, 80);
+      total += tier3 * 15;
+      remaining -= tier3;
+    }
+    
+    // Next 200 (100-300) at $10/ea
+    if (remaining > 0) {
+      const tier4 = Math.min(remaining, 200);
+      total += tier4 * 10;
+      remaining -= tier4;
+    }
+    
+    // Remaining (300+) at $5/ea
+    if (remaining > 0) {
+      total += remaining * 5;
+    }
+    
+    return total;
+  };
+
   const getLandscapePerAcreRate = (buildingType: string, acres: number, lod: string): number => {
     // Landscape pricing still uses hardcoded rates (building types 14-15)
     const builtLandscapeRates: Record<string, number[]> = {
@@ -1423,7 +1520,6 @@ export default function Calculator() {
       if (quantity > 0) {
         const serviceRates: Record<string, number> = {
           georeferencing: 1000,
-          cadDeliverable: 300,
           expeditedService: 0,
           actSqft: 5,
           scanningFullDay: 2500,
@@ -1443,11 +1539,6 @@ export default function Calculator() {
           total = 1000;
           label = `Georeferencing`;
           serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real service cost
-          upteamCost += serviceUpteamCost;
-        } else if (serviceId === "cadDeliverable") {
-          total = Math.max(quantity * serviceRates[serviceId], 300);
-          label = `CAD Deliverable (${quantity} set${quantity > 1 ? 's' : ''}, $300 minimum)`;
-          serviceUpteamCost = total * UPTEAM_MULTIPLIER_FALLBACK; // Real CAD work cost
           upteamCost += serviceUpteamCost;
         } else if (serviceId === "scanningFullDay") {
           total = 2500;
@@ -1475,6 +1566,57 @@ export default function Calculator() {
           runningTotal += total;
         }
       }
+    });
+
+    // CAD Deliverable pricing (per area)
+    const CAD_MINIMUM = 300;
+    areas.forEach((area) => {
+      if (!area.includeCad) return;
+      
+      const isLandscape = area.buildingType === "14" || area.buildingType === "15";
+      const isACT = area.buildingType === "16";
+      if (isLandscape || isACT) return; // CAD not available for landscape/ACT
+      
+      const sqft = Math.max(parseInt(area.squareFeet) || 0, 3000);
+      const disciplineCount = area.disciplines.filter(d => d !== "matterport").length;
+      
+      // Get CAD rate per sqft from database
+      const cadRatePerSqft = getCadPricingRate(sqft, disciplineCount);
+      let cadBaseTotal = 0;
+      
+      if (cadRatePerSqft > 0) {
+        cadBaseTotal = sqft * cadRatePerSqft;
+      } else {
+        // Fallback rates if database not available
+        const fallbackRate = disciplineCount >= 3 ? 0.14 : (disciplineCount === 2 ? 0.11 : 0.10);
+        cadBaseTotal = sqft * fallbackRate;
+      }
+      
+      // Apply $300 minimum
+      cadBaseTotal = Math.max(cadBaseTotal, CAD_MINIMUM);
+      
+      // Calculate additional elevations/sections
+      const additionalElevationsTotal = calculateAdditionalElevationsPrice(area.additionalElevations || 0);
+      
+      const totalCadCost = cadBaseTotal + additionalElevationsTotal;
+      const cadUpteamCost = totalCadCost * UPTEAM_MULTIPLIER_FALLBACK;
+      upteamCost += cadUpteamCost;
+      
+      const packageType = area.scope === "interior" ? "Interior Package" : "Standard Package";
+      const areaName = area.name || `Area`;
+      let cadLabel = `CAD Conversion - ${areaName} (${packageType}, ${sqft.toLocaleString()} sqft)`;
+      
+      if (area.additionalElevations > 0) {
+        cadLabel += ` + ${area.additionalElevations} add'l elevations`;
+      }
+      
+      items.push({
+        label: cadLabel,
+        value: totalCadCost,
+        editable: true,
+        upteamCost: cadUpteamCost,
+      });
+      runningTotal += totalCadCost;
     });
 
     if (scopingData.paymentTerms) {

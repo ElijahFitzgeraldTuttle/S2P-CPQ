@@ -5,8 +5,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useState, useEffect } from "react";
 
-const SERVICES = [
-  { id: "cadDeliverable", label: "CAD Deliverable (PDF & DWG)", rate: 300, unit: "per set" },
+const SERVICES: Array<{ id: string; label: string; rate: number; unit: string }> = [
+  // CAD Deliverable moved to per-area pricing in AreaInput component
 ];
 
 const ACT_RATE_PER_SQFT = 5;
