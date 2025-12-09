@@ -177,28 +177,10 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
             <Label className="text-sm font-medium">Roof & Facades Configuration</Label>
             <p className="text-xs text-muted-foreground">Each roof and facade is priced at 10% of the base price per discipline</p>
             
-            {/* Number of Roofs */}
-            <div className="space-y-2">
-              <Label htmlFor={`roofs-${area.id}`} className="text-sm">Number of Roofs</Label>
-              <Select 
-                value={String(area.numberOfRoofs || 0)} 
-                onValueChange={(value) => onChange(area.id, 'numberOfRoofs', parseInt(value))}
-              >
-                <SelectTrigger id={`roofs-${area.id}`} className="w-24" data-testid={`select-roofs-${index}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[0, 1, 2, 3, 4, 5].map((num) => (
-                    <SelectItem key={num} value={String(num)}>{num}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Facades */}
+            {/* Facades/Roof */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm">Facades ({(area.facades || []).length}/5)</Label>
+                <Label className="text-sm">Facades/Roof ({(area.facades || []).length}/5)</Label>
                 {(area.facades || []).length < 5 && (
                   <Button
                     type="button"
@@ -210,7 +192,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
                     }}
                     data-testid={`button-add-facade-${index}`}
                   >
-                    Add Facade
+                    Add Facade/Roof
                   </Button>
                 )}
               </div>
@@ -218,7 +200,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
               {(area.facades || []).map((facade, facadeIndex) => (
                 <div key={facade.id} className="flex items-center gap-2">
                   <Input
-                    placeholder={`e.g., South Facing Facade`}
+                    placeholder={`e.g., South Facing Facade or Main Roof`}
                     value={facade.label}
                     onChange={(e) => {
                       const newFacades = [...(area.facades || [])];

@@ -1422,54 +1422,32 @@ export default function Calculator() {
       };
       
       disciplines.forEach((discipline) => {
-        // Handle Roof/Facades Only Scope - create separate line items for roofs and each facade
+        // Handle Roof/Facades Only Scope - create separate line items for each facade/roof entry
         if (scope === "roof" && discipline !== "matterport" && !isLandscape && !isACT) {
           const lod = area.disciplineLods[discipline] || "300";
-          const numRoofs = area.numberOfRoofs || 0;
           const facades = area.facades || [];
           
           // Calculate base price at full rate for reference
           const basePricing = calculateDisciplinePricing(discipline, lod, 1.0, "full");
           
-          // Add roofs line item if there are any roofs
-          if (numRoofs > 0) {
-            const roofPortion = 0.10 * numRoofs;
-            const roofTotal = basePricing.lineTotal * roofPortion;
-            const roofUpteam = basePricing.upteamLineCost * roofPortion;
-            upteamCost += roofUpteam;
-            
-            if (discipline === "architecture") {
-              archBaseTotal += roofTotal;
-            } else {
-              otherDisciplinesTotal += roofTotal;
-            }
-            
-            items.push({
-              label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - ${numRoofs} Roof${numRoofs > 1 ? 's' : ''} (${basePricing.areaLabel}, LOD ${lod}) (${numRoofs * 10}%)`,
-              value: roofTotal,
-              editable: true,
-              upteamCost: roofUpteam,
-            });
-          }
-          
-          // Add separate line item for each facade
+          // Add separate line item for each facade/roof entry
           facades.forEach((facade) => {
-            const facadeTotal = basePricing.lineTotal * 0.10;
-            const facadeUpteam = basePricing.upteamLineCost * 0.10;
-            upteamCost += facadeUpteam;
+            const itemTotal = basePricing.lineTotal * 0.10;
+            const itemUpteam = basePricing.upteamLineCost * 0.10;
+            upteamCost += itemUpteam;
             
             if (discipline === "architecture") {
-              archBaseTotal += facadeTotal;
+              archBaseTotal += itemTotal;
             } else {
-              otherDisciplinesTotal += facadeTotal;
+              otherDisciplinesTotal += itemTotal;
             }
             
-            const facadeLabel = facade.label || "Unlabeled Facade";
+            const itemLabel = facade.label || "Unlabeled";
             items.push({
-              label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - ${facadeLabel} (${basePricing.areaLabel}, LOD ${lod}) (10%)`,
-              value: facadeTotal,
+              label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - ${itemLabel} (${basePricing.areaLabel}, LOD ${lod}) (10%)`,
+              value: itemTotal,
               editable: true,
-              upteamCost: facadeUpteam,
+              upteamCost: itemUpteam,
             });
           });
           
