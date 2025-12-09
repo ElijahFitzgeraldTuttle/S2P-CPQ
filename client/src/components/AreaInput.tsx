@@ -57,6 +57,8 @@ interface Area {
   disciplineLods: Record<string, string>;
   gradeAroundBuilding: boolean;
   gradeLod: string;
+  includeCad: boolean;
+  additionalElevations: number;
 }
 
 interface AreaInputProps {
@@ -252,6 +254,68 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
             })}
             
           </div>
+        )}
+
+        {/* CAD Deliverable Section */}
+        {!isLandscape && !isACT && (
+          <>
+            <Separator className="my-4" />
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">CAD Deliverable</h4>
+              <Card className={`p-3 transition-colors ${area.includeCad ? "border-primary bg-accent" : ""}`}>
+                <div className="space-y-3">
+                  <div 
+                    className="flex items-start gap-3 cursor-pointer hover-elevate rounded p-2 -m-2"
+                    onClick={() => onChange(area.id, 'includeCad', !area.includeCad)}
+                  >
+                    <Checkbox
+                      id={`${area.id}-cad`}
+                      checked={area.includeCad}
+                      onCheckedChange={(checked) => onChange(area.id, 'includeCad', checked as boolean)}
+                      data-testid={`checkbox-area-${index}-cad`}
+                    />
+                    <div className="flex-1">
+                      <Label
+                        htmlFor={`${area.id}-cad`}
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        Include CAD Conversion (PDF & DWG)
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {area.scope === "interior" 
+                          ? "Interior Package: Floor plans, 8 interior elevations, 1 section, RCPs (if MEP in scope)"
+                          : "Standard Package: Floor plans, exterior elevations, up to 2 sections, RCPs (if MEP in scope)"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        $300 minimum charge applies
+                      </p>
+                    </div>
+                  </div>
+
+                  {area.includeCad && (
+                    <div className="space-y-2 pl-8">
+                      <Label htmlFor={`additional-elevations-${area.id}`} className="text-sm font-medium">
+                        Additional Interior Elevations/Sections
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Beyond what's included in the package (tiered pricing: $25/ea for 1-10, $20/ea for 10-20, etc.)
+                      </p>
+                      <Input
+                        id={`additional-elevations-${area.id}`}
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={area.additionalElevations || 0}
+                        onChange={(e) => onChange(area.id, 'additionalElevations', e.target.value)}
+                        className="font-mono w-24"
+                        data-testid={`input-additional-elevations-${index}`}
+                      />
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </>
         )}
       </div>
     </Card>
