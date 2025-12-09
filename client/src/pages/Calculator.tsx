@@ -1590,16 +1590,21 @@ export default function Calculator() {
       const disciplineCount = area.disciplines.filter(d => d !== "matterport").length;
       
       // Get CAD rate per sqft from database
-      const cadRatePerSqft = getCadPricingRate(area.buildingType, sqft, disciplineCount);
+      let cadRatePerSqft = getCadPricingRate(area.buildingType, sqft, disciplineCount);
       let cadBaseTotal = 0;
+      let usedFallback = false;
       
       if (cadRatePerSqft > 0) {
         cadBaseTotal = sqft * cadRatePerSqft;
       } else {
         // Fallback rates if database not available
-        const fallbackRate = disciplineCount >= 3 ? 0.14 : (disciplineCount === 2 ? 0.11 : 0.10);
-        cadBaseTotal = sqft * fallbackRate;
+        cadRatePerSqft = disciplineCount >= 3 ? 0.14 : (disciplineCount === 2 ? 0.11 : 0.10);
+        cadBaseTotal = sqft * cadRatePerSqft;
+        usedFallback = true;
       }
+      
+      // Check if minimum applies
+      const minimumApplied = cadBaseTotal < CAD_MINIMUM;
       
       // Apply $300 minimum
       cadBaseTotal = Math.max(cadBaseTotal, CAD_MINIMUM);
@@ -1613,7 +1618,14 @@ export default function Calculator() {
       
       const packageType = area.scope === "interior" ? "Interior Package" : "Standard Package";
       const areaName = area.name || `Area`;
-      let cadLabel = `CAD Conversion - ${areaName} (${packageType}, ${sqft.toLocaleString()} sqft)`;
+      
+      // Build label with rate info
+      let cadLabel = `CAD Conversion - ${areaName} (${packageType})`;
+      if (minimumApplied) {
+        cadLabel += ` - $${CAD_MINIMUM} minimum`;
+      } else {
+        cadLabel += ` @ $${cadRatePerSqft.toFixed(2)}/sqft × ${sqft.toLocaleString()} sqft`;
+      }
       
       if (area.additionalElevations > 0) {
         cadLabel += ` + ${area.additionalElevations} add'l elevations`;
