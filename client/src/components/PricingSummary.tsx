@@ -30,8 +30,8 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
   
   // Extract square footage from label and calculate per-sqft rate
   const extractSqftAndRate = (label: string, value: number): { sqft: number; rate: number } | null => {
-    // Match patterns like "(3,000 sqft" or "(3000 sqft"
-    const sqftMatch = label.match(/\(([0-9,]+)\s+sqft/i);
+    // Match patterns like "(3,000 sqft" or "(3000 sqft" or "× 3,000 sqft"
+    const sqftMatch = label.match(/[\(×]\s*([0-9,]+)\s+sqft/i);
     if (sqftMatch) {
       const sqft = parseInt(sqftMatch[1].replace(/,/g, ''));
       if (sqft > 0) {
@@ -100,6 +100,13 @@ export default function PricingSummary({ items, onEdit, totalClientPrice, totalU
                   </span>
                 )}
               </div>
+              {sqftData && !item.isTotal && !item.isDiscount && (
+                <div className="flex items-center justify-end mt-0.5">
+                  <span className="font-mono text-xs text-muted-foreground/70">
+                    ${sqftData.rate.toFixed(2)}/sqft
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}
