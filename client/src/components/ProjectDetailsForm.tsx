@@ -8,7 +8,6 @@ interface ProjectDetailsFormProps {
   projectName: string;
   projectAddress: string;
   specificBuilding: string;
-  typeOfBuilding: string;
   hasBasement: boolean;
   hasAttic: boolean;
   notes: string;
@@ -20,7 +19,6 @@ export default function ProjectDetailsForm({
   projectName,
   projectAddress,
   specificBuilding,
-  typeOfBuilding,
   hasBasement,
   hasAttic,
   notes,
@@ -73,33 +71,17 @@ export default function ProjectDetailsForm({
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="specific-building" className="text-sm font-medium">
-            Specific Building or Unit?
-          </Label>
-          <Input
-            id="specific-building"
-            placeholder="Enter building or unit details"
-            value={specificBuilding}
-            onChange={(e) => onFieldChange('specificBuilding', e.target.value)}
-            data-testid="input-specific-building"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="type-of-building" className="text-sm font-medium">
-            Type of Building <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="type-of-building"
-            placeholder="e.g., Commercial Office, Residential, etc."
-            value={typeOfBuilding}
-            onChange={(e) => onFieldChange('typeOfBuilding', e.target.value)}
-            required
-            data-testid="input-type-of-building"
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="specific-building" className="text-sm font-medium">
+          Specific Building or Unit?
+        </Label>
+        <Input
+          id="specific-building"
+          placeholder="Enter building or unit details"
+          value={specificBuilding}
+          onChange={(e) => onFieldChange('specificBuilding', e.target.value)}
+          data-testid="input-specific-building"
+        />
       </div>
 
       <div className="space-y-3">
