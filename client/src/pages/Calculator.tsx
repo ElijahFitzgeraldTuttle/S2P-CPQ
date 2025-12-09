@@ -633,20 +633,35 @@ export default function Calculator() {
     const dispatchLabel = dispatchMap[dispatch] || dispatch;
     text += `Dispatch Location: ${dispatchLabel}\n`;
     if (distanceCalculated && distance !== null) {
-      const ratePerMile = dispatch === "brooklyn" ? 4 : 3;
-      text += `Distance: ${distance} miles\n`;
-      text += `Travel Rate: $${ratePerMile}.00 per mile\n`;
       const totalSqft = areas.reduce((sum, area) => {
         const isLandscape = area.buildingType === "14" || area.buildingType === "15";
         const inputValue = parseInt(area.squareFeet) || 0;
         return sum + (isLandscape ? inputValue * 43560 : inputValue);
       }, 0);
       const estimatedScanDays = Math.ceil(totalSqft / 10000);
+      text += `Distance: ${distance} miles\n`;
       text += `Estimated Scan Days: ${estimatedScanDays}\n`;
-      if (distance > 75 && estimatedScanDays >= 2) {
-        text += `Scan-Day Surcharge: $300 per day (applies when distance > 75 miles and scan days >= 2)\n`;
+      
+      if (dispatch === "brooklyn") {
+        const isTierB = totalSqft >= 10000 && totalSqft < 50000;
+        const isTierC = totalSqft < 10000;
+        const tierLabel = isTierB ? "Tier B" : (isTierC ? "Tier C" : "Tier A");
+        const baseTravelCost = isTierB ? 300 : (isTierC ? 150 : 0);
+        text += `Brooklyn Pricing: ${tierLabel} (${totalSqft.toLocaleString()} sqft)\n`;
+        text += `Base Travel Cost: $${baseTravelCost}\n`;
+        if (distance > 20) {
+          text += `Extra Mileage: ${distance - 20} miles @ $4/mi (applies over 20 miles)\n`;
+        } else {
+          text += `Extra Mileage: Not applicable (distance ≤ 20 miles)\n`;
+        }
       } else {
-        text += `Scan-Day Surcharge: Not applicable (${distance <= 75 ? 'distance ≤ 75 miles' : 'scan days < 2'})\n`;
+        const ratePerMile = 3;
+        text += `Travel Rate: $${ratePerMile}.00 per mile\n`;
+        if (distance > 75 && estimatedScanDays >= 2) {
+          text += `Scan-Day Surcharge: $300 per day (applies when distance > 75 miles and scan days >= 2)\n`;
+        } else {
+          text += `Scan-Day Surcharge: Not applicable (${distance <= 75 ? 'distance ≤ 75 miles' : 'scan days < 2'})\n`;
+        }
       }
     } else {
       text += `Distance: Not calculated\n`;
@@ -1576,9 +1591,6 @@ export default function Calculator() {
     let runningTotal = archAfterRisk + otherDisciplinesTotal;
 
     if (distanceCalculated && distance && distance > 0) {
-      const ratePerMile = dispatch === "brooklyn" ? 4 : 3;
-      let travelCost = distance * ratePerMile;
-      
       const totalSqft = areas.reduce((sum, area) => {
         const isLandscape = area.buildingType === "14" || area.buildingType === "15";
         const inputValue = parseInt(area.squareFeet) || 0;
@@ -1586,12 +1598,44 @@ export default function Calculator() {
       }, 0);
       const estimatedScanDays = Math.ceil(totalSqft / 10000);
       
-      if (distance > 75 && estimatedScanDays >= 2) {
-        travelCost += 300 * estimatedScanDays;
+      let travelCost = 0;
+      let travelLabel = "";
+      
+      if (dispatch === "brooklyn") {
+        // Brooklyn dispatch: tiered base pricing based on project size
+        // Tier C: 0-9,999 sqft = $150 base
+        // Tier B: 10,000-49,999 sqft = $300 base
+        // Additional $4/mile for distances over 20 miles
+        const isTierB = totalSqft >= 10000 && totalSqft < 50000;
+        const isTierC = totalSqft < 10000;
+        const baseTravelCost = isTierB ? 300 : (isTierC ? 150 : 0);
+        const tierLabel = isTierB ? "Tier B" : (isTierC ? "Tier C" : "Tier A");
+        
+        travelCost = baseTravelCost;
+        
+        if (distance > 20) {
+          const extraMiles = distance - 20;
+          const extraMilesCost = extraMiles * 4;
+          travelCost += extraMilesCost;
+          travelLabel = `Travel - Brooklyn ${tierLabel} ($${baseTravelCost} base + ${extraMiles} mi @ $4/mi)`;
+        } else {
+          travelLabel = `Travel - Brooklyn ${tierLabel} ($${baseTravelCost} base)`;
+        }
+      } else {
+        // Non-Brooklyn dispatch: standard per-mile rate
+        const ratePerMile = 3;
+        travelCost = distance * ratePerMile;
+        
+        if (distance > 75 && estimatedScanDays >= 2) {
+          travelCost += 300 * estimatedScanDays;
+          travelLabel = `Travel (${distance} mi @ $${ratePerMile}/mi + ${estimatedScanDays} scan-days @ $300/day)`;
+        } else {
+          travelLabel = `Travel (${distance} mi @ $${ratePerMile}/mi)`;
+        }
       }
       
       items.push({
-        label: `Travel (${distance} mi @ $${ratePerMile}/mi${distance > 75 && estimatedScanDays >= 2 ? ` + ${estimatedScanDays} scan-days @ $300/day` : ''})`,
+        label: travelLabel,
         value: travelCost,
         editable: true,
       });
