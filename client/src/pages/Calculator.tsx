@@ -1254,15 +1254,24 @@ export default function Calculator() {
   };
 
   // Helper function to get CAD rate from database
-  const getCadPricingRate = (sqft: number, disciplineCount: number): number => {
+  const getCadPricingRate = (buildingType: string, sqft: number, disciplineCount: number): number => {
     if (!cadPricingRates || cadPricingRates.length === 0) return 0;
     
+    const buildingTypeId = parseInt(buildingType) || 1;
     const areaTier = getCadAreaTier(sqft);
     const packageType = getCadPackageType(disciplineCount);
     
-    const rate = cadPricingRates.find(
-      r => r.areaTier === areaTier && r.packageType === packageType
+    // First try to find rate for specific building type
+    let rate = cadPricingRates.find(
+      r => r.buildingTypeId === buildingTypeId && r.areaTier === areaTier && r.packageType === packageType
     );
+    
+    // If not found, try to find a generic rate (buildingTypeId = 0 or 1)
+    if (!rate) {
+      rate = cadPricingRates.find(
+        r => (r.buildingTypeId === 0 || r.buildingTypeId === 1) && r.areaTier === areaTier && r.packageType === packageType
+      );
+    }
     
     return rate ? parseFloat(rate.ratePerSqFt) : 0;
   };
@@ -1581,7 +1590,7 @@ export default function Calculator() {
       const disciplineCount = area.disciplines.filter(d => d !== "matterport").length;
       
       // Get CAD rate per sqft from database
-      const cadRatePerSqft = getCadPricingRate(sqft, disciplineCount);
+      const cadRatePerSqft = getCadPricingRate(area.buildingType, sqft, disciplineCount);
       let cadBaseTotal = 0;
       
       if (cadRatePerSqft > 0) {
