@@ -36,6 +36,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+interface Facade {
+  id: string;
+  label: string;
+}
+
 interface Area {
   id: string;
   name: string;
@@ -46,6 +51,8 @@ interface Area {
   disciplineLods: Record<string, string>;
   mixedInteriorLod: string;
   mixedExteriorLod: string;
+  numberOfRoofs: number;
+  facades: Facade[];
   gradeAroundBuilding: boolean;
   gradeLod: string;
   includeCad: boolean;
@@ -104,7 +111,7 @@ export default function Calculator() {
     notes: "",
   });
   const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", numberOfRoofs: 0, facades: [], gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
   ]);
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
@@ -161,7 +168,7 @@ export default function Calculator() {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAreaChange = (id: string, field: keyof Area, value: string | boolean) => {
+  const handleAreaChange = (id: string, field: keyof Area, value: string | boolean | number | Facade[]) => {
     setAreas((prev) =>
       prev.map((area) => {
         if (area.id !== id) return area;
@@ -198,7 +205,7 @@ export default function Calculator() {
   const addArea = () => {
     setAreas((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
+      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", numberOfRoofs: 0, facades: [], gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
     ]);
   };
 
@@ -1415,6 +1422,60 @@ export default function Calculator() {
       };
       
       disciplines.forEach((discipline) => {
+        // Handle Roof/Facades Only Scope - create separate line items for roofs and each facade
+        if (scope === "roof" && discipline !== "matterport" && !isLandscape && !isACT) {
+          const lod = area.disciplineLods[discipline] || "300";
+          const numRoofs = area.numberOfRoofs || 0;
+          const facades = area.facades || [];
+          
+          // Calculate base price at full rate for reference
+          const basePricing = calculateDisciplinePricing(discipline, lod, 1.0, "full");
+          
+          // Add roofs line item if there are any roofs
+          if (numRoofs > 0) {
+            const roofPortion = 0.10 * numRoofs;
+            const roofTotal = basePricing.lineTotal * roofPortion;
+            const roofUpteam = basePricing.upteamLineCost * roofPortion;
+            upteamCost += roofUpteam;
+            
+            if (discipline === "architecture") {
+              archBaseTotal += roofTotal;
+            } else {
+              otherDisciplinesTotal += roofTotal;
+            }
+            
+            items.push({
+              label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - ${numRoofs} Roof${numRoofs > 1 ? 's' : ''} (${basePricing.areaLabel}, LOD ${lod}) (${numRoofs * 10}%)`,
+              value: roofTotal,
+              editable: true,
+              upteamCost: roofUpteam,
+            });
+          }
+          
+          // Add separate line item for each facade
+          facades.forEach((facade) => {
+            const facadeTotal = basePricing.lineTotal * 0.10;
+            const facadeUpteam = basePricing.upteamLineCost * 0.10;
+            upteamCost += facadeUpteam;
+            
+            if (discipline === "architecture") {
+              archBaseTotal += facadeTotal;
+            } else {
+              otherDisciplinesTotal += facadeTotal;
+            }
+            
+            const facadeLabel = facade.label || "Unlabeled Facade";
+            items.push({
+              label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - ${facadeLabel} (${basePricing.areaLabel}, LOD ${lod}) (10%)`,
+              value: facadeTotal,
+              editable: true,
+              upteamCost: facadeUpteam,
+            });
+          });
+          
+          return; // Skip normal processing for this discipline
+        }
+        
         // Handle Mixed Scope - create two line items (Interior + Exterior)
         if (scope === "mixed" && discipline !== "matterport" && !isLandscape && !isACT) {
           // Interior portion at 65%

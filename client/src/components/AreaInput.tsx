@@ -48,6 +48,11 @@ const LOD_LEVELS = [
   { value: "350", label: "350" },
 ];
 
+interface Facade {
+  id: string;
+  label: string;
+}
+
 interface Area {
   id: string;
   name: string;
@@ -58,6 +63,8 @@ interface Area {
   disciplineLods: Record<string, string>;
   mixedInteriorLod: string;
   mixedExteriorLod: string;
+  numberOfRoofs: number;
+  facades: Facade[];
   gradeAroundBuilding: boolean;
   gradeLod: string;
   includeCad: boolean;
@@ -67,7 +74,7 @@ interface Area {
 interface AreaInputProps {
   area: Area;
   index: number;
-  onChange: (id: string, field: keyof Area, value: string | boolean) => void;
+  onChange: (id: string, field: keyof Area, value: string | boolean | number | Facade[]) => void;
   onDisciplineChange: (areaId: string, disciplineId: string, checked: boolean) => void;
   onLodChange: (areaId: string, disciplineId: string, value: string) => void;
   onRemove: (id: string) => void;
@@ -161,6 +168,81 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        )}
+
+        {/* Roof/Facades Configuration */}
+        {area.scope === "roof" && !isSimplifiedUI && (
+          <div className="space-y-4 p-3 bg-muted/50 rounded-md">
+            <Label className="text-sm font-medium">Roof & Facades Configuration</Label>
+            <p className="text-xs text-muted-foreground">Each roof and facade is priced at 10% of the base price per discipline</p>
+            
+            {/* Number of Roofs */}
+            <div className="space-y-2">
+              <Label htmlFor={`roofs-${area.id}`} className="text-sm">Number of Roofs</Label>
+              <Select 
+                value={String(area.numberOfRoofs || 0)} 
+                onValueChange={(value) => onChange(area.id, 'numberOfRoofs', parseInt(value))}
+              >
+                <SelectTrigger id={`roofs-${area.id}`} className="w-24" data-testid={`select-roofs-${index}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4, 5].map((num) => (
+                    <SelectItem key={num} value={String(num)}>{num}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Facades */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Facades ({(area.facades || []).length}/5)</Label>
+                {(area.facades || []).length < 5 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newFacades = [...(area.facades || []), { id: Date.now().toString(), label: "" }];
+                      onChange(area.id, 'facades', newFacades);
+                    }}
+                    data-testid={`button-add-facade-${index}`}
+                  >
+                    Add Facade
+                  </Button>
+                )}
+              </div>
+              
+              {(area.facades || []).map((facade, facadeIndex) => (
+                <div key={facade.id} className="flex items-center gap-2">
+                  <Input
+                    placeholder={`e.g., South Facing Facade`}
+                    value={facade.label}
+                    onChange={(e) => {
+                      const newFacades = [...(area.facades || [])];
+                      newFacades[facadeIndex] = { ...facade, label: e.target.value };
+                      onChange(area.id, 'facades', newFacades);
+                    }}
+                    className="flex-1"
+                    data-testid={`input-facade-label-${index}-${facadeIndex}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newFacades = (area.facades || []).filter((_, i) => i !== facadeIndex);
+                      onChange(area.id, 'facades', newFacades);
+                    }}
+                    data-testid={`button-remove-facade-${index}-${facadeIndex}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
