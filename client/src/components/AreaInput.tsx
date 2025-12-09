@@ -30,6 +30,7 @@ const PROJECT_SCOPES = [
   { value: "full", label: "Full Building" },
   { value: "interior", label: "Interior Only" },
   { value: "exterior", label: "Exterior Only" },
+  { value: "mixed", label: "Mixed Scope (Interior + Exterior)" },
   { value: "roof", label: "Roof/Facades Only" },
 ];
 
@@ -55,6 +56,8 @@ interface Area {
   scope: string;
   disciplines: string[];
   disciplineLods: Record<string, string>;
+  mixedInteriorLod: string;
+  mixedExteriorLod: string;
   gradeAroundBuilding: boolean;
   gradeLod: string;
   includeCad: boolean;
@@ -189,30 +192,78 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor={`lod-${area.id}`} className="text-sm font-medium">
-                Level of Detail (LoD)
-              </Label>
-              <Select 
-                value={area.disciplineLods["architecture"] || "300"} 
-                onValueChange={(value) => {
-                  DISCIPLINES.filter(d => d.id !== "matterport").forEach(d => {
-                    onLodChange(area.id, d.id, value);
-                  });
-                }}
-              >
-                <SelectTrigger id={`lod-${area.id}`} className="w-32" data-testid={`select-lod-area-${index}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOD_LEVELS.map((lod) => (
-                    <SelectItem key={lod.value} value={lod.value}>
-                      LoD {lod.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {area.scope === "mixed" ? (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Level of Detail (LoD)</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`lod-interior-${area.id}`} className="text-xs text-muted-foreground">
+                      Interior (65%)
+                    </Label>
+                    <Select 
+                      value={area.mixedInteriorLod || "300"} 
+                      onValueChange={(value) => onChange(area.id, 'mixedInteriorLod', value)}
+                    >
+                      <SelectTrigger id={`lod-interior-${area.id}`} data-testid={`select-lod-interior-${index}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOD_LEVELS.map((lod) => (
+                          <SelectItem key={lod.value} value={lod.value}>
+                            LoD {lod.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`lod-exterior-${area.id}`} className="text-xs text-muted-foreground">
+                      Exterior (35%)
+                    </Label>
+                    <Select 
+                      value={area.mixedExteriorLod || "300"} 
+                      onValueChange={(value) => onChange(area.id, 'mixedExteriorLod', value)}
+                    >
+                      <SelectTrigger id={`lod-exterior-${area.id}`} data-testid={`select-lod-exterior-${index}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOD_LEVELS.map((lod) => (
+                          <SelectItem key={lod.value} value={lod.value}>
+                            LoD {lod.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor={`lod-${area.id}`} className="text-sm font-medium">
+                  Level of Detail (LoD)
+                </Label>
+                <Select 
+                  value={area.disciplineLods["architecture"] || "300"} 
+                  onValueChange={(value) => {
+                    DISCIPLINES.filter(d => d.id !== "matterport").forEach(d => {
+                      onLodChange(area.id, d.id, value);
+                    });
+                  }}
+                >
+                  <SelectTrigger id={`lod-${area.id}`} className="w-32" data-testid={`select-lod-area-${index}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOD_LEVELS.map((lod) => (
+                      <SelectItem key={lod.value} value={lod.value}>
+                        LoD {lod.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Disciplines</Label>

@@ -44,6 +44,8 @@ interface Area {
   scope: string;
   disciplines: string[];
   disciplineLods: Record<string, string>;
+  mixedInteriorLod: string;
+  mixedExteriorLod: string;
   gradeAroundBuilding: boolean;
   gradeLod: string;
   includeCad: boolean;
@@ -102,7 +104,7 @@ export default function Calculator() {
     notes: "",
   });
   const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
   ]);
   const [risks, setRisks] = useState<string[]>([]);
   const [dispatch, setDispatch] = useState("troy");
@@ -196,7 +198,7 @@ export default function Calculator() {
   const addArea = () => {
     setAreas((prev) => [
       ...prev,
-      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
+      { id: Date.now().toString(), name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
     ]);
   };
 
@@ -1359,8 +1361,8 @@ export default function Calculator() {
       const scope = area.scope || "full";
       const disciplines = isLandscape ? ["site"] : isACT ? ["mepf"] : (area.disciplines.length > 0 ? area.disciplines : []);
       
-      disciplines.forEach((discipline) => {
-        const lod = area.disciplineLods[discipline] || "300";
+      // Helper function to calculate pricing for a discipline with a specific lod and scope portion
+      const calculateDisciplinePricing = (discipline: string, lod: string, scopePortion: number, scopeType: string) => {
         let lineTotal = 0;
         let areaLabel = "";
         let upteamLineCost = 0;
@@ -1369,102 +1371,134 @@ export default function Calculator() {
           const acres = inputValue;
           const sqft = Math.round(acres * 43560);
           const perAcreRate = getLandscapePerAcreRate(area.buildingType, acres, lod);
-          lineTotal = acres * perAcreRate;
+          lineTotal = acres * perAcreRate * scopePortion;
           areaLabel = `${acres} acres (${sqft.toLocaleString()} sqft)`;
-          // For landscape, use fallback multiplier since we don't have per-acre upteam rates
           upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
         } else if (isACT) {
           const sqft = Math.max(inputValue, 3000);
-          lineTotal = sqft * 2.00;
+          lineTotal = sqft * 2.00 * scopePortion;
           areaLabel = `${sqft.toLocaleString()} sqft`;
-          // For ACT, use fallback multiplier
           upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
         } else if (discipline === "matterport") {
-          // Matterport Virtual Tours - flat $0.10/sqft rate
           const sqft = Math.max(inputValue, 3000);
           lineTotal = sqft * 0.10;
           areaLabel = `${sqft.toLocaleString()} sqft`;
-          // For Matterport, use fallback multiplier
           upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
         } else {
           const sqft = Math.max(inputValue, 3000);
-          
-          // Get rate from database pricing matrix
           const ratePerSqft = getPricingRate(area.buildingType, sqft, discipline, lod);
           
           if (ratePerSqft > 0) {
-            lineTotal = sqft * ratePerSqft;
+            lineTotal = sqft * ratePerSqft * scopePortion;
           } else {
-            // Fallback to hardcoded rates if database rate not found
             let baseRatePerSqft = 2.50;
-            if (discipline === "mepf") {
-              baseRatePerSqft = 3.00;
-            } else if (discipline === "structure") {
-              baseRatePerSqft = 2.00;
-            } else if (discipline === "site") {
-              baseRatePerSqft = 1.50;
-            }
+            if (discipline === "mepf") baseRatePerSqft = 3.00;
+            else if (discipline === "structure") baseRatePerSqft = 2.00;
+            else if (discipline === "site") baseRatePerSqft = 1.50;
             
-            const lodMultiplier: Record<string, number> = {
-              "200": 1.0,
-              "300": 1.3,
-              "350": 1.5,
-            };
-            
+            const lodMultiplier: Record<string, number> = { "200": 1.0, "300": 1.3, "350": 1.5 };
             const multiplier = lodMultiplier[lod] || 1.0;
-            lineTotal = sqft * baseRatePerSqft * multiplier;
+            lineTotal = sqft * baseRatePerSqft * multiplier * scopePortion;
           }
           
-          // Get upteam rate from database
           const upteamRatePerSqft = getUpteamPricingRate(area.buildingType, sqft, discipline, lod);
           if (upteamRatePerSqft > 0) {
-            upteamLineCost = sqft * upteamRatePerSqft;
+            upteamLineCost = sqft * upteamRatePerSqft * scopePortion;
           } else {
-            // Fallback to multiplier if upteam rate not found
             upteamLineCost = lineTotal * UPTEAM_MULTIPLIER_FALLBACK;
           }
           
           areaLabel = `${sqft.toLocaleString()} sqft`;
         }
         
-        let scopeDiscount = 0;
-        let upteamScopeDiscount = 0;
-        let scopeLabel = "";
-        // Don't apply scope discounts to Matterport
-        if (!isLandscape && !isACT && discipline !== "matterport") {
-          if (scope === "interior") {
-            scopeDiscount = lineTotal * 0.25;
-            upteamScopeDiscount = upteamLineCost * 0.25;
-            scopeLabel = " (Interior Only -25%)";
-          } else if (scope === "exterior") {
-            scopeDiscount = lineTotal * 0.50;
-            upteamScopeDiscount = upteamLineCost * 0.50;
-            scopeLabel = " (Exterior Only -50%)";
-          } else if (scope === "roof") {
-            scopeDiscount = lineTotal * 0.65;
-            upteamScopeDiscount = upteamLineCost * 0.65;
-            scopeLabel = " (Roof/Facades Only -65%)";
+        return { lineTotal, areaLabel, upteamLineCost };
+      };
+      
+      disciplines.forEach((discipline) => {
+        // Handle Mixed Scope - create two line items (Interior + Exterior)
+        if (scope === "mixed" && discipline !== "matterport" && !isLandscape && !isACT) {
+          // Interior portion at 65%
+          const interiorLod = area.mixedInteriorLod || "300";
+          const interior = calculateDisciplinePricing(discipline, interiorLod, 0.65, "interior");
+          upteamCost += interior.upteamLineCost;
+          
+          if (discipline === "architecture") {
+            archBaseTotal += interior.lineTotal;
+          } else {
+            otherDisciplinesTotal += interior.lineTotal;
           }
-        }
-        
-        lineTotal -= scopeDiscount;
-        upteamLineCost -= upteamScopeDiscount;
-        upteamCost += upteamLineCost;
-        
-        if (discipline === "architecture") {
-          archBaseTotal += lineTotal;
+          
+          items.push({
+            label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - Interior (${interior.areaLabel}, LOD ${interiorLod}) (65%)`,
+            value: interior.lineTotal,
+            editable: true,
+            upteamCost: interior.upteamLineCost,
+          });
+          
+          // Exterior portion at 35%
+          const exteriorLod = area.mixedExteriorLod || "300";
+          const exterior = calculateDisciplinePricing(discipline, exteriorLod, 0.35, "exterior");
+          upteamCost += exterior.upteamLineCost;
+          
+          if (discipline === "architecture") {
+            archBaseTotal += exterior.lineTotal;
+          } else {
+            otherDisciplinesTotal += exterior.lineTotal;
+          }
+          
+          items.push({
+            label: `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} - Exterior (${exterior.areaLabel}, LOD ${exteriorLod}) (35%)`,
+            value: exterior.lineTotal,
+            editable: true,
+            upteamCost: exterior.upteamLineCost,
+          });
         } else {
-          otherDisciplinesTotal += lineTotal;
+          // Standard single line item processing
+          const lod = area.disciplineLods[discipline] || "300";
+          const result = calculateDisciplinePricing(discipline, lod, 1.0, "full");
+          let lineTotal = result.lineTotal;
+          let upteamLineCost = result.upteamLineCost;
+          const areaLabel = result.areaLabel;
+          
+          let scopeDiscount = 0;
+          let upteamScopeDiscount = 0;
+          let scopeLabel = "";
+          
+          if (!isLandscape && !isACT && discipline !== "matterport") {
+            if (scope === "interior") {
+              scopeDiscount = lineTotal * 0.25;
+              upteamScopeDiscount = upteamLineCost * 0.25;
+              scopeLabel = " (Interior Only -25%)";
+            } else if (scope === "exterior") {
+              scopeDiscount = lineTotal * 0.50;
+              upteamScopeDiscount = upteamLineCost * 0.50;
+              scopeLabel = " (Exterior Only -50%)";
+            } else if (scope === "roof") {
+              scopeDiscount = lineTotal * 0.65;
+              upteamScopeDiscount = upteamLineCost * 0.65;
+              scopeLabel = " (Roof/Facades Only -65%)";
+            }
+          }
+          
+          lineTotal -= scopeDiscount;
+          upteamLineCost -= upteamScopeDiscount;
+          upteamCost += upteamLineCost;
+          
+          if (discipline === "architecture") {
+            archBaseTotal += lineTotal;
+          } else {
+            otherDisciplinesTotal += lineTotal;
+          }
+          
+          items.push({
+            label: discipline === "matterport" 
+              ? `Matterport Virtual Tours (${areaLabel})`
+              : `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${areaLabel}, LOD ${lod})${scopeLabel}`,
+            value: lineTotal,
+            editable: true,
+            upteamCost: upteamLineCost,
+          });
         }
-        
-        items.push({
-          label: discipline === "matterport" 
-            ? `Matterport Virtual Tours (${areaLabel})`
-            : `${discipline.charAt(0).toUpperCase() + discipline.slice(1)} (${areaLabel}, LOD ${lod})${scopeLabel}`,
-          value: lineTotal,
-          editable: true,
-          upteamCost: upteamLineCost,
-        });
       });
     });
 
