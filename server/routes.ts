@@ -386,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const area of areas) {
         const name = area.name || 'Area';
-        const sqft = area.squareFeet || '0';
+        const sqft = parseInt(area.squareFeet) || 0;
         const lod = area.disciplineLods?.architecture || '300';
         const disciplines = area.disciplines || [];
         
@@ -400,9 +400,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (disciplines.includes('matterport')) extras.push("Matterport");
         
         const extrasStr = extras.join(" + ");
+        const sqftFormatted = sqft.toLocaleString();
         const desc = extrasStr 
-          ? `• ${name}: ${sqft} sqft - LoD ${lod} + ${extrasStr}`
-          : `• ${name}: ${sqft} sqft - LoD ${lod}`;
+          ? `• ${name}: ${sqftFormatted} sqft - LoD ${lod} + ${extrasStr}`
+          : `• ${name}: ${sqftFormatted} sqft - LoD ${lod}`;
         areaDescriptions.push(desc);
       }
       
