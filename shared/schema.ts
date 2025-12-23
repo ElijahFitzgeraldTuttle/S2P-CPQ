@@ -113,3 +113,17 @@ export const updateQuoteSchema = insertQuoteSchema.partial();
 
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type Quote = typeof quotes.$inferSelect;
+
+// QuickBooks OAuth tokens storage
+export const quickbooksTokens = pgTable("quickbooks_tokens", {
+  id: serial("id").primaryKey(),
+  realmId: text("realm_id").notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  accessTokenExpiresAt: timestamp("access_token_expires_at").notNull(),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type QuickBooksTokens = typeof quickbooksTokens.$inferSelect;
