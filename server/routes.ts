@@ -325,6 +325,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PandaDoc integration endpoint
+  app.post("/api/pandadoc/create", async (req, res) => {
+    try {
+      const API_KEY = process.env.PANDADOC_API_KEY;
+      const TEMPLATE_UUID = process.env.PANDADOC_TEMPLATE_UUID;
+      
+      if (!API_KEY || !TEMPLATE_UUID) {
+        return res.status(500).json({ error: "PandaDoc API key or template UUID not configured" });
+      }
+      
+      const data = req.body;
+      
+      // Extract core details
+      const projectDetails = data.projectDetails || {};
+      const projectAddress = projectDetails.projectAddress || "No Address Provided";
+      const crmData = data.crmData || {};
+      const contactEmail = crmData.accountContactEmail || "";
+      
+      // Handle Name
+      const rawContact = crmData.accountContact || "";
+      let first = "";
+      let last = "";
+      if (rawContact.includes(',')) {
+        const parts = rawContact.split(', ');
+        first = parts.length > 1 ? parts[1] : parts[0];
+        last = parts[0];
+      } else {
+        const parts = rawContact.split(' ');
+        first = parts[0] || "";
+        last = parts.slice(1).join(' ') || "";
+      }
+      
+      // Area & Scope Logic
+      const areas = data.areas || [];
+      const typeMap: Record<string, string> = {
+        "1": "Residential - Single Family", "2": "Residential - Multi Family",
+        "3": "Residential - Luxury", "4": "Commercial / Office",
+        "5": "Retail / Restaurants", "6": "Kitchen / Catering Facilities",
+        "7": "Education", "8": "Hotel / Theatre / Museum",
+        "9": "Hospitals / Mixed Use", "10": "Mechanical / Utility Rooms",
+        "11": "Warehouse / Storage", "12": "Religious Buildings",
+        "13": "Infrastructure", "14": "Built Landscape",
+        "15": "Natural Landscape", "16": "ACT (Ceiling Tiles)"
+      };
+      
+      // Service Line (Header)
+      const primaryArea = areas[0] || {};
+      const bTypeId = String(primaryArea.buildingType || '4');
+      const typeLabel = typeMap[bTypeId] || "Standard";
+      
+      const servicePrefix = ["1", "2", "3"].includes(bTypeId) 
+        ? "Residential Service" 
+        : "Commercial Service";
+      const serviceLine = `${servicePrefix} for ${projectAddress} - ${typeLabel}`;
+      
+      // Build "Project.AreasList"
+      const allDisciplines = new Set<string>();
+      const areaDescriptions: string[] = [];
+      
+      for (const area of areas) {
+        const name = area.name || 'Area';
+        const sqft = area.squareFeet || '0';
+        const lod = area.disciplineLods?.architecture || '300';
+        const disciplines = area.disciplines || [];
+        
+        for (const d of disciplines) allDisciplines.add(d);
+        if (area.gradeAroundBuilding) allDisciplines.add('grade');
+        
+        const extras: string[] = [];
+        if (disciplines.includes('mepf')) extras.push("MEPF");
+        if (disciplines.includes('structure')) extras.push("Structure");
+        if (disciplines.includes('site') || area.gradeAroundBuilding) extras.push("Site/Grade");
+        if (disciplines.includes('matterport')) extras.push("Matterport");
+        
+        const extrasStr = extras.join(" + ");
+        const desc = extrasStr 
+          ? `• ${name}: ${sqft} sqft - LoD ${lod} + ${extrasStr}`
+          : `• ${name}: ${sqft} sqft - LoD ${lod}`;
+        areaDescriptions.push(desc);
+      }
+      
+      const areasListBlock = areaDescriptions.join("\n");
+      
+      // Build Scope & Deliverables Lists
+      const scopeItems = [
+        "End-to-end project management and customer service",
+        "LiDAR Scan - A scanning technician will capture the interior and exterior."
+      ];
+      if (allDisciplines.has('matterport')) {
+        scopeItems.push("Matterport Scan - A scanning technician will capture the interior.");
+      }
+      scopeItems.push("Registration - Point cloud data registered, cleaned, and reviewed.");
+      scopeItems.push("BIM Modeling - Revit model creation.");
+      scopeItems.push("QA/QC - Redundant review by engineering staff.");
+      
+      const scopeBullets = scopeItems.map(item => `• ${item}`).join("\n");
+      
+      // Deliverables
+      const delivItems = ["Total Square Footage Audit"];
+      const globalScopeParts = ["LoD 300"];
+      if (allDisciplines.has('mepf')) globalScopeParts.push("MEPF");
+      if (allDisciplines.has('structure')) globalScopeParts.push("Structure");
+      if (allDisciplines.has('site') || allDisciplines.has('grade')) globalScopeParts.push("Site/Grade");
+      
+      delivItems.push(`Revit Model - ${globalScopeParts.join(' + ')}`);
+      if (allDisciplines.has('matterport')) {
+        delivItems.push("Matterport 3D Tour");
+      }
+      delivItems.push("Colorized Point Cloud (.rcp format)");
+      const delivBullets = delivItems.map(item => `• ${item}`).join("\n");
+      
+      // Format Pricing Table Rows
+      const pricing = data.pricing || {};
+      const lineItems = pricing.lineItems || [];
+      const rows = lineItems
+        .filter((item: any) => !item.isTotal)
+        .map((item: any) => ({
+          options: { qty: 1, name: item.label || 'Service', price: item.value || 0 },
+          data: { name: item.label || 'Service', price: item.value || 0, qty: 1 }
+        }));
+      
+      // Construct Payload
+      const payload = {
+        name: `Proposal: ${projectAddress}`,
+        template_uuid: TEMPLATE_UUID,
+        recipients: [{ email: contactEmail, first_name: first, last_name: last, role: "Client" }],
+        tokens: [
+          { name: "Project.Address", value: projectAddress },
+          { name: "Project.ServiceLine", value: serviceLine },
+          { name: "Project.AreasList", value: areasListBlock },
+          { name: "Scope.List", value: scopeBullets },
+          { name: "Deliverables.List", value: delivBullets }
+        ],
+        pricing_tables: [
+          {
+            name: "Pricing Table 1",
+            sections: [{ title: "Services Scope", default: true, rows }]
+          }
+        ]
+      };
+      
+      // Execute PandaDoc API call
+      const response = await fetch("https://api.pandadoc.com/public/v1/documents", {
+        method: "POST",
+        headers: {
+          "Authorization": `API-Key ${API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.status === 201) {
+        const result = await response.json();
+        const docId = result.id;
+        const docUrl = `https://app.pandadoc.com/a/#/documents/${docId}`;
+        res.json({ success: true, documentId: docId, documentUrl: docUrl });
+      } else {
+        const errorText = await response.text();
+        console.error("PandaDoc API error:", errorText);
+        res.status(response.status).json({ error: "PandaDoc API error", details: errorText });
+      }
+    } catch (error) {
+      console.error("Error creating PandaDoc document:", error);
+      res.status(500).json({ error: "Failed to create PandaDoc document" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

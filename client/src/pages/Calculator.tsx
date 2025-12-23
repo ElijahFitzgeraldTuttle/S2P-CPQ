@@ -5,7 +5,7 @@ import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Download, FileText } from "lucide-react";
+import { Plus, Save, Download, FileText, ExternalLink, Loader2 } from "lucide-react";
 import JSZip from "jszip";
 import {
   generateScopePDF,
@@ -100,6 +100,7 @@ export default function Calculator() {
   });
 
   const [scopingMode] = useState(true);
+  const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -991,6 +992,65 @@ export default function Calculator() {
       title: "JSON exported",
       description: "Quote data exported as JSON file",
     });
+  };
+
+  const createPandaDoc = async () => {
+    setIsCreatingPandaDoc(true);
+    
+    try {
+      const exportData = {
+        projectDetails: {
+          clientName: projectDetails.clientName,
+          projectName: projectDetails.projectName,
+          projectAddress: projectDetails.projectAddress,
+        },
+        areas: areas.map(area => ({
+          id: area.id,
+          name: area.name,
+          buildingType: area.buildingType,
+          squareFeet: area.squareFeet,
+          scope: area.scope,
+          disciplines: area.disciplines,
+          disciplineLods: area.disciplineLods,
+          gradeAroundBuilding: area.gradeAroundBuilding,
+        })),
+        crmData: {
+          accountContact: scopingData.accountContact,
+          accountContactEmail: scopingData.accountContactEmail,
+        },
+        pricing: {
+          lineItems: pricingItems.map(item => ({
+            label: item.label,
+            value: item.value,
+            isDiscount: item.isDiscount || false,
+            isTotal: item.isTotal || false,
+          })),
+          totalClientPrice: pricingData.clientTotal,
+        },
+      };
+
+      const response = await apiRequest("POST", "/api/pandadoc/create", exportData);
+      const result = await response.json();
+      
+      if (result.success && result.documentUrl) {
+        toast({
+          title: "PandaDoc created",
+          description: "Opening document in new tab...",
+        });
+        window.open(result.documentUrl, "_blank");
+      } else {
+        throw new Error(result.error || "Failed to create PandaDoc");
+      }
+    } catch (error: any) {
+      console.error("PandaDoc creation failed:", error);
+      toast({
+        title: "PandaDoc creation failed",
+        description: error?.message || "Failed to create PandaDoc document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingPandaDoc(false);
+    }
   };
 
   const exportScopeQuoteClient = async () => {
@@ -1941,6 +2001,20 @@ export default function Calculator() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={createPandaDoc}
+                disabled={isCreatingPandaDoc}
+                data-testid="button-create-pandadoc"
+              >
+                {isCreatingPandaDoc ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                )}
+                {isCreatingPandaDoc ? "Creating..." : "Create PandaDoc"}
+              </Button>
             </div>
           </div>
 
