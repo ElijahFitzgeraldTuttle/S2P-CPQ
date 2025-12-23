@@ -101,6 +101,9 @@ export default function Calculator() {
 
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
+  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState(false);
+  const [isConnectingQuickBooks, setIsConnectingQuickBooks] = useState(false);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -335,6 +338,107 @@ export default function Calculator() {
       }
     }
   }, [existingQuote]);
+
+  // Check QuickBooks connection status on mount
+  useEffect(() => {
+    const checkQuickBooksStatus = async () => {
+      try {
+        const response = await fetch("/api/quickbooks/status");
+        const data = await response.json();
+        setIsQuickBooksConnected(data.connected);
+      } catch (error) {
+        console.error("Error checking QuickBooks status:", error);
+      }
+    };
+    checkQuickBooksStatus();
+    
+    // Listen for OAuth callback message
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin to prevent spoofed messages
+      const expectedOrigin = window.location.origin;
+      if (event.origin !== expectedOrigin) {
+        return;
+      }
+      
+      if (event.data?.type === 'quickbooks-connected') {
+        setIsQuickBooksConnected(true);
+        toast({
+          title: "QuickBooks Connected",
+          description: "Your QuickBooks account is now connected.",
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [toast]);
+
+  const connectQuickBooks = async () => {
+    setIsConnectingQuickBooks(true);
+    try {
+      const response = await fetch("/api/quickbooks/auth");
+      const data = await response.json();
+      if (data.authUrl) {
+        window.open(data.authUrl, "quickbooks_auth", "width=600,height=700");
+      } else {
+        throw new Error(data.error || "Failed to get authorization URL");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection failed",
+        description: error?.message || "Failed to connect to QuickBooks",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnectingQuickBooks(false);
+    }
+  };
+
+  const createQuickBooksInvoice = async () => {
+    setIsCreatingInvoice(true);
+    try {
+      const exportData = {
+        projectDetails: {
+          clientName: projectDetails.clientName,
+          projectName: projectDetails.projectName,
+          projectAddress: projectDetails.projectAddress,
+          specificBuilding: projectDetails.specificBuilding,
+          typeOfBuilding: projectDetails.typeOfBuilding,
+        },
+        areas,
+        crmData: {
+          accountContact: scopingData.accountContact,
+          accountContactEmail: scopingData.accountContactEmail,
+          accountContactPhone: scopingData.accountContactPhone,
+        },
+        pricing: {
+          lineItems: pricingItems,
+          total: pricingItems.find(item => item.isTotal)?.value || 0,
+        },
+      };
+      
+      const response = await apiRequest("POST", "/api/quickbooks/create-invoice", exportData);
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Invoice Created",
+          description: `Invoice #${result.docNumber} created. Opening in QuickBooks...`,
+        });
+        window.open(result.invoiceUrl, "_blank");
+      } else {
+        throw new Error(result.error || "Failed to create invoice");
+      }
+    } catch (error: any) {
+      console.error("Invoice creation failed:", error);
+      toast({
+        title: "Invoice creation failed",
+        description: error?.message || "Failed to create QuickBooks invoice",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingInvoice(false);
+    }
+  };
 
   const saveQuoteMutation = useMutation({
     mutationFn: async (quoteData: any) => {
@@ -2015,6 +2119,37 @@ export default function Calculator() {
                 )}
                 {isCreatingPandaDoc ? "Creating..." : "Create PandaDoc"}
               </Button>
+              {isQuickBooksConnected ? (
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  onClick={createQuickBooksInvoice}
+                  disabled={isCreatingInvoice}
+                  data-testid="button-create-invoice"
+                >
+                  {isCreatingInvoice ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                  )}
+                  {isCreatingInvoice ? "Creating..." : "Create Invoice"}
+                </Button>
+              ) : (
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  onClick={connectQuickBooks}
+                  disabled={isConnectingQuickBooks}
+                  data-testid="button-connect-quickbooks"
+                >
+                  {isConnectingQuickBooks ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                  )}
+                  {isConnectingQuickBooks ? "Connecting..." : "Connect QuickBooks"}
+                </Button>
+              )}
             </div>
           </div>
 

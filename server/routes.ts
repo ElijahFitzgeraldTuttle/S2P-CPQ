@@ -493,6 +493,346 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // QuickBooks OAuth endpoints
+  const QB_CLIENT_ID = process.env.QUICKBOOKS_CLIENT_ID;
+  const QB_CLIENT_SECRET = process.env.QUICKBOOKS_CLIENT_SECRET;
+  const APP_ORIGIN = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+    : 'http://localhost:5000';
+  const QB_REDIRECT_URI = process.env.QUICKBOOKS_REDIRECT_URI || `${APP_ORIGIN}/api/quickbooks/callback`;
+  const QB_SANDBOX = process.env.QUICKBOOKS_SANDBOX !== 'false'; // Default to sandbox
+  
+  // Store pending OAuth states for CSRF protection
+  const pendingOAuthStates = new Map<string, { createdAt: Date }>();
+  
+  // Clean up expired states (older than 10 minutes)
+  const cleanupOAuthStates = () => {
+    const now = Date.now();
+    const entries = Array.from(pendingOAuthStates.entries());
+    for (let i = 0; i < entries.length; i++) {
+      const [state, data] = entries[i];
+      if (now - data.createdAt.getTime() > 10 * 60 * 1000) {
+        pendingOAuthStates.delete(state);
+      }
+    }
+  };
+  
+  // Start OAuth flow
+  app.get("/api/quickbooks/auth", (req, res) => {
+    if (!QB_CLIENT_ID) {
+      return res.status(500).json({ error: "QuickBooks Client ID not configured" });
+    }
+    
+    // Generate cryptographically secure random state
+    const stateBytes = new Uint8Array(32);
+    crypto.getRandomValues(stateBytes);
+    const state = Buffer.from(stateBytes).toString('base64url');
+    
+    // Store state for validation
+    cleanupOAuthStates();
+    pendingOAuthStates.set(state, { createdAt: new Date() });
+    
+    const authUrl = new URL("https://appcenter.intuit.com/connect/oauth2");
+    authUrl.searchParams.set("client_id", QB_CLIENT_ID);
+    authUrl.searchParams.set("redirect_uri", QB_REDIRECT_URI);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("scope", "com.intuit.quickbooks.accounting");
+    authUrl.searchParams.set("state", state);
+    
+    res.json({ authUrl: authUrl.toString() });
+  });
+  
+  // OAuth callback
+  app.get("/api/quickbooks/callback", async (req, res) => {
+    try {
+      const { code, realmId, state } = req.query;
+      
+      if (!code || !realmId) {
+        return res.status(400).send("Missing authorization code or realm ID");
+      }
+      
+      // Validate state to prevent CSRF attacks
+      if (!state || !pendingOAuthStates.has(state as string)) {
+        return res.status(400).send("Invalid or expired state parameter - possible CSRF attack");
+      }
+      pendingOAuthStates.delete(state as string);
+      
+      if (!QB_CLIENT_ID || !QB_CLIENT_SECRET) {
+        return res.status(500).send("QuickBooks credentials not configured");
+      }
+      
+      // Exchange code for tokens
+      const tokenResponse = await fetch("https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer", {
+        method: "POST",
+        headers: {
+          "Authorization": "Basic " + Buffer.from(`${QB_CLIENT_ID}:${QB_CLIENT_SECRET}`).toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code: code as string,
+          redirect_uri: QB_REDIRECT_URI
+        })
+      });
+      
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error("QuickBooks token exchange failed:", errorText);
+        return res.status(500).send("Failed to exchange authorization code");
+      }
+      
+      const tokens = await tokenResponse.json();
+      
+      // Calculate expiration times
+      const now = new Date();
+      const accessTokenExpiresAt = new Date(now.getTime() + (tokens.expires_in * 1000));
+      const refreshTokenExpiresAt = new Date(now.getTime() + (tokens.x_refresh_token_expires_in * 1000));
+      
+      // Store tokens in database
+      await storage.saveQuickBooksTokens({
+        realmId: realmId as string,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        accessTokenExpiresAt,
+        refreshTokenExpiresAt
+      });
+      
+      // Redirect back to app with success message - use specific origin for security
+      res.send(`
+        <html>
+          <body>
+            <h1>QuickBooks Connected Successfully!</h1>
+            <p>You can close this window and return to the application.</p>
+            <script>
+              setTimeout(() => {
+                const targetOrigin = '${APP_ORIGIN}';
+                window.opener?.postMessage({ type: 'quickbooks-connected', realmId: '${realmId}' }, targetOrigin);
+                window.close();
+              }, 1500);
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("QuickBooks OAuth callback error:", error);
+      res.status(500).send("OAuth callback failed");
+    }
+  });
+  
+  // Check connection status
+  app.get("/api/quickbooks/status", async (req, res) => {
+    try {
+      const tokens = await storage.getQuickBooksTokens();
+      if (!tokens) {
+        return res.json({ connected: false });
+      }
+      
+      // Check if refresh token is still valid
+      const now = new Date();
+      if (tokens.refreshTokenExpiresAt < now) {
+        return res.json({ connected: false, reason: "expired" });
+      }
+      
+      res.json({ 
+        connected: true, 
+        realmId: tokens.realmId,
+        accessTokenExpired: tokens.accessTokenExpiresAt < now
+      });
+    } catch (error) {
+      console.error("Error checking QuickBooks status:", error);
+      res.status(500).json({ error: "Failed to check connection status" });
+    }
+  });
+  
+  // Helper function to refresh access token
+  async function refreshQuickBooksToken(tokens: any): Promise<string | null> {
+    if (!QB_CLIENT_ID || !QB_CLIENT_SECRET) return null;
+    
+    try {
+      const response = await fetch("https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer", {
+        method: "POST",
+        headers: {
+          "Authorization": "Basic " + Buffer.from(`${QB_CLIENT_ID}:${QB_CLIENT_SECRET}`).toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: tokens.refreshToken
+        })
+      });
+      
+      if (!response.ok) {
+        console.error("Token refresh failed:", await response.text());
+        return null;
+      }
+      
+      const newTokens = await response.json();
+      const now = new Date();
+      
+      await storage.saveQuickBooksTokens({
+        realmId: tokens.realmId,
+        accessToken: newTokens.access_token,
+        refreshToken: newTokens.refresh_token,
+        accessTokenExpiresAt: new Date(now.getTime() + (newTokens.expires_in * 1000)),
+        refreshTokenExpiresAt: new Date(now.getTime() + (newTokens.x_refresh_token_expires_in * 1000))
+      });
+      
+      return newTokens.access_token;
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      return null;
+    }
+  }
+  
+  // Create invoice
+  app.post("/api/quickbooks/create-invoice", async (req, res) => {
+    try {
+      let tokens = await storage.getQuickBooksTokens();
+      if (!tokens) {
+        return res.status(401).json({ error: "Not connected to QuickBooks" });
+      }
+      
+      // Refresh token if expired
+      let accessToken = tokens.accessToken;
+      const now = new Date();
+      if (tokens.accessTokenExpiresAt < now) {
+        const newToken = await refreshQuickBooksToken(tokens);
+        if (!newToken) {
+          return res.status(401).json({ error: "Failed to refresh QuickBooks token. Please reconnect." });
+        }
+        accessToken = newToken;
+      }
+      
+      const data = req.body;
+      const projectDetails = data.projectDetails || {};
+      const crmData = data.crmData || {};
+      const pricing = data.pricing || {};
+      
+      // Determine API base URL
+      const baseUrl = QB_SANDBOX 
+        ? "https://sandbox-quickbooks.api.intuit.com" 
+        : "https://quickbooks.api.intuit.com";
+      
+      // First, we need to find or create a customer
+      // For simplicity, we'll use a generic customer - in production you'd want to search/create
+      const customerName = crmData.accountName || crmData.accountContact || "Scan2Plan Customer";
+      
+      // Search for existing customer
+      const searchUrl = `${baseUrl}/v3/company/${tokens.realmId}/query?query=SELECT * FROM Customer WHERE DisplayName = '${customerName.replace(/'/g, "\\'")}'`;
+      const searchResponse = await fetch(searchUrl, {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept": "application/json"
+        }
+      });
+      
+      let customerId: string;
+      const searchResult = await searchResponse.json();
+      
+      if (searchResult.QueryResponse?.Customer?.length > 0) {
+        customerId = searchResult.QueryResponse.Customer[0].Id;
+      } else {
+        // Create new customer
+        const createCustomerResponse = await fetch(`${baseUrl}/v3/company/${tokens.realmId}/customer`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            DisplayName: customerName,
+            PrimaryEmailAddr: crmData.accountContactEmail ? { Address: crmData.accountContactEmail } : undefined,
+            PrimaryPhone: crmData.accountContactPhone ? { FreeFormNumber: crmData.accountContactPhone } : undefined
+          })
+        });
+        
+        if (!createCustomerResponse.ok) {
+          const errorText = await createCustomerResponse.text();
+          console.error("Failed to create customer:", errorText);
+          return res.status(500).json({ error: "Failed to create customer in QuickBooks" });
+        }
+        
+        const newCustomer = await createCustomerResponse.json();
+        customerId = newCustomer.Customer.Id;
+      }
+      
+      // Build invoice line items
+      const lineItems = pricing.lineItems || [];
+      const invoiceLines = lineItems
+        .filter((item: any) => !item.isTotal && item.value > 0)
+        .map((item: any, index: number) => ({
+          LineNum: index + 1,
+          Amount: parseFloat(item.value) || 0,
+          DetailType: "SalesItemLineDetail",
+          Description: item.label || "Service",
+          SalesItemLineDetail: {
+            ItemRef: {
+              value: "1", // Default service item - in production, you'd want to map to actual items
+              name: "Services"
+            },
+            Qty: 1,
+            UnitPrice: parseFloat(item.value) || 0
+          }
+        }));
+      
+      // Create the invoice
+      const invoiceData = {
+        CustomerRef: { value: customerId },
+        Line: invoiceLines,
+        CustomerMemo: { value: `Project: ${projectDetails.projectName || 'Scan-to-BIM Project'}\nAddress: ${projectDetails.projectAddress || 'N/A'}` },
+        BillEmail: crmData.accountContactEmail ? { Address: crmData.accountContactEmail } : undefined
+      };
+      
+      const invoiceResponse = await fetch(`${baseUrl}/v3/company/${tokens.realmId}/invoice`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(invoiceData)
+      });
+      
+      if (!invoiceResponse.ok) {
+        const errorText = await invoiceResponse.text();
+        console.error("Failed to create invoice:", errorText);
+        return res.status(500).json({ error: "Failed to create invoice in QuickBooks", details: errorText });
+      }
+      
+      const invoice = await invoiceResponse.json();
+      const invoiceId = invoice.Invoice.Id;
+      const docNumber = invoice.Invoice.DocNumber;
+      
+      // Generate link to view invoice in QuickBooks
+      const invoiceUrl = QB_SANDBOX
+        ? `https://app.sandbox.qbo.intuit.com/app/invoice?txnId=${invoiceId}`
+        : `https://app.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+      
+      res.json({ 
+        success: true, 
+        invoiceId, 
+        docNumber,
+        invoiceUrl,
+        customerId
+      });
+    } catch (error) {
+      console.error("Error creating QuickBooks invoice:", error);
+      res.status(500).json({ error: "Failed to create invoice" });
+    }
+  });
+  
+  // Disconnect QuickBooks
+  app.post("/api/quickbooks/disconnect", async (req, res) => {
+    try {
+      await storage.deleteQuickBooksTokens();
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error disconnecting QuickBooks:", error);
+      res.status(500).json({ error: "Failed to disconnect" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

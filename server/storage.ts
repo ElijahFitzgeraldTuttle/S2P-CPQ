@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters, cadPricingMatrix } from "@shared/schema";
+import { type User, type InsertUser, type Quote, type InsertQuote, type QuickBooksTokens, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters, cadPricingMatrix, quickbooksTokens } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -31,6 +31,11 @@ export interface IStorage {
   // CAD pricing matrix operations
   getAllCadPricingRates(): Promise<any[]>;
   getCadPricingRate(areaTier: string, packageType: string): Promise<any | undefined>;
+  
+  // QuickBooks tokens operations
+  getQuickBooksTokens(): Promise<QuickBooksTokens | undefined>;
+  saveQuickBooksTokens(tokens: Omit<QuickBooksTokens, 'id' | 'createdAt' | 'updatedAt'>): Promise<QuickBooksTokens>;
+  deleteQuickBooksTokens(): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -191,6 +196,52 @@ export class DbStorage implements IStorage {
       )
       .limit(1);
     return rate;
+  }
+  
+  // QuickBooks tokens methods
+  async getQuickBooksTokens(): Promise<QuickBooksTokens | undefined> {
+    // Get the most recent tokens (single-tenant for now)
+    const [tokens] = await db
+      .select()
+      .from(quickbooksTokens)
+      .orderBy(desc(quickbooksTokens.updatedAt))
+      .limit(1);
+    return tokens;
+  }
+  
+  async saveQuickBooksTokens(tokens: Omit<QuickBooksTokens, 'id' | 'createdAt' | 'updatedAt'>): Promise<QuickBooksTokens> {
+    // Upsert: update if realmId exists, otherwise insert
+    const existing = await db
+      .select()
+      .from(quickbooksTokens)
+      .where(eq(quickbooksTokens.realmId, tokens.realmId))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(quickbooksTokens)
+        .set({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          accessTokenExpiresAt: tokens.accessTokenExpiresAt,
+          refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(quickbooksTokens.realmId, tokens.realmId))
+        .returning();
+      return updated!;
+    } else {
+      const [inserted] = await db
+        .insert(quickbooksTokens)
+        .values(tokens)
+        .returning();
+      return inserted!;
+    }
+  }
+  
+  async deleteQuickBooksTokens(): Promise<boolean> {
+    const result = await db.delete(quickbooksTokens).returning();
+    return result.length > 0;
   }
 }
 
