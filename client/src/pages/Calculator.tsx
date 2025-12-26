@@ -596,7 +596,17 @@ export default function Calculator() {
       return true;
     });
     
-    lineItems.forEach((item, index) => {
+    // Find travel line item and calculate total travel cost
+    const travelItem = lineItems.find(item => item.label.toLowerCase().includes("travel"));
+    const travelAmount = travelItem?.value || 0;
+    
+    // Filter out travel from line items (will be rolled into first architecture item)
+    const filteredLineItems = lineItems.filter(item => !item.label.toLowerCase().includes("travel"));
+    
+    // Track if we've added travel to the first architecture item
+    let travelRolledIn = false;
+    
+    filteredLineItems.forEach((item, index) => {
       const relatedArea = areas[0];
       const skuInfo = mapLineItemToSKU(item.label, relatedArea);
       
@@ -610,7 +620,7 @@ export default function Calculator() {
       // Parse quantity and rate from line item
       let quantity = 1;
       let rate = item.value;
-      const amount = item.value;
+      let amount = item.value;
       
       // Extract sqft from label like "Architecture (3,215 sqft, LOD 300)"
       const sqftMatch = item.label.match(/\(([\d,]+)\s*sqft/i);
@@ -618,15 +628,16 @@ export default function Calculator() {
         const sqft = parseInt(sqftMatch[1].replace(/,/g, ""), 10);
         if (sqft > 0) {
           quantity = sqft;
+          
+          // Roll travel into first architecture line item
+          if (!travelRolledIn && travelAmount > 0 && 
+              (item.label.toLowerCase().includes("architecture") || item.label.toLowerCase().includes("bim"))) {
+            amount = item.value + travelAmount;
+            travelRolledIn = true;
+          }
+          
           rate = Math.round((amount / sqft) * 1000000) / 1000000; // 6 decimal precision for per-sqft rate
         }
-      }
-      
-      // Handle travel - parse miles like "Travel (60 mi @ $3/mi)"
-      const milesMatch = item.label.match(/\((\d+)\s*mi\s*@\s*\$?([\d.]+)/i);
-      if (milesMatch) {
-        quantity = parseInt(milesMatch[1], 10);
-        rate = parseFloat(milesMatch[2]);
       }
       
       // Handle acres for landscape - parse like "(2.5 acres, LOD 300)"
