@@ -14,6 +14,10 @@ export interface IStorage {
   updateQuote(id: string, quote: Partial<InsertQuote>): Promise<Quote | undefined>;
   deleteQuote(id: string): Promise<boolean>;
   
+  // Quote version operations
+  getQuoteVersions(quoteId: string): Promise<Quote[]>;
+  createQuoteVersion(sourceQuoteId: string, versionName?: string): Promise<Quote>;
+  
   // Pricing matrix operations
   getAllPricingRates(): Promise<any[]>;
   getPricingRate(buildingTypeId: number, areaTier: string, discipline: string, lod: string): Promise<any | undefined>;
@@ -94,6 +98,63 @@ export class DbStorage implements IStorage {
   async deleteQuote(id: string): Promise<boolean> {
     const result = await db.delete(quotes).where(eq(quotes.id, id)).returning();
     return result.length > 0;
+  }
+  
+  // Quote version methods
+  async getQuoteVersions(quoteId: string): Promise<Quote[]> {
+    // First get the quote to determine if it's a parent or child
+    const quote = await this.getQuote(quoteId);
+    if (!quote) return [];
+    
+    // Determine the root parent ID
+    const rootId = quote.parentQuoteId || quote.id;
+    
+    // Get all quotes that share the same root (parent + all children)
+    const versions = await db
+      .select()
+      .from(quotes)
+      .where(
+        eq(quotes.id, rootId)
+      );
+    
+    const children = await db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.parentQuoteId, rootId));
+    
+    return [...versions, ...children].sort((a, b) => a.versionNumber - b.versionNumber);
+  }
+  
+  async createQuoteVersion(sourceQuoteId: string, versionName?: string): Promise<Quote> {
+    // Get the source quote
+    const sourceQuote = await this.getQuote(sourceQuoteId);
+    if (!sourceQuote) {
+      throw new Error("Source quote not found");
+    }
+    
+    // Determine the root parent ID
+    const rootId = sourceQuote.parentQuoteId || sourceQuote.id;
+    
+    // Get all existing versions to determine the next version number
+    const existingVersions = await this.getQuoteVersions(sourceQuoteId);
+    const maxVersion = Math.max(...existingVersions.map(v => v.versionNumber));
+    const newVersionNumber = maxVersion + 1;
+    
+    // Generate new quote number
+    const quoteNumber = `Q${Date.now()}`;
+    
+    // Create the new version by copying all data from source
+    const { id, quoteNumber: _qn, createdAt, updatedAt, versionNumber, versionName: _vn, parentQuoteId: _pid, ...quoteData } = sourceQuote;
+    
+    const [newVersion] = await db.insert(quotes).values({
+      ...quoteData,
+      quoteNumber,
+      parentQuoteId: rootId,
+      versionNumber: newVersionNumber,
+      versionName: versionName || `Version ${newVersionNumber}`,
+    }).returning();
+    
+    return newVersion!;
   }
   
   // Pricing matrix methods

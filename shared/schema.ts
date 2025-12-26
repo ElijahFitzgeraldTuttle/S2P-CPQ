@@ -98,6 +98,11 @@ export const quotes = pgTable("quotes", {
   totalPrice: decimal("total_price", { precision: 12, scale: 2 }),
   pricingBreakdown: jsonb("pricing_breakdown"),
   
+  // Version control
+  parentQuoteId: varchar("parent_quote_id"),
+  versionNumber: integer("version_number").default(1).notNull(),
+  versionName: text("version_name"),
+  
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
