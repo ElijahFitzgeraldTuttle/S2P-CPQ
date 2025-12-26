@@ -337,45 +337,156 @@ export default function Calculator() {
     }
   }, [existingQuote]);
 
+  const mapLineItemToSKU = (label: string, area?: any): { sku: string; productName: string; category: string } => {
+    const lowerLabel = label.toLowerCase();
+    
+    // Determine building type (residential vs commercial)
+    const isResidential = area?.buildingType?.toString() === "1" || 
+      ["1", "2", "3", "4", "5", "6"].includes(area?.buildingType?.toString() || "");
+    const buildingCode = isResidential ? "RES" : "COM";
+    
+    // Determine scope suffix
+    let scopeSuffix = "";
+    if (area?.scope === "interior") scopeSuffix = " INT";
+    else if (area?.scope === "exterior" || area?.scope === "facades") scopeSuffix = " EXT";
+    
+    // Determine LoD from label
+    let lod = "300";
+    if (lowerLabel.includes("lod 200") || lowerLabel.includes("200")) lod = "200";
+    else if (lowerLabel.includes("lod 350") || lowerLabel.includes("350")) lod = "350";
+    
+    // Main service line items (Architecture/BIM)
+    if (lowerLabel.includes("architecture") || lowerLabel.includes("bim") || 
+        (lowerLabel.includes("area") && !lowerLabel.includes("mepf") && !lowerLabel.includes("structural"))) {
+      const suffix = scopeSuffix ? scopeSuffix.replace(" ", " ") : "";
+      return { 
+        sku: `S2P ${buildingCode}${suffix} ${lod}`.trim().replace(/  /g, " "),
+        productName: `Scan2Plan ${isResidential ? "Residential" : "Commercial"} - LoD ${lod}${scopeSuffix ? ` (${scopeSuffix.trim()}-ONLY)` : ""}`,
+        category: "S2P"
+      };
+    }
+    
+    // MEPF
+    if (lowerLabel.includes("mepf") || lowerLabel.includes("mechanical") || lowerLabel.includes("electrical")) {
+      return { sku: `AD MEPF ${lod}`, productName: `MEPF LoD ${lod}`, category: "Added Disciplines" };
+    }
+    
+    // Structural
+    if (lowerLabel.includes("structural") || lowerLabel.includes("structure")) {
+      return { sku: `AD STR MOD ${lod}`, productName: `Structural Modeling - LoD ${lod}`, category: "Added Disciplines" };
+    }
+    
+    // Grade/Site
+    if (lowerLabel.includes("grade") || lowerLabel.includes("site") || lowerLabel.includes("topography")) {
+      return { sku: `AD GRADE ${lod}`, productName: `Grade - LoD ${lod}`, category: "Added Disciplines" };
+    }
+    
+    // CAD packages
+    if (lowerLabel.includes("cad")) {
+      if (lowerLabel.includes("interior package")) return { sku: `CAD INT PKG ${lod}`, productName: `CAD Interior Package - LoD ${lod}`, category: "CAD" };
+      if (lowerLabel.includes("standard package")) return { sku: `CAD STD PKG ${lod}`, productName: `CAD Standard Package - LoD ${lod}`, category: "CAD" };
+      if (lowerLabel.includes("section")) return { sku: "CAD SEC", productName: "CAD Sections", category: "CAD" };
+      if (lowerLabel.includes("elevation")) return { sku: `CAD INT ELEV ${lod}`, productName: `CAD Interior Elevations LoD ${lod}`, category: "CAD" };
+      return { sku: `CAD STD PKG ${lod}`, productName: `CAD Standard Package - LoD ${lod}`, category: "CAD" };
+    }
+    
+    // Landscape
+    if (lowerLabel.includes("landscape")) {
+      return { sku: `S2P LNDSCP ${lod}`, productName: `Landscape Service - LoD ${lod}`, category: "S2P" };
+    }
+    
+    // Matterport
+    if (lowerLabel.includes("matterport") || lowerLabel.includes("virtual tour")) {
+      return { sku: "AO MAT 3D TOUR", productName: "Matterport 3D Tour", category: "Add Ons" };
+    }
+    
+    // Travel
+    if (lowerLabel.includes("travel")) {
+      return { sku: "S2P TRAVEL", productName: "Travel", category: "S2P" };
+    }
+    
+    // Risk factors / Price Mods
+    if (lowerLabel.includes("occupied")) return { sku: "PM OCC", productName: "Occupied", category: "Price Mods" };
+    if (lowerLabel.includes("no power")) return { sku: "PM NO POW", productName: "No Power", category: "Price Mods" };
+    if (lowerLabel.includes("fire") || lowerLabel.includes("flood")) return { sku: "PM FIR FLD", productName: "Fire / Flood", category: "Price Mods" };
+    if (lowerLabel.includes("expedited")) return { sku: "PM EXP SER", productName: "Expedited Service", category: "Price Mods" };
+    if (lowerLabel.includes("discount")) return { sku: "PM DIS", productName: "Discount", category: "Price Mods" };
+    if (lowerLabel.includes("credit card")) return { sku: "PM CRE CRD", productName: "Credit Card 3%", category: "Price Mods" };
+    if (lowerLabel.includes("net 60")) return { sku: "PM NET 60", productName: "NET 60", category: "Price Mods" };
+    if (lowerLabel.includes("net 90")) return { sku: "PM NET 90", productName: "NET 90", category: "Price Mods" };
+    
+    // Add Ons
+    if (lowerLabel.includes("georeferenc")) return { sku: "AO GEOREF", productName: "Georeferencing", category: "Add Ons" };
+    if (lowerLabel.includes("ifc") || lowerLabel.includes("dxf")) return { sku: "AO IFC DXF", productName: "IFC / DXF Model", category: "Add Ons" };
+    if (lowerLabel.includes("rhino")) return { sku: "AO RHINO MDL", productName: "Rhino Model", category: "Add Ons" };
+    if (lowerLabel.includes("sketchup")) return { sku: "AO SKETCH MOD", productName: "Sketchup Model", category: "Add Ons" };
+    if (lowerLabel.includes("vectorworks")) return { sku: "AO VCT MDL", productName: "Vectorworks Model", category: "Add Ons" };
+    
+    // Scanning
+    if (lowerLabel.includes("scanning") || lowerLabel.includes("point cloud") || lowerLabel.includes("registration")) {
+      return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P" };
+    }
+    
+    // Default fallback
+    return { sku: "S2P COM 300", productName: label, category: "S2P" };
+  };
+
   const createQuickBooksInvoice = async () => {
     setIsCreatingQuickBooksInvoice(true);
     try {
-      // Build client-facing quote data for Make.com webhook
+      // Build line items with QuickBooks SKUs
+      const lineItems = pricingItems
+        .filter(item => !item.isTotal && item.value !== 0)
+        .map((item, index) => {
+          const relatedArea = areas[0]; // Use first area for context
+          const skuInfo = mapLineItemToSKU(item.label, relatedArea);
+          return {
+            lineNum: index + 1,
+            sku: skuInfo.sku,
+            productName: skuInfo.productName,
+            category: skuInfo.category,
+            description: item.label,
+            quantity: 1,
+            amount: item.value,
+            isDiscount: item.isDiscount || false,
+          };
+        });
+
       const quoteData = {
         quoteNumber: existingQuote?.quoteNumber || `Q-${Date.now()}`,
-        projectDetails: {
-          clientName: projectDetails.clientName,
-          projectName: projectDetails.projectName,
-          projectAddress: projectDetails.projectAddress,
-          specificBuilding: projectDetails.specificBuilding,
-          typeOfBuilding: projectDetails.typeOfBuilding,
+        customer: {
+          displayName: projectDetails.clientName,
+          companyName: projectDetails.clientName,
+          primaryEmailAddr: scopingData.accountContactEmail,
+          primaryPhone: scopingData.accountContactPhone,
+          billAddr: {
+            line1: projectDetails.projectAddress,
+          },
         },
-        contact: {
-          name: scopingData.accountContact,
-          email: scopingData.accountContactEmail,
-          phone: scopingData.accountContactPhone,
+        project: {
+          name: projectDetails.projectName,
+          address: projectDetails.projectAddress,
+          building: projectDetails.specificBuilding,
+          buildingType: projectDetails.typeOfBuilding,
+          totalSquareFeet: areas.reduce((sum, a) => sum + (parseInt(a.squareFeet) || 0), 0),
         },
-        areas: areas.map(area => ({
-          name: area.name,
-          buildingType: area.buildingType,
-          squareFeet: area.squareFeet,
-          scope: area.scope,
-          disciplines: area.disciplines,
-        })),
-        pricing: {
-          lineItems: pricingItems.filter(item => !item.isTotal).map(item => ({
-            label: item.label,
-            value: item.value,
-            isDiscount: item.isDiscount,
-          })),
+        lineItems: lineItems,
+        totals: {
+          subtotal: pricingItems
+            .filter(item => !item.isTotal && !item.isDiscount)
+            .reduce((sum, item) => sum + item.value, 0),
+          discounts: pricingItems
+            .filter(item => item.isDiscount)
+            .reduce((sum, item) => sum + Math.abs(item.value), 0),
           total: pricingItems.find(item => item.isTotal)?.value || 0,
         },
-        travel: {
+        metadata: {
           dispatchLocation: dispatch,
           distance: distance,
+          risks: risks,
+          paymentTerms: scopingData.paymentTerms,
+          createdAt: new Date().toISOString(),
         },
-        services: services,
-        createdAt: new Date().toISOString(),
       };
       
       const response = await fetch("https://hook.us2.make.com/cardkjqln1i40c27w4n14javuk9oqmhm", {
