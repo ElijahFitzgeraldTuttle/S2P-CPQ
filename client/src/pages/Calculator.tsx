@@ -344,16 +344,17 @@ export default function Calculator() {
     const isResidential = area?.buildingType?.toString() === "1" || 
       ["1", "2", "3", "4", "5", "6"].includes(area?.buildingType?.toString() || "");
     const buildingType = isResidential ? "Residential" : "Commercial";
+    const skuType = isResidential ? "RES" : "COM";
     
     // Determine scope suffix for SKU and product name
-    let scopeCode = "";
-    let scopeLabel = "";
+    let skuScope = "";
+    let nameScope = "";
     if (area?.scope === "interior") {
-      scopeCode = " INT";
-      scopeLabel = " (INT-ONLY)";
+      skuScope = " INT";
+      nameScope = " (INT-ONLY)";
     } else if (area?.scope === "exterior" || area?.scope === "facades") {
-      scopeCode = " EXT";
-      scopeLabel = " (EXT-ONLY)";
+      skuScope = " EXT";
+      nameScope = " (EXT-ONLY)";
     }
     
     // Determine LoD from label
@@ -361,15 +362,18 @@ export default function Calculator() {
     if (lowerLabel.includes("lod 200") || lowerLabel.includes("200")) lod = "200";
     else if (lowerLabel.includes("lod 350") || lowerLabel.includes("350")) lod = "350";
     
-    // Main service line items (Architecture/BIM)
+    // Main service line items (Architecture/BIM) - exact QB names
     if (lowerLabel.includes("architecture") || lowerLabel.includes("bim") || 
         (lowerLabel.includes("area") && !lowerLabel.includes("mepf") && !lowerLabel.includes("structural"))) {
-      const skuBase = isResidential ? "S2P RES" : "S2P COM";
-      return { 
-        sku: `${skuBase}${scopeCode} ${lod}`.replace(/  /g, " ").trim(),
-        productName: `Scan2Plan ${buildingType} - LoD ${lod}${scopeLabel}`,
-        category: "S2P"
-      };
+      // SKU format: S2P COM 300, S2P RES INT 200, S2P COM EXT 350
+      const sku = skuScope 
+        ? `S2P ${skuType}${skuScope} ${lod}` 
+        : `S2P ${skuType} ${lod}`;
+      // Product name: Scan2Plan Commercial - LoD 300 (INT-ONLY)
+      const productName = nameScope 
+        ? `Scan2Plan ${buildingType} - LoD ${lod}${nameScope}` 
+        : `Scan2Plan ${buildingType} - LoD ${lod}`;
+      return { sku, productName, category: "S2P" };
     }
     
     // MEPF - exact QB names
@@ -387,13 +391,16 @@ export default function Calculator() {
       return { sku: `AD GRADE ${lod}`, productName: `Grade - LoD ${lod}`, category: "Added Disciplines" };
     }
     
-    // CAD packages - exact QB names
+    // CAD packages - exact QB names (no LoD in product name)
     if (lowerLabel.includes("cad")) {
-      if (lowerLabel.includes("interior package")) return { sku: `CAD INT PKG ${lod}`, productName: `CAD Interior Package - LoD ${lod}`, category: "CAD" };
-      if (lowerLabel.includes("standard package")) return { sku: `CAD STD PKG ${lod}`, productName: `CAD Standard Package - LoD ${lod}`, category: "CAD" };
+      if (lowerLabel.includes("interior package")) return { sku: "CAD INT PKG", productName: "CAD Interior Package", category: "CAD" };
+      if (lowerLabel.includes("standard package")) return { sku: "CAD STD PKG", productName: "CAD Standard Package", category: "CAD" };
       if (lowerLabel.includes("section")) return { sku: "CAD SEC", productName: "CAD Sections", category: "CAD" };
-      if (lowerLabel.includes("elevation")) return { sku: `CAD INT ELEV ${lod}`, productName: `CAD Interior Elevations LoD ${lod}`, category: "CAD" };
-      return { sku: `CAD STD PKG ${lod}`, productName: `CAD Standard Package - LoD ${lod}`, category: "CAD" };
+      if (lowerLabel.includes("interior elevation")) return { sku: "CAD INT ELEV", productName: "CAD Interior Elevations", category: "CAD" };
+      if (lowerLabel.includes("mepf")) return { sku: "CAD MEPF STD PKG", productName: "CAD + MEPF Standard Package", category: "CAD" };
+      if (lowerLabel.includes("structure") && lowerLabel.includes("mepf")) return { sku: "CAD STC MEPF PKG", productName: "CAD + Structure + MEPF + Site Package", category: "CAD" };
+      if (lowerLabel.includes("structure")) return { sku: "CAD STC STD PKG", productName: "CAD + Structure Standard Package", category: "CAD" };
+      return { sku: "CAD STD PKG", productName: "CAD Standard Package", category: "CAD" };
     }
     
     // Landscape - exact QB names
@@ -406,9 +413,9 @@ export default function Calculator() {
       return { sku: "AO MAT 3D TOUR", productName: "Matterport 3D Tour", category: "Add Ons" };
     }
     
-    // Travel
+    // Travel - use LiDAR Scanning as there's no Travel product in QB
     if (lowerLabel.includes("travel")) {
-      return { sku: "S2P TRAVEL", productName: "Travel", category: "S2P" };
+      return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P" };
     }
     
     // Risk factors / Price Mods - exact QB names
@@ -420,6 +427,8 @@ export default function Calculator() {
     if (lowerLabel.includes("credit card")) return { sku: "PM CRE CRD", productName: "Credit Card 3%", category: "Price Mods" };
     if (lowerLabel.includes("net 60")) return { sku: "PM NET 60", productName: "Net 60", category: "Price Mods" };
     if (lowerLabel.includes("net 90")) return { sku: "PM NET 90", productName: "Net 90", category: "Price Mods" };
+    if (lowerLabel.includes("50%") || lowerLabel.includes("completion")) return { sku: "PM 50% DUE", productName: "Estimated 50% Due at Project Completion", category: "Price Mods" };
+    if (lowerLabel.includes("credit")) return { sku: "PM CRE", productName: "Credit", category: "Price Mods" };
     
     // Add Ons - exact QB names
     if (lowerLabel.includes("georeferenc")) return { sku: "AO GEOREF", productName: "Georeferencing", category: "Add Ons" };
@@ -427,6 +436,7 @@ export default function Calculator() {
     if (lowerLabel.includes("rhino")) return { sku: "AO RHINO MDL", productName: "Rhino Model", category: "Add Ons" };
     if (lowerLabel.includes("sketchup")) return { sku: "AO SKETCH MOD", productName: "Sketchup Model", category: "Add Ons" };
     if (lowerLabel.includes("vectorworks")) return { sku: "AO VCT MDL", productName: "Vectorworks Model", category: "Add Ons" };
+    if (lowerLabel.includes("exposed ceiling")) return { sku: "AO EXP CEIL", productName: "Exposed Ceilings", category: "Add Ons" };
     
     // Scanning - exact QB name
     if (lowerLabel.includes("scanning") || lowerLabel.includes("point cloud") || lowerLabel.includes("registration")) {
@@ -434,7 +444,7 @@ export default function Calculator() {
     }
     
     // Default fallback - use generic commercial service
-    return { sku: "S2P COM 300", productName: `Scan2Plan Commercial - LoD 300`, category: "S2P" };
+    return { sku: "S2P COM 300", productName: "Scan2Plan Commercial - LoD 300", category: "S2P" };
   };
 
   const createQuickBooksInvoice = async () => {
