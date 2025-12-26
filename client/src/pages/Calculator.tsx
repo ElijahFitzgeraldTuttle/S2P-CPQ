@@ -343,12 +343,18 @@ export default function Calculator() {
     // Determine building type (residential vs commercial)
     const isResidential = area?.buildingType?.toString() === "1" || 
       ["1", "2", "3", "4", "5", "6"].includes(area?.buildingType?.toString() || "");
-    const buildingCode = isResidential ? "RES" : "COM";
+    const buildingType = isResidential ? "Residential" : "Commercial";
     
-    // Determine scope suffix
-    let scopeSuffix = "";
-    if (area?.scope === "interior") scopeSuffix = " INT";
-    else if (area?.scope === "exterior" || area?.scope === "facades") scopeSuffix = " EXT";
+    // Determine scope suffix for SKU and product name
+    let scopeCode = "";
+    let scopeLabel = "";
+    if (area?.scope === "interior") {
+      scopeCode = " INT";
+      scopeLabel = " (INT-ONLY)";
+    } else if (area?.scope === "exterior" || area?.scope === "facades") {
+      scopeCode = " EXT";
+      scopeLabel = " (EXT-ONLY)";
+    }
     
     // Determine LoD from label
     let lod = "300";
@@ -358,30 +364,30 @@ export default function Calculator() {
     // Main service line items (Architecture/BIM)
     if (lowerLabel.includes("architecture") || lowerLabel.includes("bim") || 
         (lowerLabel.includes("area") && !lowerLabel.includes("mepf") && !lowerLabel.includes("structural"))) {
-      const suffix = scopeSuffix ? scopeSuffix.replace(" ", " ") : "";
+      const skuBase = isResidential ? "S2P RES" : "S2P COM";
       return { 
-        sku: `S2P ${buildingCode}${suffix} ${lod}`.trim().replace(/  /g, " "),
-        productName: `Scan2Plan ${isResidential ? "Residential" : "Commercial"} - LoD ${lod}${scopeSuffix ? ` (${scopeSuffix.trim()}-ONLY)` : ""}`,
+        sku: `${skuBase}${scopeCode} ${lod}`.replace(/  /g, " ").trim(),
+        productName: `Scan2Plan ${buildingType} - LoD ${lod}${scopeLabel}`,
         category: "S2P"
       };
     }
     
-    // MEPF
+    // MEPF - exact QB names
     if (lowerLabel.includes("mepf") || lowerLabel.includes("mechanical") || lowerLabel.includes("electrical")) {
       return { sku: `AD MEPF ${lod}`, productName: `MEPF LoD ${lod}`, category: "Added Disciplines" };
     }
     
-    // Structural
+    // Structural - exact QB names
     if (lowerLabel.includes("structural") || lowerLabel.includes("structure")) {
       return { sku: `AD STR MOD ${lod}`, productName: `Structural Modeling - LoD ${lod}`, category: "Added Disciplines" };
     }
     
-    // Grade/Site
+    // Grade/Site - exact QB names
     if (lowerLabel.includes("grade") || lowerLabel.includes("site") || lowerLabel.includes("topography")) {
       return { sku: `AD GRADE ${lod}`, productName: `Grade - LoD ${lod}`, category: "Added Disciplines" };
     }
     
-    // CAD packages
+    // CAD packages - exact QB names
     if (lowerLabel.includes("cad")) {
       if (lowerLabel.includes("interior package")) return { sku: `CAD INT PKG ${lod}`, productName: `CAD Interior Package - LoD ${lod}`, category: "CAD" };
       if (lowerLabel.includes("standard package")) return { sku: `CAD STD PKG ${lod}`, productName: `CAD Standard Package - LoD ${lod}`, category: "CAD" };
@@ -390,12 +396,12 @@ export default function Calculator() {
       return { sku: `CAD STD PKG ${lod}`, productName: `CAD Standard Package - LoD ${lod}`, category: "CAD" };
     }
     
-    // Landscape
+    // Landscape - exact QB names
     if (lowerLabel.includes("landscape")) {
       return { sku: `S2P LNDSCP ${lod}`, productName: `Landscape Service - LoD ${lod}`, category: "S2P" };
     }
     
-    // Matterport
+    // Matterport - exact QB name
     if (lowerLabel.includes("matterport") || lowerLabel.includes("virtual tour")) {
       return { sku: "AO MAT 3D TOUR", productName: "Matterport 3D Tour", category: "Add Ons" };
     }
@@ -405,30 +411,30 @@ export default function Calculator() {
       return { sku: "S2P TRAVEL", productName: "Travel", category: "S2P" };
     }
     
-    // Risk factors / Price Mods
+    // Risk factors / Price Mods - exact QB names
     if (lowerLabel.includes("occupied")) return { sku: "PM OCC", productName: "Occupied", category: "Price Mods" };
     if (lowerLabel.includes("no power")) return { sku: "PM NO POW", productName: "No Power", category: "Price Mods" };
     if (lowerLabel.includes("fire") || lowerLabel.includes("flood")) return { sku: "PM FIR FLD", productName: "Fire / Flood", category: "Price Mods" };
     if (lowerLabel.includes("expedited")) return { sku: "PM EXP SER", productName: "Expedited Service", category: "Price Mods" };
     if (lowerLabel.includes("discount")) return { sku: "PM DIS", productName: "Discount", category: "Price Mods" };
     if (lowerLabel.includes("credit card")) return { sku: "PM CRE CRD", productName: "Credit Card 3%", category: "Price Mods" };
-    if (lowerLabel.includes("net 60")) return { sku: "PM NET 60", productName: "NET 60", category: "Price Mods" };
-    if (lowerLabel.includes("net 90")) return { sku: "PM NET 90", productName: "NET 90", category: "Price Mods" };
+    if (lowerLabel.includes("net 60")) return { sku: "PM NET 60", productName: "Net 60", category: "Price Mods" };
+    if (lowerLabel.includes("net 90")) return { sku: "PM NET 90", productName: "Net 90", category: "Price Mods" };
     
-    // Add Ons
+    // Add Ons - exact QB names
     if (lowerLabel.includes("georeferenc")) return { sku: "AO GEOREF", productName: "Georeferencing", category: "Add Ons" };
     if (lowerLabel.includes("ifc") || lowerLabel.includes("dxf")) return { sku: "AO IFC DXF", productName: "IFC / DXF Model", category: "Add Ons" };
     if (lowerLabel.includes("rhino")) return { sku: "AO RHINO MDL", productName: "Rhino Model", category: "Add Ons" };
     if (lowerLabel.includes("sketchup")) return { sku: "AO SKETCH MOD", productName: "Sketchup Model", category: "Add Ons" };
     if (lowerLabel.includes("vectorworks")) return { sku: "AO VCT MDL", productName: "Vectorworks Model", category: "Add Ons" };
     
-    // Scanning
+    // Scanning - exact QB name
     if (lowerLabel.includes("scanning") || lowerLabel.includes("point cloud") || lowerLabel.includes("registration")) {
       return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P" };
     }
     
-    // Default fallback
-    return { sku: "S2P COM 300", productName: label, category: "S2P" };
+    // Default fallback - use generic commercial service
+    return { sku: "S2P COM 300", productName: `Scan2Plan Commercial - LoD 300`, category: "S2P" };
   };
 
   const createQuickBooksInvoice = async () => {
@@ -521,7 +527,9 @@ export default function Calculator() {
     const invoiceNo = existingQuote?.quoteNumber || `Q-${Date.now()}`;
     const customer = projectDetails.clientName || "Customer";
     const today = new Date();
-    const invoiceDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+    // QBO expects M/D/YYYY format
+    const formatDate = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+    const invoiceDate = formatDate(today);
     
     // Calculate due date based on payment terms
     let dueDate = invoiceDate;
@@ -530,17 +538,17 @@ export default function Calculator() {
     if (paymentTerms === "net30") {
       const due = new Date(today);
       due.setDate(due.getDate() + 30);
-      dueDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+      dueDate = formatDate(due);
       terms = "Net 30";
     } else if (paymentTerms === "net60") {
       const due = new Date(today);
       due.setDate(due.getDate() + 60);
-      dueDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+      dueDate = formatDate(due);
       terms = "Net 60";
     } else if (paymentTerms === "net90") {
       const due = new Date(today);
       due.setDate(due.getDate() + 90);
-      dueDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+      dueDate = formatDate(due);
       terms = "Net 90";
     }
     
@@ -550,8 +558,16 @@ export default function Calculator() {
     const headers = "*InvoiceNo,*Customer,*InvoiceDate,*DueDate,Terms,Location,Memo,Item(Product/Service),ItemDescription,ItemQuantity,ItemRate,*ItemAmount,Service Date";
     const rows: string[] = [headers];
     
-    // Get line items (exclude totals)
-    const lineItems = pricingItems.filter(item => !item.isTotal && item.value !== 0);
+    // Get line items (exclude totals and non-billable items like "Base Subtotal", "Effective Price")
+    const lineItems = pricingItems.filter(item => {
+      if (item.isTotal || item.value === 0) return false;
+      const lowerLabel = item.label.toLowerCase();
+      // Skip display-only items that aren't actual products
+      if (lowerLabel.includes("base subtotal") || 
+          lowerLabel.includes("effective price") ||
+          lowerLabel.includes("subtotal")) return false;
+      return true;
+    });
     
     lineItems.forEach((item, index) => {
       const relatedArea = areas[0];
@@ -569,7 +585,7 @@ export default function Calculator() {
         // First row includes invoice-level details
         rows.push(`${invoiceNo},${customer},${invoiceDate},${dueDate},${terms},,${memo.includes(",") ? `"${memo}"` : memo},${productName},${description},${quantity},${rate},${amount},${invoiceDate}`);
       } else {
-        // Subsequent rows only include item details
+        // Subsequent rows only include item details (leave Service Date empty)
         rows.push(`${invoiceNo},,,,,,,${productName},${description},${quantity},${rate},${amount},`);
       }
     });
