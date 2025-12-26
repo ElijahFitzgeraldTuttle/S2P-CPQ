@@ -423,14 +423,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const scopeBullets = scopeItems.map(item => `• ${item}`).join("\n");
       
-      // Deliverables
-      const delivItems = ["Total Square Footage Audit"];
-      const globalScopeParts = ["LoD 300"];
-      if (allDisciplines.has('mepf')) globalScopeParts.push("MEPF");
-      if (allDisciplines.has('structure')) globalScopeParts.push("Structure");
-      if (allDisciplines.has('site') || allDisciplines.has('grade')) globalScopeParts.push("Site/Grade");
+      // Deliverables - now per-area instead of aggregated
+      const delivItems: string[] = ["Total Square Footage Audit"];
       
-      delivItems.push(`Revit Model - ${globalScopeParts.join(' + ')}`);
+      // Generate a Revit Model deliverable for each area
+      for (const area of areas) {
+        const name = area.name || 'Area';
+        const lod = area.disciplineLods?.architecture || '300';
+        const disciplines = area.disciplines || [];
+        
+        const scopeParts: string[] = [`LoD ${lod}`];
+        if (disciplines.includes('mepf')) scopeParts.push("MEPF");
+        if (disciplines.includes('structure')) scopeParts.push("Structure");
+        if (disciplines.includes('site') || area.gradeAroundBuilding) scopeParts.push("Site/Grade");
+        
+        delivItems.push(`Revit Model - ${name} ${scopeParts.join(' + ')}`);
+      }
+      
       if (allDisciplines.has('matterport')) {
         delivItems.push("Matterport 3D Tour");
       }
