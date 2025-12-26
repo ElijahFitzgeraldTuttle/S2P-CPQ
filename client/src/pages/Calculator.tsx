@@ -102,7 +102,6 @@ export default function Calculator() {
 
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
-  const [isCreatingQuickBooksInvoice, setIsCreatingQuickBooksInvoice] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -465,92 +464,6 @@ export default function Calculator() {
     
     // Default fallback - use generic commercial service
     return { sku: "S2P COM 300", productName: "Scan2Plan Commercial - LoD 300", category: "S2P", salesDescription: s2pDescription };
-  };
-
-  const createQuickBooksInvoice = async () => {
-    setIsCreatingQuickBooksInvoice(true);
-    try {
-      // Build line items with QuickBooks SKUs
-      const lineItems = pricingItems
-        .filter(item => !item.isTotal && item.value !== 0)
-        .map((item, index) => {
-          const relatedArea = areas[0]; // Use first area for context
-          const skuInfo = mapLineItemToSKU(item.label, relatedArea);
-          return {
-            lineNum: index + 1,
-            sku: skuInfo.sku,
-            productName: skuInfo.productName,
-            category: skuInfo.category,
-            description: item.label,
-            quantity: 1,
-            amount: item.value,
-            isDiscount: item.isDiscount || false,
-          };
-        });
-
-      const quoteData = {
-        quoteNumber: existingQuote?.quoteNumber || `Q-${Date.now()}`,
-        customer: {
-          displayName: projectDetails.clientName,
-          companyName: projectDetails.clientName,
-          primaryEmailAddr: scopingData.accountContactEmail,
-          primaryPhone: scopingData.accountContactPhone,
-          billAddr: {
-            line1: projectDetails.projectAddress,
-          },
-        },
-        project: {
-          name: projectDetails.projectName,
-          address: projectDetails.projectAddress,
-          building: projectDetails.specificBuilding,
-          buildingType: projectDetails.typeOfBuilding,
-          totalSquareFeet: areas.reduce((sum, a) => sum + (parseInt(a.squareFeet) || 0), 0),
-        },
-        lineItems: lineItems,
-        totals: {
-          subtotal: pricingItems
-            .filter(item => !item.isTotal && !item.isDiscount)
-            .reduce((sum, item) => sum + item.value, 0),
-          discounts: pricingItems
-            .filter(item => item.isDiscount)
-            .reduce((sum, item) => sum + Math.abs(item.value), 0),
-          total: pricingItems.find(item => item.isTotal)?.value || 0,
-        },
-        metadata: {
-          dispatchLocation: dispatch,
-          distance: distance,
-          risks: risks,
-          paymentTerms: scopingData.paymentTerms,
-          createdAt: new Date().toISOString(),
-        },
-      };
-      
-      const response = await fetch("https://hook.us2.make.com/cardkjqln1i40c27w4n14javuk9oqmhm", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(quoteData),
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Invoice Sent",
-          description: "Quote data has been sent to QuickBooks via Make.com",
-        });
-      } else {
-        throw new Error("Failed to send data to webhook");
-      }
-    } catch (error: any) {
-      console.error("QuickBooks invoice creation failed:", error);
-      toast({
-        title: "Invoice creation failed",
-        description: error?.message || "Failed to send quote to QuickBooks",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingQuickBooksInvoice(false);
-    }
   };
 
   const exportQBOCSV = () => {
@@ -2388,25 +2301,20 @@ export default function Calculator() {
               <Button 
                 size="lg" 
                 variant="outline" 
-                onClick={createQuickBooksInvoice}
-                disabled={isCreatingQuickBooksInvoice}
-                data-testid="button-create-quickbooks-invoice"
-              >
-                {isCreatingQuickBooksInvoice ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                )}
-                {isCreatingQuickBooksInvoice ? "Creating..." : "Create QuickBooks Invoice"}
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
                 onClick={exportQBOCSV}
                 data-testid="button-export-qbo-csv"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export QBO CSV
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={() => window.open("https://qbo.intuit.com/app/dataimport/invoices", "_blank")}
+                data-testid="button-open-qbo-import"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open QuickBooks Import
               </Button>
             </div>
           </div>
