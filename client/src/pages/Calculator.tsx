@@ -517,6 +517,83 @@ export default function Calculator() {
     }
   };
 
+  const exportQBOCSV = () => {
+    const invoiceNo = existingQuote?.quoteNumber || `Q-${Date.now()}`;
+    const customer = projectDetails.clientName || "Customer";
+    const today = new Date();
+    const invoiceDate = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+    
+    // Calculate due date based on payment terms
+    let dueDate = invoiceDate;
+    let terms = "Due on receipt";
+    const paymentTerms = scopingData.paymentTerms;
+    if (paymentTerms === "net30") {
+      const due = new Date(today);
+      due.setDate(due.getDate() + 30);
+      dueDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+      terms = "Net 30";
+    } else if (paymentTerms === "net60") {
+      const due = new Date(today);
+      due.setDate(due.getDate() + 60);
+      dueDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+      terms = "Net 60";
+    } else if (paymentTerms === "net90") {
+      const due = new Date(today);
+      due.setDate(due.getDate() + 90);
+      dueDate = `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`;
+      terms = "Net 90";
+    }
+    
+    const memo = `${projectDetails.projectName} - ${projectDetails.projectAddress}`;
+    
+    // Build CSV rows
+    const headers = "*InvoiceNo,*Customer,*InvoiceDate,*DueDate,Terms,Location,Memo,Item(Product/Service),ItemDescription,ItemQuantity,ItemRate,*ItemAmount,Service Date";
+    const rows: string[] = [headers];
+    
+    // Get line items (exclude totals)
+    const lineItems = pricingItems.filter(item => !item.isTotal && item.value !== 0);
+    
+    lineItems.forEach((item, index) => {
+      const relatedArea = areas[0];
+      const skuInfo = mapLineItemToSKU(item.label, relatedArea);
+      
+      // Escape description for CSV (wrap in quotes if contains comma)
+      const description = item.label.includes(",") ? `"${item.label}"` : item.label;
+      const productName = skuInfo.productName.includes(",") ? `"${skuInfo.productName}"` : skuInfo.productName;
+      
+      const quantity = 1;
+      const rate = item.value;
+      const amount = item.value;
+      
+      if (index === 0) {
+        // First row includes invoice-level details
+        rows.push(`${invoiceNo},${customer},${invoiceDate},${dueDate},${terms},,${memo.includes(",") ? `"${memo}"` : memo},${productName},${description},${quantity},${rate},${amount},${invoiceDate}`);
+      } else {
+        // Subsequent rows only include item details
+        rows.push(`${invoiceNo},,,,,,,${productName},${description},${quantity},${rate},${amount},`);
+      }
+    });
+    
+    // Generate CSV content
+    const csvContent = rows.join("\n");
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `QBO_Invoice_${invoiceNo}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "CSV Exported",
+      description: `Invoice CSV exported as QBO_Invoice_${invoiceNo}.csv`,
+    });
+  };
+
   const saveQuoteMutation = useMutation({
     mutationFn: async (quoteData: any) => {
       if (quoteId) {
@@ -2209,6 +2286,15 @@ export default function Calculator() {
                   <ExternalLink className="h-4 w-4 mr-2" />
                 )}
                 {isCreatingQuickBooksInvoice ? "Creating..." : "Create QuickBooks Invoice"}
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={exportQBOCSV}
+                data-testid="button-export-qbo-csv"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export QBO CSV
               </Button>
             </div>
           </div>
