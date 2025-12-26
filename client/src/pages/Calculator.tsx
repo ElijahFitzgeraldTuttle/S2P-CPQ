@@ -101,9 +101,7 @@ export default function Calculator() {
 
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
-  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState(false);
-  const [isConnectingQuickBooks, setIsConnectingQuickBooks] = useState(false);
-  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isCreatingQuickBooksInvoice, setIsCreatingQuickBooksInvoice] = useState(false);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -339,64 +337,12 @@ export default function Calculator() {
     }
   }, [existingQuote]);
 
-  // Check QuickBooks connection status on mount
-  useEffect(() => {
-    const checkQuickBooksStatus = async () => {
-      try {
-        const response = await fetch("/api/quickbooks/status");
-        const data = await response.json();
-        setIsQuickBooksConnected(data.connected);
-      } catch (error) {
-        console.error("Error checking QuickBooks status:", error);
-      }
-    };
-    checkQuickBooksStatus();
-    
-    // Listen for OAuth callback message
-    const handleMessage = (event: MessageEvent) => {
-      // Validate origin to prevent spoofed messages
-      const expectedOrigin = window.location.origin;
-      if (event.origin !== expectedOrigin) {
-        return;
-      }
-      
-      if (event.data?.type === 'quickbooks-connected') {
-        setIsQuickBooksConnected(true);
-        toast({
-          title: "QuickBooks Connected",
-          description: "Your QuickBooks account is now connected.",
-        });
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [toast]);
-
-  const connectQuickBooks = async () => {
-    setIsConnectingQuickBooks(true);
-    try {
-      const response = await fetch("/api/quickbooks/auth");
-      const data = await response.json();
-      if (data.authUrl) {
-        window.open(data.authUrl, "quickbooks_auth", "width=600,height=700");
-      } else {
-        throw new Error(data.error || "Failed to get authorization URL");
-      }
-    } catch (error: any) {
-      toast({
-        title: "Connection failed",
-        description: error?.message || "Failed to connect to QuickBooks",
-        variant: "destructive",
-      });
-    } finally {
-      setIsConnectingQuickBooks(false);
-    }
-  };
-
   const createQuickBooksInvoice = async () => {
-    setIsCreatingInvoice(true);
+    setIsCreatingQuickBooksInvoice(true);
     try {
-      const exportData = {
+      // Build client-facing quote data for Make.com webhook
+      const quoteData = {
+        quoteNumber: existingQuote?.quoteNumber || `Q-${Date.now()}`,
         projectDetails: {
           clientName: projectDetails.clientName,
           projectName: projectDetails.projectName,
@@ -404,39 +350,59 @@ export default function Calculator() {
           specificBuilding: projectDetails.specificBuilding,
           typeOfBuilding: projectDetails.typeOfBuilding,
         },
-        areas,
-        crmData: {
-          accountContact: scopingData.accountContact,
-          accountContactEmail: scopingData.accountContactEmail,
-          accountContactPhone: scopingData.accountContactPhone,
+        contact: {
+          name: scopingData.accountContact,
+          email: scopingData.accountContactEmail,
+          phone: scopingData.accountContactPhone,
         },
+        areas: areas.map(area => ({
+          name: area.name,
+          buildingType: area.buildingType,
+          squareFeet: area.squareFeet,
+          scope: area.scope,
+          disciplines: area.disciplines,
+        })),
         pricing: {
-          lineItems: pricingItems,
+          lineItems: pricingItems.filter(item => !item.isTotal).map(item => ({
+            label: item.label,
+            value: item.value,
+            isDiscount: item.isDiscount,
+          })),
           total: pricingItems.find(item => item.isTotal)?.value || 0,
         },
+        travel: {
+          dispatchLocation: dispatch,
+          distance: distance,
+        },
+        services: services,
+        createdAt: new Date().toISOString(),
       };
       
-      const response = await apiRequest("POST", "/api/quickbooks/create-invoice", exportData);
-      const result = await response.json();
+      const response = await fetch("https://hook.us2.make.com/cardkjqln1i40c27w4n14javuk9oqmhm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(quoteData),
+      });
       
-      if (result.success) {
+      if (response.ok) {
         toast({
-          title: "Invoice Created",
-          description: `Invoice #${result.docNumber} created. Opening in QuickBooks...`,
+          title: "Invoice Sent",
+          description: "Quote data has been sent to QuickBooks via Make.com",
         });
-        window.open(result.invoiceUrl, "_blank");
       } else {
-        throw new Error(result.error || "Failed to create invoice");
+        throw new Error("Failed to send data to webhook");
       }
     } catch (error: any) {
-      console.error("Invoice creation failed:", error);
+      console.error("QuickBooks invoice creation failed:", error);
       toast({
         title: "Invoice creation failed",
-        description: error?.message || "Failed to create QuickBooks invoice",
+        description: error?.message || "Failed to send quote to QuickBooks",
         variant: "destructive",
       });
     } finally {
-      setIsCreatingInvoice(false);
+      setIsCreatingQuickBooksInvoice(false);
     }
   };
 
@@ -2119,37 +2085,20 @@ export default function Calculator() {
                 )}
                 {isCreatingPandaDoc ? "Creating..." : "Create PandaDoc"}
               </Button>
-              {isQuickBooksConnected ? (
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  onClick={createQuickBooksInvoice}
-                  disabled={isCreatingInvoice}
-                  data-testid="button-create-invoice"
-                >
-                  {isCreatingInvoice ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {isCreatingInvoice ? "Creating..." : "Create Invoice"}
-                </Button>
-              ) : (
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  onClick={connectQuickBooks}
-                  disabled={isConnectingQuickBooks}
-                  data-testid="button-connect-quickbooks"
-                >
-                  {isConnectingQuickBooks ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                  )}
-                  {isConnectingQuickBooks ? "Connecting..." : "Connect QuickBooks"}
-                </Button>
-              )}
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={createQuickBooksInvoice}
+                disabled={isCreatingQuickBooksInvoice}
+                data-testid="button-create-quickbooks-invoice"
+              >
+                {isCreatingQuickBooksInvoice ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                )}
+                {isCreatingQuickBooksInvoice ? "Creating..." : "Create QuickBooks Invoice"}
+              </Button>
             </div>
           </div>
 
