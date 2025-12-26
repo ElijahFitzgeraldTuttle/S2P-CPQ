@@ -109,20 +109,21 @@ export class DbStorage implements IStorage {
     // Determine the root parent ID
     const rootId = quote.parentQuoteId || quote.id;
     
-    // Get all quotes that share the same root (parent + all children)
-    const versions = await db
+    // Get the root quote
+    const rootQuote = await db
       .select()
       .from(quotes)
-      .where(
-        eq(quotes.id, rootId)
-      );
+      .where(eq(quotes.id, rootId));
     
+    // Get all child versions
     const children = await db
       .select()
       .from(quotes)
       .where(eq(quotes.parentQuoteId, rootId));
     
-    return [...versions, ...children].sort((a, b) => a.versionNumber - b.versionNumber);
+    // Combine root and children, then sort by version number
+    const allVersions = [...rootQuote, ...children];
+    return allVersions.sort((a, b) => a.versionNumber - b.versionNumber);
   }
   
   async createQuoteVersion(sourceQuoteId: string, versionName?: string): Promise<Quote> {

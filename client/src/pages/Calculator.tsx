@@ -31,6 +31,7 @@ import PricingSummary from "@/components/PricingSummary";
 import QuoteFields from "@/components/QuoteFields";
 import ScopeFields from "@/components/ScopeFields";
 import CRMFields from "@/components/CRMFields";
+import VersionControl from "@/components/VersionControl";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -2236,6 +2237,17 @@ export default function Calculator() {
             Build a comprehensive pricing quote for your Scan-to-BIM project
           </p>
         </div>
+
+        {quoteId && (
+          <div className="mb-6">
+            <VersionControl
+              currentQuoteId={quoteId}
+              onVersionSelect={(newQuoteId) => {
+                setLocation(`/calculator/${newQuoteId}`);
+              }}
+            />
+          </div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
