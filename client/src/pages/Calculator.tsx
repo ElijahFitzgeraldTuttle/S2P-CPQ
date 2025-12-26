@@ -589,9 +589,37 @@ export default function Calculator() {
       const fullProductName = `${skuInfo.category}:${skuInfo.productName}`;
       const productName = fullProductName.includes(",") ? `"${fullProductName}"` : fullProductName;
       
-      const quantity = 1;
-      const rate = item.value;
+      // Parse quantity and rate from line item
+      let quantity = 1;
+      let rate = item.value;
       const amount = item.value;
+      
+      // Extract sqft from label like "Architecture (3,215 sqft, LOD 300)"
+      const sqftMatch = item.label.match(/\(([\d,]+)\s*sqft/i);
+      if (sqftMatch) {
+        const sqft = parseInt(sqftMatch[1].replace(/,/g, ""), 10);
+        if (sqft > 0) {
+          quantity = sqft;
+          rate = Math.round((amount / sqft) * 1000000) / 1000000; // 6 decimal precision for per-sqft rate
+        }
+      }
+      
+      // Handle travel - parse miles like "Travel (60 mi @ $3/mi)"
+      const milesMatch = item.label.match(/\((\d+)\s*mi\s*@\s*\$?([\d.]+)/i);
+      if (milesMatch) {
+        quantity = parseInt(milesMatch[1], 10);
+        rate = parseFloat(milesMatch[2]);
+      }
+      
+      // Handle acres for landscape - parse like "(2.5 acres, LOD 300)"
+      const acresMatch = item.label.match(/\(([\d.]+)\s*acres?/i);
+      if (acresMatch) {
+        const acres = parseFloat(acresMatch[1]);
+        if (acres > 0) {
+          quantity = acres;
+          rate = Math.round((amount / acres) * 100) / 100; // 2 decimal precision for per-acre rate
+        }
+      }
       
       if (index === 0) {
         // First row includes invoice-level details
