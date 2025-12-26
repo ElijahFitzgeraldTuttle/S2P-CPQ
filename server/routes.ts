@@ -119,6 +119,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quote version routes
+  app.get("/api/quotes/:id/versions", async (req, res) => {
+    try {
+      const versions = await storage.getQuoteVersions(req.params.id);
+      res.json(versions);
+    } catch (error) {
+      console.error("Error fetching quote versions:", error);
+      res.status(500).json({ error: "Failed to fetch quote versions" });
+    }
+  });
+
+  app.post("/api/quotes/:id/versions", async (req, res) => {
+    try {
+      const { versionName } = req.body;
+      const newVersion = await storage.createQuoteVersion(req.params.id, versionName);
+      res.status(201).json(newVersion);
+    } catch (error) {
+      console.error("Error creating quote version:", error);
+      res.status(500).json({ error: "Failed to create quote version" });
+    }
+  });
+
   app.post("/api/calculate-distance", async (req, res) => {
     try {
       const { origin, destination } = req.body;
