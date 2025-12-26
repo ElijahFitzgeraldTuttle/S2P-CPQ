@@ -585,9 +585,8 @@ export default function Calculator() {
       
       // Escape description for CSV (wrap in quotes if contains comma)
       const description = item.label.includes(",") ? `"${item.label}"` : item.label;
-      // QuickBooks requires Category:Product Name format
-      const fullProductName = `${skuInfo.category}:${skuInfo.productName}`;
-      const productName = fullProductName.includes(",") ? `"${fullProductName}"` : fullProductName;
+      // Product name without category prefix (matching QB invoice format)
+      const productName = skuInfo.productName.includes(",") ? `"${skuInfo.productName}"` : skuInfo.productName;
       
       const quantity = 1;
       const rate = item.value;
