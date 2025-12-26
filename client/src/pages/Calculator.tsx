@@ -337,7 +337,7 @@ export default function Calculator() {
     }
   }, [existingQuote]);
 
-  const mapLineItemToSKU = (label: string, area?: any): { sku: string; productName: string; category: string } => {
+  const mapLineItemToSKU = (label: string, area?: any): { sku: string; productName: string; category: string; salesDescription: string } => {
     const lowerLabel = label.toLowerCase();
     
     // Determine building type (residential vs commercial)
@@ -362,89 +362,106 @@ export default function Calculator() {
     if (lowerLabel.includes("lod 200") || lowerLabel.includes("200")) lod = "200";
     else if (lowerLabel.includes("lod 350") || lowerLabel.includes("350")) lod = "350";
     
+    // Sales descriptions from QuickBooks product list
+    const s2pDescription = `Scan2Plan ${buildingType} Service - BIM existing conditions documentation including LiDAR point cloud capture, registration, modeling, QC and project management.`;
+    
     // Main service line items (Architecture/BIM) - exact QB names
     if (lowerLabel.includes("architecture") || lowerLabel.includes("bim") || 
         (lowerLabel.includes("area") && !lowerLabel.includes("mepf") && !lowerLabel.includes("structural"))) {
-      // SKU format: S2P COM 300, S2P RES INT 200, S2P COM EXT 350
       const sku = skuScope 
         ? `S2P ${skuType}${skuScope} ${lod}` 
         : `S2P ${skuType} ${lod}`;
-      // Product name: Scan2Plan Commercial - LoD 300 (INT-ONLY)
       const productName = nameScope 
         ? `Scan2Plan ${buildingType} - LoD ${lod}${nameScope}` 
         : `Scan2Plan ${buildingType} - LoD ${lod}`;
-      return { sku, productName, category: "S2P" };
+      return { sku, productName, category: "S2P", salesDescription: s2pDescription };
     }
     
-    // MEPF - exact QB names
+    // MEPF - exact QB names with sales descriptions
     if (lowerLabel.includes("mepf") || lowerLabel.includes("mechanical") || lowerLabel.includes("electrical")) {
-      return { sku: `AD MEPF ${lod}`, productName: `MEPF LoD ${lod}`, category: "Added Disciplines" };
+      const mepfDesc = lod === "200" 
+        ? "Any visible mechanical, electrical, plumbing, HVAC and fire safety components will be included in the BIM and/or working drawings. Adds generic systems with approximate size/location for space-claim and early coordination."
+        : lod === "350"
+        ? "Any visible mechanical, electrical, plumbing, HVAC and fire safety components will be included in the BIM and/or working drawings. Adds connections, supports, and interface features for clash resolution."
+        : "Any visible mechanical, electrical, plumbing, HVAC and fire safety components will be included in the BIM and/or working drawings. Adds accurately sized/placed elements suitable for measured quantities and CDs.";
+      return { sku: `AD MEPF ${lod}`, productName: `MEPF LoD ${lod}`, category: "Added Disciplines", salesDescription: mepfDesc };
     }
     
     // Structural - exact QB names
     if (lowerLabel.includes("structural") || lowerLabel.includes("structure")) {
-      return { sku: `AD STR MOD ${lod}`, productName: `Structural Modeling - LoD ${lod}`, category: "Added Disciplines" };
+      const strDesc = lod === "200"
+        ? "Any visible structural components will be included in the BIM and/or working drawings. Adds generic systems with approximate size/location for space-claim and early coordination."
+        : lod === "350"
+        ? "Any visible structural components will be included in the BIM and/or working drawings. Adds connections, supports, and interface features for clash resolution."
+        : "Any visible structural components will be included in the BIM and/or working drawings. Adds accurately sized/placed elements suitable for measured quantities and CDs.";
+      return { sku: `AD STR MOD ${lod}`, productName: `Structural Modeling - LoD ${lod}`, category: "Added Disciplines", salesDescription: strDesc };
     }
     
     // Grade/Site - exact QB names
     if (lowerLabel.includes("grade") || lowerLabel.includes("site") || lowerLabel.includes("topography")) {
-      return { sku: `AD GRADE ${lod}`, productName: `Grade - LoD ${lod}`, category: "Added Disciplines" };
+      const gradeDesc = lod === "200"
+        ? "Scan2Plan Grade Service includes modeling and drafting of the building grade 20' surrounding the building. Basic topography with approx dimensions of features and buildings."
+        : lod === "350"
+        ? "Scan2Plan Grade Service includes modeling and drafting of the building grade 20' surrounding the building. Detailed topography including land development features, finishes, flower beds, shrubbery, trees."
+        : "Scan2Plan Grade Service includes modeling and drafting of the building grade 20' surrounding the building. Basic topography with details like type, pattern and basic ground features.";
+      return { sku: `AD GRADE ${lod}`, productName: `Grade - LoD ${lod}`, category: "Added Disciplines", salesDescription: gradeDesc };
     }
     
     // CAD packages - exact QB names (no LoD in product name)
     if (lowerLabel.includes("cad")) {
-      if (lowerLabel.includes("interior package")) return { sku: "CAD INT PKG", productName: "CAD Interior Package", category: "CAD" };
-      if (lowerLabel.includes("standard package")) return { sku: "CAD STD PKG", productName: "CAD Standard Package", category: "CAD" };
-      if (lowerLabel.includes("section")) return { sku: "CAD SEC", productName: "CAD Sections", category: "CAD" };
-      if (lowerLabel.includes("interior elevation")) return { sku: "CAD INT ELEV", productName: "CAD Interior Elevations", category: "CAD" };
-      if (lowerLabel.includes("mepf")) return { sku: "CAD MEPF STD PKG", productName: "CAD + MEPF Standard Package", category: "CAD" };
-      if (lowerLabel.includes("structure") && lowerLabel.includes("mepf")) return { sku: "CAD STC MEPF PKG", productName: "CAD + Structure + MEPF + Site Package", category: "CAD" };
-      if (lowerLabel.includes("structure")) return { sku: "CAD STC STD PKG", productName: "CAD + Structure Standard Package", category: "CAD" };
-      return { sku: "CAD STD PKG", productName: "CAD Standard Package", category: "CAD" };
+      if (lowerLabel.includes("interior package")) return { sku: "CAD INT PKG", productName: "CAD Interior Package", category: "CAD", salesDescription: "CAD Interior Package - Floor Plan(s), Up to 6 sections or interior elevations, Reflected Ceiling Plan(s). Delivered as .dwg & .pdf." };
+      if (lowerLabel.includes("standard package")) return { sku: "CAD STD PKG", productName: "CAD Standard Package", category: "CAD", salesDescription: "CAD Standard Package - Floor Plans, Up to 4 sections or interior elevations, Exterior Elevations, Roof Plan. Delivered as .dwg & .pdf." };
+      if (lowerLabel.includes("section")) return { sku: "CAD SEC", productName: "CAD Sections", category: "CAD", salesDescription: "CAD Sections (per sheet) - dwg & pdf" };
+      if (lowerLabel.includes("interior elevation")) return { sku: "CAD INT ELEV", productName: "CAD Interior Elevations", category: "CAD", salesDescription: "CAD Interior Elevations (per sheet) - dwg & pdf" };
+      if (lowerLabel.includes("mepf")) return { sku: "CAD MEPF STD PKG", productName: "CAD + MEPF Standard Package", category: "CAD", salesDescription: "CAD + MEPF Standard Package - Floor Plans, Reflected Ceiling Plans, Up to 4 sections or interior elevations, Exterior Elevations, Roof Plan." };
+      if (lowerLabel.includes("structure") && lowerLabel.includes("mepf")) return { sku: "CAD STC MEPF PKG", productName: "CAD + Structure + MEPF + Site Package", category: "CAD", salesDescription: "CAD + Structure + MEPF + Site Package" };
+      if (lowerLabel.includes("structure")) return { sku: "CAD STC STD PKG", productName: "CAD + Structure Standard Package", category: "CAD", salesDescription: "CAD + Structure Standard Package - Floor Plans, Reflected Ceiling Plans, Up to 4 sections or interior elevations, Exterior Elevations, Roof Plan." };
+      return { sku: "CAD STD PKG", productName: "CAD Standard Package", category: "CAD", salesDescription: "CAD Standard Package - Floor Plans, Up to 4 sections or interior elevations, Exterior Elevations, Roof Plan. Delivered as .dwg & .pdf." };
     }
     
     // Landscape - exact QB names
     if (lowerLabel.includes("landscape")) {
-      return { sku: `S2P LNDSCP ${lod}`, productName: `Landscape Service - LoD ${lod}`, category: "S2P" };
+      const landDesc = "Scan2Plan Landscape Service includes modeling and drafting of the property's current topographic features. Deliverables include Total Square Footage Audit, Colorized Point Cloud (.rcp format), Revit Model, CAD site plan.";
+      return { sku: `S2P LNDSCP ${lod}`, productName: `Landscape Service - LoD ${lod}`, category: "S2P", salesDescription: landDesc };
     }
     
     // Matterport - exact QB name
     if (lowerLabel.includes("matterport") || lowerLabel.includes("virtual tour")) {
-      return { sku: "AO MAT 3D TOUR", productName: "Matterport 3D Tour", category: "Add Ons" };
+      return { sku: "AO MAT 3D TOUR", productName: "Matterport 3D Tour", category: "Add Ons", salesDescription: "High resolution 360 photo documentation and virtual tour walkthrough. Includes 3D dollhouse, floor plan views, and site-specific custom annotations." };
     }
     
     // Travel - use LiDAR Scanning as there's no Travel product in QB
     if (lowerLabel.includes("travel")) {
-      return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P" };
+      return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P", salesDescription: "LiDAR capture and point cloud registration. Deliverables include Colorized Point Cloud (.rcp format), Registration Report, Actual Square Footage Audit." };
     }
     
     // Risk factors / Price Mods - exact QB names
-    if (lowerLabel.includes("occupied")) return { sku: "PM OCC", productName: "Occupied", category: "Price Mods" };
-    if (lowerLabel.includes("no power")) return { sku: "PM NO POW", productName: "No Power", category: "Price Mods" };
-    if (lowerLabel.includes("fire") || lowerLabel.includes("flood")) return { sku: "PM FIR FLD", productName: "Fire / Flood", category: "Price Mods" };
-    if (lowerLabel.includes("expedited")) return { sku: "PM EXP SER", productName: "Expedited Service", category: "Price Mods" };
-    if (lowerLabel.includes("discount")) return { sku: "PM DIS", productName: "Discount", category: "Price Mods" };
-    if (lowerLabel.includes("credit card")) return { sku: "PM CRE CRD", productName: "Credit Card 3%", category: "Price Mods" };
-    if (lowerLabel.includes("net 60")) return { sku: "PM NET 60", productName: "Net 60", category: "Price Mods" };
-    if (lowerLabel.includes("net 90")) return { sku: "PM NET 90", productName: "Net 90", category: "Price Mods" };
-    if (lowerLabel.includes("50%") || lowerLabel.includes("completion")) return { sku: "PM 50% DUE", productName: "Estimated 50% Due at Project Completion", category: "Price Mods" };
-    if (lowerLabel.includes("credit")) return { sku: "PM CRE", productName: "Credit", category: "Price Mods" };
+    if (lowerLabel.includes("occupied")) return { sku: "PM OCC", productName: "Occupied", category: "Price Mods", salesDescription: "Occupied building premium" };
+    if (lowerLabel.includes("no power")) return { sku: "PM NO POW", productName: "No Power", category: "Price Mods", salesDescription: "No Power premium" };
+    if (lowerLabel.includes("fire") || lowerLabel.includes("flood")) return { sku: "PM FIR FLD", productName: "Fire / Flood", category: "Price Mods", salesDescription: "Fire / Flood damage premium" };
+    if (lowerLabel.includes("expedited")) return { sku: "PM EXP SER", productName: "Expedited Service", category: "Price Mods", salesDescription: "Expedited Service" };
+    if (lowerLabel.includes("discount")) return { sku: "PM DIS", productName: "Discount", category: "Price Mods", salesDescription: "Discount" };
+    if (lowerLabel.includes("credit card")) return { sku: "PM CRE CRD", productName: "Credit Card 3%", category: "Price Mods", salesDescription: "Credit Card 3%" };
+    if (lowerLabel.includes("net 60")) return { sku: "PM NET 60", productName: "Net 60", category: "Price Mods", salesDescription: "NET 60" };
+    if (lowerLabel.includes("net 90")) return { sku: "PM NET 90", productName: "Net 90", category: "Price Mods", salesDescription: "NET 90" };
+    if (lowerLabel.includes("50%") || lowerLabel.includes("completion")) return { sku: "PM 50% DUE", productName: "Estimated 50% Due at Project Completion", category: "Price Mods", salesDescription: "Estimated 50% Due at Project Completion" };
+    if (lowerLabel.includes("credit")) return { sku: "PM CRE", productName: "Credit", category: "Price Mods", salesDescription: "Credit" };
     
     // Add Ons - exact QB names
-    if (lowerLabel.includes("georeferenc")) return { sku: "AO GEOREF", productName: "Georeferencing", category: "Add Ons" };
-    if (lowerLabel.includes("ifc") || lowerLabel.includes("dxf")) return { sku: "AO IFC DXF", productName: "IFC / DXF Model", category: "Add Ons" };
-    if (lowerLabel.includes("rhino")) return { sku: "AO RHINO MDL", productName: "Rhino Model", category: "Add Ons" };
-    if (lowerLabel.includes("sketchup")) return { sku: "AO SKETCH MOD", productName: "Sketchup Model", category: "Add Ons" };
-    if (lowerLabel.includes("vectorworks")) return { sku: "AO VCT MDL", productName: "Vectorworks Model", category: "Add Ons" };
-    if (lowerLabel.includes("exposed ceiling")) return { sku: "AO EXP CEIL", productName: "Exposed Ceilings", category: "Add Ons" };
+    if (lowerLabel.includes("georeferenc")) return { sku: "AO GEOREF", productName: "Georeferencing", category: "Add Ons", salesDescription: "Georeferencing (Survey-grade): Point cloud data coordinates Georeferenced using GNSS System. Establish shared coordinates tied to civil survey control (EPSG/State Plane)." };
+    if (lowerLabel.includes("ifc") || lowerLabel.includes("dxf")) return { sku: "AO IFC DXF", productName: "IFC / DXF Model", category: "Add Ons", salesDescription: "Converted from Revit (.rvt) into .ifc or .dxf file format." };
+    if (lowerLabel.includes("rhino")) return { sku: "AO RHINO MDL", productName: "Rhino Model", category: "Add Ons", salesDescription: "3D DWG Model with discreet geometry converted from Revit for Rhinoceros fidelity" };
+    if (lowerLabel.includes("sketchup")) return { sku: "AO SKETCH MOD", productName: "Sketchup Model", category: "Add Ons", salesDescription: ".skp Model with discreet geometry converted from Revit for Sketchup fidelity" };
+    if (lowerLabel.includes("vectorworks")) return { sku: "AO VCT MDL", productName: "Vectorworks Model", category: "Add Ons", salesDescription: "Revit, IFC and/or DWG with discreet geometry converted from Revit for Vectorworks fidelity" };
+    if (lowerLabel.includes("exposed ceiling")) return { sku: "AO EXP CEIL", productName: "Exposed Ceilings", category: "Add Ons", salesDescription: "Any visible details of exposed ceilings will be included. Specific size, shape, location, and orientation will be indicated. Includes scanning above ceiling tile." };
     
     // Scanning - exact QB name
     if (lowerLabel.includes("scanning") || lowerLabel.includes("point cloud") || lowerLabel.includes("registration")) {
-      return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P" };
+      return { sku: "S2P LID SCN PNT CLD REG", productName: "LiDAR Scanning and Point Cloud Registration", category: "S2P", salesDescription: "LiDAR capture and point cloud registration. Deliverables include Colorized Point Cloud (.rcp format), Registration Report, Actual Square Footage Audit." };
     }
     
     // Default fallback - use generic commercial service
-    return { sku: "S2P COM 300", productName: "Scan2Plan Commercial - LoD 300", category: "S2P" };
+    return { sku: "S2P COM 300", productName: "Scan2Plan Commercial - LoD 300", category: "S2P", salesDescription: s2pDescription };
   };
 
   const createQuickBooksInvoice = async () => {
@@ -583,8 +600,9 @@ export default function Calculator() {
       const relatedArea = areas[0];
       const skuInfo = mapLineItemToSKU(item.label, relatedArea);
       
-      // Escape description for CSV (wrap in quotes if contains comma)
-      const description = item.label.includes(",") ? `"${item.label}"` : item.label;
+      // Use Sales Description from QuickBooks product list (escape for CSV)
+      const rawDescription = skuInfo.salesDescription;
+      const description = rawDescription.includes(",") ? `"${rawDescription}"` : rawDescription;
       // QuickBooks requires Category:Product Name format
       const fullProductName = `${skuInfo.category}:${skuInfo.productName}`;
       const productName = fullProductName.includes(",") ? `"${fullProductName}"` : fullProductName;
