@@ -86,6 +86,7 @@ export const quotes = pgTable("quotes", {
   // Travel
   dispatchLocation: text("dispatch_location").notNull(),
   distance: integer("distance"),
+  customTravelCost: decimal("custom_travel_cost", { precision: 12, scale: 2 }),
   
   // Additional services
   services: jsonb("services").default('{}').notNull(),

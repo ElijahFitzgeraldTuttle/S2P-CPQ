@@ -16,9 +16,11 @@ interface TravelCalculatorProps {
   projectAddress: string;
   distance: number | null;
   isCalculating: boolean;
+  customTravelCost: number | null;
   onDispatchChange: (value: string) => void;
   onAddressChange: (value: string) => void;
   onCalculate: () => void;
+  onCustomTravelCostChange: (value: number | null) => void;
 }
 
 export default function TravelCalculator({
@@ -26,9 +28,11 @@ export default function TravelCalculator({
   projectAddress,
   distance,
   isCalculating,
+  customTravelCost,
   onDispatchChange,
   onAddressChange,
   onCalculate,
+  onCustomTravelCostChange,
 }: TravelCalculatorProps) {
   return (
     <Card className="p-6">
@@ -100,6 +104,45 @@ export default function TravelCalculator({
             </div>
           </div>
         )}
+
+        <div className="space-y-2 pt-2 border-t">
+          <Label htmlFor="custom-travel" className="text-sm font-medium">
+            Custom Travel Cost (optional)
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Enter a custom travel cost to override the calculated amount
+          </p>
+          <div className="flex gap-2 items-center">
+            <span className="text-muted-foreground">$</span>
+            <Input
+              id="custom-travel"
+              type="number"
+              placeholder="Leave empty to use calculated cost"
+              value={customTravelCost ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                onCustomTravelCostChange(val === "" ? null : parseFloat(val));
+              }}
+              data-testid="input-custom-travel-cost"
+              className="flex-1"
+            />
+            {customTravelCost !== null && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onCustomTravelCostChange(null)}
+                data-testid="button-clear-custom-travel"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {customTravelCost !== null && (
+            <p className="text-xs text-primary font-medium">
+              Using custom travel cost: ${customTravelCost.toLocaleString()}
+            </p>
+          )}
+        </div>
       </div>
     </Card>
   );

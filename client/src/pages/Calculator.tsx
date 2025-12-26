@@ -120,6 +120,7 @@ export default function Calculator() {
   const [distance, setDistance] = useState<number | null>(null);
   const [distanceCalculated, setDistanceCalculated] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+  const [customTravelCost, setCustomTravelCost] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
   const [scopingData, setScopingData] = useState({
     aboveBelowACT: "",
@@ -318,6 +319,7 @@ export default function Calculator() {
       setDispatch(existingQuote.dispatchLocation);
       setDistance(existingQuote.distance);
       setDistanceCalculated(existingQuote.distance !== null && existingQuote.distance !== undefined);
+      setCustomTravelCost(existingQuote.customTravelCost ? parseFloat(existingQuote.customTravelCost) : null);
       setServices(existingQuote.services as Record<string, number>);
       
       const legacyPaymentTerms = (existingQuote as any).paymentTerms;
@@ -724,6 +726,7 @@ export default function Calculator() {
       risks,
       dispatchLocation: dispatch,
       distance,
+      customTravelCost: customTravelCost?.toString() || null,
       services,
       scopingData: scopingMode ? scopingData : null,
       totalPrice,
@@ -1255,6 +1258,7 @@ export default function Calculator() {
         dispatchLocation: dispatch,
         distance: distance,
         distanceCalculated: distanceCalculated,
+        customTravelCost: customTravelCost,
       },
       additionalServices: services,
       scopingData: {
@@ -1993,7 +1997,16 @@ export default function Calculator() {
 
     let runningTotal = archAfterRisk + otherDisciplinesTotal;
 
-    if (distanceCalculated && distance && distance > 0) {
+    // Handle travel cost - custom override takes precedence
+    if (customTravelCost !== null) {
+      // Use custom travel cost
+      items.push({
+        label: `Travel (Custom Override)`,
+        value: customTravelCost,
+        editable: true,
+      });
+      runningTotal += customTravelCost;
+    } else if (distanceCalculated && distance && distance > 0) {
       const totalSqft = areas.reduce((sum, area) => {
         const isLandscape = area.buildingType === "14" || area.buildingType === "15";
         const inputValue = parseInt(area.squareFeet) || 0;
@@ -2268,9 +2281,11 @@ export default function Calculator() {
                 projectAddress={projectDetails.projectAddress}
                 distance={distance}
                 isCalculating={isCalculatingDistance}
+                customTravelCost={customTravelCost}
                 onDispatchChange={setDispatch}
                 onAddressChange={(val) => handleProjectDetailChange("projectAddress", val as string)}
                 onCalculate={handleCalculateDistance}
+                onCustomTravelCostChange={setCustomTravelCost}
               />
 
               <Separator />
