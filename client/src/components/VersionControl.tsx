@@ -110,7 +110,7 @@ export default function VersionControl({ currentQuoteId, onVersionSelect }: Vers
   return (
     <Card className="p-4">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
             <h3 className="font-semibold">Project Versions</h3>
@@ -163,7 +163,7 @@ export default function VersionControl({ currentQuoteId, onVersionSelect }: Vers
           {versions.map((version) => (
             <div
               key={version.id}
-              className={`flex items-center justify-between p-3 rounded-md border transition-colors ${
+              className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border transition-colors ${
                 version.id === currentQuoteId
                   ? "border-primary bg-primary/5"
                   : "border-border hover-elevate cursor-pointer"
