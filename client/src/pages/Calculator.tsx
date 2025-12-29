@@ -2240,10 +2240,9 @@ export default function Calculator() {
               <CRMFields data={scopingData} onChange={handleScopingDataChange} />
             </div>
 
-            <div className="flex gap-4 pt-6">
+            <div className="flex flex-wrap gap-3 pt-6">
               <Button 
                 size="lg" 
-                className="flex-1" 
                 data-testid="button-save-quote"
                 onClick={handleSaveQuote}
                 disabled={saveQuoteMutation.isPending}
@@ -2251,39 +2250,15 @@ export default function Calculator() {
                 <Save className="h-4 w-4 mr-2" />
                 {saveQuoteMutation.isPending ? "Saving..." : "Save Quote"}
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="lg" variant="outline" data-testid="button-export-menu">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportScope} data-testid="button-export-scope">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Scope
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Quote Only (Client)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportQuoteInternal} data-testid="button-export-quote-internal">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Quote Only (Internal)
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportCRMOnly} data-testid="button-export-crm-only">
-                    <FileText className="h-4 w-4 mr-2" />
-                    CRM Only
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportJSON} data-testid="button-export-json">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Export All (JSON)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={exportScope}
+                data-testid="button-export-scope-doc"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export Scope Doc
+              </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
@@ -2316,6 +2291,34 @@ export default function Calculator() {
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Open QuickBooks Import
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="lg" variant="outline" data-testid="button-export-menu">
+                    <Download className="h-4 w-4 mr-2" />
+                    More Export Options
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Quote Only (Client)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportQuoteInternal} data-testid="button-export-quote-internal">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Quote Only (Internal)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportCRMOnly} data-testid="button-export-crm-only">
+                    <FileText className="h-4 w-4 mr-2" />
+                    CRM Only
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={exportJSON} data-testid="button-export-json">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export All (JSON)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
