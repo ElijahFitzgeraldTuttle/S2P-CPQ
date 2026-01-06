@@ -103,6 +103,9 @@ export const quotes = pgTable("quotes", {
   versionNumber: integer("version_number").default(1).notNull(),
   versionName: text("version_name"),
   
+  // Scan2Plan-OS Integration
+  leadId: integer("lead_id"),
+  
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

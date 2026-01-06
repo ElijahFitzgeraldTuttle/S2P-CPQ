@@ -1,0 +1,58 @@
+Integrate with Scan2Plan-OS (Parent CRM Application)
+
+This CPQ calculator will be embedded in Scan2Plan-OS via an iframe. We need to add integration features.
+
+1. Read URL parameters on page load
+
+In client/src/pages/Calculator.tsx, parse these query params and use them to prefill the quote form:
+
+leadId - Store this to sync back to Scan2Plan-OS (add to quote state)
+company - Prefill clientName field
+project - Prefill projectName field
+address - Prefill projectAddress field
+Example URL: ?leadId=123&company=Acme%20Corp&project=Warehouse&address=123%20Main%20St
+
+2. Add leadId field to quotes schema
+
+In shared/schema.ts, add an optional leadId field to the quotes table to track which Scan2Plan-OS deal this quote belongs to:
+
+leadId: integer("lead_id"),  // Links to Scan2Plan-OS deal
+3. Sync to Scan2Plan-OS after saving quotes
+
+After a quote is saved (in the save/update logic), if leadId exists, call:
+
+POST https://scan2plan-os.replit.app/api/cpq/sync/{leadId}
+Headers:
+  Authorization: Bearer {CPQ_API_KEY from environment}
+  Content-Type: application/json
+Body:
+{
+  "value": totalPrice,
+  "dealStage": "Proposal",
+  "quoteUrl": "https://cpq.scan2plan.dev/quote/{quoteId}",
+  "quoteNumber": "{quoteNumber}",
+  "quoteVersion": versionNumber
+}
+Add CPQ_API_KEY to the Secrets - the value is: 40ced78a242210e44f1990bafdcb8a02a7d1ca7beab466f6c2e5de5a5b006f8e
+
+4. Send postMessage for instant parent UI update
+
+After successfully saving AND syncing, notify the parent iframe:
+
+if (window.parent !== window) {
+  window.parent.postMessage({
+    type: "CPQ_QUOTE_SAVED",
+    leadId: leadId,
+    quoteNumber: quoteNumber,
+    value: totalPrice
+  }, "*");
+}
+5. Ensure iframe embedding works
+
+Make sure there's no X-Frame-Options header blocking embedding. In the Express server setup, you may need to remove or adjust any helmet/security middleware that sets this header.
+
+6. Test the integration
+
+After implementing, test by opening: /?leadId=999&company=Test%20Corp&project=Test%20Project&address=123%20Test%20St
+
+The form should prefill with that data, and saving should trigger the sync API call.
