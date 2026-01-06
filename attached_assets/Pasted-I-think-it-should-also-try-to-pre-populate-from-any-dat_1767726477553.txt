@@ -1,0 +1,45 @@
+I think it should also try to pre-populate from any data that we have gathered in the scoping panel, but only where it's really easy and makes sense. I don't want to break the CPQ, but the idea is that we can streamline and accelerate the process. Of scoping and quoting and the user experience for the CEO.
+
+Great idea! Let me check what scoping data we have on leads and add those fields to the CPQ prefill:
+
+We have great scoping data available. Let me update the CPQ integration to pass these fields:
+
+I've updated our side to pass all the scoping data. Here's the updated prompt for the CPQ Replit Agent:
+
+Handle additional scoping data from Scan2Plan-OS
+
+Scan2Plan-OS now sends these additional fields when opening the CPQ. Map them to your form fields where they make sense:
+
+URL Parameters / postMessage data being sent:
+
+Parameter	Description	CPQ Form Field
+leadId	Deal ID for sync	Store for API callback
+company	Client name	clientName
+project	Project name	projectName
+address	Project address	projectAddress
+buildingType	e.g. "Commercial / Office", "Warehouse"	typeOfBuilding or building type selector
+sqft	Square footage (number)	Total sqft or area input
+scope	e.g. "Interior Only", "Exterior Only", "Full Building"	Scope selector if applicable
+disciplines	e.g. "Architecture (LOD 300), MEPF (LOD 300)"	Discipline checkboxes
+contactName	Primary contact name	Account contact field
+contactEmail	Contact email	Contact email field
+contactPhone	Contact phone	Contact phone field
+dispatchLocation	e.g. "Brooklyn, NY"	Dispatch location selector
+distance	Miles from dispatch (number)	Distance field
+Implementation notes:
+
+Only prefill fields that have a direct match in your form
+Don't break existing functionality - if a field doesn't map cleanly, skip it
+For disciplines, you may need to parse the string to check appropriate checkboxes
+For buildingType, match against your building type options
+Example parsing for disciplines:
+
+if (disciplines) {
+  const hasArch = disciplines.toLowerCase().includes('architecture');
+  const hasMepf = disciplines.toLowerCase().includes('mepf');
+  // Set your discipline checkboxes accordingly
+}
+This will let the CEO's scoping work flow directly into quote generation, saving time and reducing re-entry errors.
+
+Checkpoint made
+Add more scoping details to the quoting tool for faster estimates

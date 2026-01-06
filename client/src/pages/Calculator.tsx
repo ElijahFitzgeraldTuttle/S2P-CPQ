@@ -77,7 +77,100 @@ const getUrlParams = () => {
     company: urlParams.get("company"),
     project: urlParams.get("project"),
     address: urlParams.get("address"),
+    // Additional scoping data from Scan2Plan-OS
+    buildingType: urlParams.get("buildingType"),
+    sqft: urlParams.get("sqft"),
+    scope: urlParams.get("scope"),
+    disciplines: urlParams.get("disciplines"),
+    contactName: urlParams.get("contactName"),
+    contactEmail: urlParams.get("contactEmail"),
+    contactPhone: urlParams.get("contactPhone"),
+    dispatchLocation: urlParams.get("dispatchLocation"),
+    distance: urlParams.get("distance"),
   };
+};
+
+// Map building type string to building type ID
+const mapBuildingType = (buildingTypeStr: string | null): string => {
+  if (!buildingTypeStr) return "";
+  const lower = buildingTypeStr.toLowerCase();
+  
+  // Map common building type strings to IDs
+  if (lower.includes("office") || lower.includes("commercial")) return "7"; // Commercial - Office
+  if (lower.includes("warehouse")) return "10"; // Commercial - Warehouse
+  if (lower.includes("retail")) return "8"; // Commercial - Retail
+  if (lower.includes("industrial")) return "9"; // Commercial - Industrial
+  if (lower.includes("medical") || lower.includes("healthcare")) return "11"; // Commercial - Medical
+  if (lower.includes("hotel") || lower.includes("hospitality")) return "12"; // Commercial - Hospitality
+  if (lower.includes("education") || lower.includes("school")) return "13"; // Institutional - Education
+  if (lower.includes("residential") && lower.includes("luxury")) return "3"; // Residential - Luxury
+  if (lower.includes("residential") && lower.includes("multi")) return "4"; // Multi-Family
+  if (lower.includes("residential")) return "2"; // Residential - Standard
+  if (lower.includes("simple")) return "1"; // Commercial - Simple
+  if (lower.includes("landscape") && lower.includes("built")) return "14"; // Built Landscape
+  if (lower.includes("landscape") && lower.includes("natural")) return "15"; // Natural Landscape
+  
+  return "";
+};
+
+// Map scope string to scope value
+const mapScope = (scopeStr: string | null): string => {
+  if (!scopeStr) return "full";
+  const lower = scopeStr.toLowerCase();
+  
+  if (lower.includes("interior only")) return "interior";
+  if (lower.includes("exterior only") || lower.includes("facades")) return "exterior";
+  return "full";
+};
+
+// Parse disciplines string to array
+const parseDisciplines = (disciplinesStr: string | null): { disciplines: string[], lods: Record<string, string> } => {
+  if (!disciplinesStr) return { disciplines: [], lods: {} };
+  
+  const lower = disciplinesStr.toLowerCase();
+  const disciplines: string[] = [];
+  const lods: Record<string, string> = {};
+  
+  // Parse Architecture
+  if (lower.includes("architecture") || lower.includes("arch")) {
+    disciplines.push("arch");
+    // Try to extract LoD
+    const archMatch = disciplinesStr.match(/architecture.*?lod\s*(\d+)/i);
+    lods["arch"] = archMatch ? archMatch[1] : "300";
+  }
+  
+  // Parse Structure
+  if (lower.includes("structure") || lower.includes("structural")) {
+    disciplines.push("struct");
+    const structMatch = disciplinesStr.match(/structur.*?lod\s*(\d+)/i);
+    lods["struct"] = structMatch ? structMatch[1] : "300";
+  }
+  
+  // Parse MEPF
+  if (lower.includes("mepf") || lower.includes("mep") || lower.includes("mechanical")) {
+    disciplines.push("mepf");
+    const mepfMatch = disciplinesStr.match(/mepf?.*?lod\s*(\d+)/i);
+    lods["mepf"] = mepfMatch ? mepfMatch[1] : "300";
+  }
+  
+  // Parse Site
+  if (lower.includes("site") || lower.includes("topography")) {
+    disciplines.push("site");
+    const siteMatch = disciplinesStr.match(/site.*?lod\s*(\d+)/i);
+    lods["site"] = siteMatch ? siteMatch[1] : "300";
+  }
+  
+  return { disciplines, lods };
+};
+
+// Map dispatch location string to dispatch key
+const mapDispatchLocation = (dispatchStr: string | null): string => {
+  if (!dispatchStr) return "troy";
+  const lower = dispatchStr.toLowerCase();
+  
+  if (lower.includes("brooklyn") || lower.includes("nyc") || lower.includes("new york city")) return "brooklyn";
+  if (lower.includes("woodstock")) return "woodstock";
+  return "troy"; // Default
 };
 
 export default function Calculator() {
@@ -139,76 +232,43 @@ export default function Calculator() {
     notes: "",
   }));
   
-  // Parse URL parameters for Scan2Plan-OS integration
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlLeadId = urlParams.get("leadId");
-    const urlCompany = urlParams.get("company");
-    const urlProject = urlParams.get("project");
-    const urlAddress = urlParams.get("address");
+  // Initialize areas from URL params (building type, sqft, scope, disciplines)
+  const [areas, setAreas] = useState<Area[]>(() => {
+    const parsedDisciplines = parseDisciplines(urlParams.disciplines);
+    const mappedBuildingType = mapBuildingType(urlParams.buildingType);
+    const mappedScope = mapScope(urlParams.scope);
     
-    console.log("CPQ URL params:", { urlLeadId, urlCompany, urlProject, urlAddress, fullSearch: window.location.search });
-    
-    if (urlLeadId) {
-      setLeadId(parseInt(urlLeadId, 10));
-    }
-    
-    // Only prefill if this is a new quote (no quoteId) and we have URL params
-    if (!quoteId) {
-      if (urlCompany || urlProject || urlAddress) {
-        setProjectDetails(prev => ({
-          ...prev,
-          clientName: urlCompany || prev.clientName,
-          projectName: urlProject || prev.projectName,
-          projectAddress: urlAddress || prev.projectAddress,
-        }));
-      }
-    }
-  }, [quoteId]);
-  
-  // Listen for postMessage from parent iframe (Scan2Plan-OS)
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Accept messages from Scan2Plan-OS domains
-      if (event.data?.type === "CPQ_PREFILL") {
-        console.log("CPQ received prefill data via postMessage:", event.data);
-        const { leadId: msgLeadId, company, project, address } = event.data;
-        
-        if (msgLeadId) {
-          setLeadId(parseInt(msgLeadId, 10));
-        }
-        
-        if (!quoteId && (company || project || address)) {
-          setProjectDetails(prev => ({
-            ...prev,
-            clientName: company || prev.clientName,
-            projectName: project || prev.projectName,
-            projectAddress: address || prev.projectAddress,
-          }));
-        }
-      }
-    };
-    
-    window.addEventListener("message", handleMessage);
-    
-    // Notify parent that CPQ is ready to receive data
-    if (window.parent !== window) {
-      window.parent.postMessage({ type: "CPQ_READY" }, "*");
-    }
-    
-    return () => window.removeEventListener("message", handleMessage);
-  }, [quoteId]);
-  const [areas, setAreas] = useState<Area[]>([
-    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", numberOfRoofs: 0, facades: [], gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
-  ]);
+    return [{
+      id: "1",
+      name: "",
+      buildingType: mappedBuildingType,
+      squareFeet: urlParams.sqft || "",
+      scope: mappedScope,
+      disciplines: parsedDisciplines.disciplines,
+      disciplineLods: parsedDisciplines.lods,
+      mixedInteriorLod: "300",
+      mixedExteriorLod: "300",
+      numberOfRoofs: 0,
+      facades: [],
+      gradeAroundBuilding: false,
+      gradeLod: "300",
+      includeCad: false,
+      additionalElevations: 0
+    }];
+  });
   const [risks, setRisks] = useState<string[]>([]);
-  const [dispatch, setDispatch] = useState("troy");
-  const [distance, setDistance] = useState<number | null>(null);
-  const [distanceCalculated, setDistanceCalculated] = useState(false);
+  // Initialize dispatch from URL params
+  const [dispatch, setDispatch] = useState(() => mapDispatchLocation(urlParams.dispatchLocation));
+  // Initialize distance from URL params
+  const [distance, setDistance] = useState<number | null>(() => {
+    return urlParams.distance ? parseInt(urlParams.distance, 10) : null;
+  });
+  const [distanceCalculated, setDistanceCalculated] = useState(() => !!urlParams.distance);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [customTravelCost, setCustomTravelCost] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
-  const [scopingData, setScopingData] = useState({
+  // Initialize scopingData with contact info from URL params
+  const [scopingData, setScopingData] = useState(() => ({
     aboveBelowACT: "",
     aboveBelowACTOther: "",
     actSqft: "",
@@ -236,9 +296,9 @@ export default function Calculator() {
     paymentTerms: "",
     paymentTermsOther: "",
     paymentNotes: "",
-    accountContact: "",
-    accountContactEmail: "",
-    accountContactPhone: "",
+    accountContact: urlParams.contactName || "",
+    accountContactEmail: urlParams.contactEmail || "",
+    accountContactPhone: urlParams.contactPhone || "",
     phoneNumber: "",
     designProContact: "",
     designProCompanyContact: "",
@@ -251,7 +311,83 @@ export default function Calculator() {
     probabilityOfClosing: "50",
     projectStatus: "",
     projectStatusOther: "",
-  });
+  }));
+
+  // Listen for postMessage from parent iframe (Scan2Plan-OS)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Accept messages from Scan2Plan-OS domains
+      if (event.data?.type === "CPQ_PREFILL") {
+        console.log("CPQ received prefill data via postMessage:", event.data);
+        const { 
+          leadId: msgLeadId, company, project, address,
+          buildingType, sqft, scope, disciplines,
+          contactName, contactEmail, contactPhone,
+          dispatchLocation, distance: msgDistance
+        } = event.data;
+        
+        if (msgLeadId) {
+          setLeadId(parseInt(msgLeadId, 10));
+        }
+        
+        if (!quoteId) {
+          // Update project details
+          if (company || project || address) {
+            setProjectDetails(prev => ({
+              ...prev,
+              clientName: company || prev.clientName,
+              projectName: project || prev.projectName,
+              projectAddress: address || prev.projectAddress,
+            }));
+          }
+          
+          // Update areas with building type, sqft, scope, disciplines
+          if (buildingType || sqft || scope || disciplines) {
+            const parsedDisciplines = parseDisciplines(disciplines);
+            setAreas(prev => prev.map((area, idx) => {
+              if (idx !== 0) return area;
+              return {
+                ...area,
+                buildingType: mapBuildingType(buildingType) || area.buildingType,
+                squareFeet: sqft || area.squareFeet,
+                scope: mapScope(scope),
+                disciplines: parsedDisciplines.disciplines.length > 0 ? parsedDisciplines.disciplines : area.disciplines,
+                disciplineLods: Object.keys(parsedDisciplines.lods).length > 0 ? parsedDisciplines.lods : area.disciplineLods,
+              };
+            }));
+          }
+          
+          // Update dispatch and distance
+          if (dispatchLocation) {
+            setDispatch(mapDispatchLocation(dispatchLocation));
+          }
+          if (msgDistance) {
+            setDistance(parseInt(msgDistance, 10));
+            setDistanceCalculated(true);
+          }
+          
+          // Update contact info in scopingData
+          if (contactName || contactEmail || contactPhone) {
+            setScopingData(prev => ({
+              ...prev,
+              accountContact: contactName || prev.accountContact,
+              accountContactEmail: contactEmail || prev.accountContactEmail,
+              accountContactPhone: contactPhone || prev.accountContactPhone,
+            }));
+          }
+        }
+      }
+    };
+    
+    window.addEventListener("message", handleMessage);
+    
+    // Notify parent that CPQ is ready to receive data
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "CPQ_READY" }, "*");
+    }
+    
+    return () => window.removeEventListener("message", handleMessage);
+  }, [quoteId]);
 
   const handleProjectDetailChange = (field: string, value: string | boolean) => {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
