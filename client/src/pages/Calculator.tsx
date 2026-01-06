@@ -102,6 +102,7 @@ export default function Calculator() {
 
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
+  const [leadId, setLeadId] = useState<number | null>(null);
   const [projectDetails, setProjectDetails] = useState({
     clientName: "",
     projectName: "",
@@ -112,6 +113,31 @@ export default function Calculator() {
     hasAttic: false,
     notes: "",
   });
+  
+  // Parse URL parameters for Scan2Plan-OS integration
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLeadId = urlParams.get("leadId");
+    const urlCompany = urlParams.get("company");
+    const urlProject = urlParams.get("project");
+    const urlAddress = urlParams.get("address");
+    
+    if (urlLeadId) {
+      setLeadId(parseInt(urlLeadId, 10));
+    }
+    
+    // Only prefill if this is a new quote (no quoteId) and we have URL params
+    if (!quoteId) {
+      if (urlCompany || urlProject || urlAddress) {
+        setProjectDetails(prev => ({
+          ...prev,
+          clientName: urlCompany || prev.clientName,
+          projectName: urlProject || prev.projectName,
+          projectAddress: urlAddress || prev.projectAddress,
+        }));
+      }
+    }
+  }, [quoteId]);
   const [areas, setAreas] = useState<Area[]>([
     { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", numberOfRoofs: 0, facades: [], gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
   ]);
@@ -321,6 +347,9 @@ export default function Calculator() {
       setDistanceCalculated(existingQuote.distance !== null && existingQuote.distance !== undefined);
       setCustomTravelCost(existingQuote.customTravelCost ? parseFloat(existingQuote.customTravelCost) : null);
       setServices(existingQuote.services as Record<string, number>);
+      if (existingQuote.leadId) {
+        setLeadId(existingQuote.leadId);
+      }
       
       const legacyPaymentTerms = (existingQuote as any).paymentTerms;
       
@@ -605,8 +634,40 @@ export default function Calculator() {
         return res.json();
       }
     },
-    onSuccess: () => {
+    onSuccess: async (savedQuote: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api", "quotes"] });
+      
+      // Sync to Scan2Plan-OS if this quote is linked to a lead
+      const quoteLeadId = savedQuote.leadId || leadId;
+      if (quoteLeadId) {
+        try {
+          const syncRes = await apiRequest("POST", "/api/sync-to-crm", {
+            leadId: quoteLeadId,
+            quoteId: savedQuote.id,
+            quoteNumber: savedQuote.quoteNumber,
+            totalPrice: savedQuote.totalPrice,
+            versionNumber: savedQuote.versionNumber
+          });
+          const syncData = await syncRes.json();
+          
+          if (syncData.success) {
+            // Send postMessage to parent iframe for instant UI update
+            if (window.parent !== window) {
+              window.parent.postMessage({
+                type: "CPQ_QUOTE_SAVED",
+                leadId: quoteLeadId,
+                quoteNumber: savedQuote.quoteNumber,
+                value: parseFloat(savedQuote.totalPrice) || 0
+              }, "*");
+            }
+            console.log("Synced to Scan2Plan-OS successfully");
+          }
+        } catch (syncError) {
+          console.error("Failed to sync to Scan2Plan-OS:", syncError);
+          // Don't fail the save if sync fails - quote is still saved
+        }
+      }
+      
       toast({
         title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
         description: quoteId ? "Your changes have been saved." : "Your quote has been saved.",
@@ -645,6 +706,7 @@ export default function Calculator() {
       scopingData: scopingMode ? scopingData : null,
       totalPrice,
       pricingBreakdown: {},
+      leadId: leadId || undefined,
     };
     
     saveQuoteMutation.mutate(quoteData);

@@ -16,6 +16,13 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// Allow iframe embedding from Scan2Plan-OS
+app.use((req, res, next) => {
+  res.removeHeader('X-Frame-Options');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://scan2plan-os.replit.app https://*.replit.app https://*.replit.dev");
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

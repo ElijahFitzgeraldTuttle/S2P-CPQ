@@ -864,6 +864,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Scan2Plan-OS Integration: Sync quote to parent CRM
+  app.post("/api/sync-to-crm", async (req, res) => {
+    try {
+      const { leadId, quoteId, quoteNumber, totalPrice, versionNumber } = req.body;
+      
+      if (!leadId) {
+        return res.status(400).json({ error: "leadId is required" });
+      }
+      
+      const CPQ_API_KEY = process.env.CPQ_API_KEY;
+      if (!CPQ_API_KEY) {
+        console.error("CPQ_API_KEY not configured");
+        return res.status(500).json({ error: "CRM sync not configured" });
+      }
+      
+      // Construct the quote URL (production domain)
+      const quoteUrl = `https://scan2plan-cpq.replit.app/calculator/${quoteId}`;
+      
+      const syncPayload = {
+        value: parseFloat(totalPrice) || 0,
+        dealStage: "Proposal",
+        quoteUrl,
+        quoteNumber,
+        quoteVersion: versionNumber || 1
+      };
+      
+      console.log(`Syncing quote to Scan2Plan-OS for lead ${leadId}:`, syncPayload);
+      
+      const syncResponse = await fetch(`https://scan2plan-os.replit.app/api/cpq/sync/${leadId}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${CPQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(syncPayload)
+      });
+      
+      if (!syncResponse.ok) {
+        const errorText = await syncResponse.text();
+        console.error(`Failed to sync to Scan2Plan-OS: ${syncResponse.status}`, errorText);
+        return res.status(syncResponse.status).json({ 
+          error: "Failed to sync to CRM", 
+          details: errorText 
+        });
+      }
+      
+      const syncResult = await syncResponse.json();
+      console.log("Sync successful:", syncResult);
+      
+      res.json({ success: true, syncResult });
+    } catch (error) {
+      console.error("Error syncing to CRM:", error);
+      res.status(500).json({ error: "Failed to sync to CRM" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
