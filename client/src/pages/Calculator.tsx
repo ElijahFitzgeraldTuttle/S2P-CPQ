@@ -122,6 +122,8 @@ export default function Calculator() {
     const urlProject = urlParams.get("project");
     const urlAddress = urlParams.get("address");
     
+    console.log("CPQ URL params:", { urlLeadId, urlCompany, urlProject, urlAddress, fullSearch: window.location.search });
+    
     if (urlLeadId) {
       setLeadId(parseInt(urlLeadId, 10));
     }
@@ -137,6 +139,39 @@ export default function Calculator() {
         }));
       }
     }
+  }, [quoteId]);
+  
+  // Listen for postMessage from parent iframe (Scan2Plan-OS)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Accept messages from Scan2Plan-OS domains
+      if (event.data?.type === "CPQ_PREFILL") {
+        console.log("CPQ received prefill data via postMessage:", event.data);
+        const { leadId: msgLeadId, company, project, address } = event.data;
+        
+        if (msgLeadId) {
+          setLeadId(parseInt(msgLeadId, 10));
+        }
+        
+        if (!quoteId && (company || project || address)) {
+          setProjectDetails(prev => ({
+            ...prev,
+            clientName: company || prev.clientName,
+            projectName: project || prev.projectName,
+            projectAddress: address || prev.projectAddress,
+          }));
+        }
+      }
+    };
+    
+    window.addEventListener("message", handleMessage);
+    
+    // Notify parent that CPQ is ready to receive data
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "CPQ_READY" }, "*");
+    }
+    
+    return () => window.removeEventListener("message", handleMessage);
   }, [quoteId]);
   const [areas, setAreas] = useState<Area[]>([
     { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", numberOfRoofs: 0, facades: [], gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
