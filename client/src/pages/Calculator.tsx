@@ -69,11 +69,31 @@ interface PricingLineItem {
   upteamCost?: number;
 }
 
+// Parse URL params once at module level for immediate access
+const getUrlParams = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return {
+    leadId: urlParams.get("leadId"),
+    company: urlParams.get("company"),
+    project: urlParams.get("project"),
+    address: urlParams.get("address"),
+  };
+};
+
 export default function Calculator() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [, params] = useRoute("/calculator/:id");
   const quoteId = params?.id;
+  
+  // Debug: Log URL params immediately on component render
+  const urlParams = getUrlParams();
+  console.log("CPQ Calculator loaded with URL params:", {
+    fullUrl: window.location.href,
+    search: window.location.search,
+    parsed: urlParams,
+    quoteId,
+  });
 
   const { data: existingQuote, isLoading: isLoadingQuote } = useQuery<Quote>({
     queryKey: ["/api", "quotes", quoteId],
@@ -102,17 +122,22 @@ export default function Calculator() {
 
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
-  const [leadId, setLeadId] = useState<number | null>(null);
-  const [projectDetails, setProjectDetails] = useState({
-    clientName: "",
-    projectName: "",
-    projectAddress: "",
+  // Initialize leadId from URL params immediately
+  const [leadId, setLeadId] = useState<number | null>(() => {
+    const lid = urlParams.leadId;
+    return lid ? parseInt(lid, 10) : null;
+  });
+  // Initialize projectDetails from URL params immediately (for new quotes)
+  const [projectDetails, setProjectDetails] = useState(() => ({
+    clientName: urlParams.company || "",
+    projectName: urlParams.project || "",
+    projectAddress: urlParams.address || "",
     specificBuilding: "",
     typeOfBuilding: "",
     hasBasement: false,
     hasAttic: false,
     notes: "",
-  });
+  }));
   
   // Parse URL parameters for Scan2Plan-OS integration
   useEffect(() => {
