@@ -67,12 +67,15 @@ export class IntegrityAuditor {
     const status = determineStatus(this.flags);
     const requiresOverride = status === 'blocked';
     
+    // Preserve existing override approval status from quote
+    const existingOverrideApproved = quote.overrideApproved === true;
+    
     return {
       status,
       flags: this.flags,
       auditedAt: new Date().toISOString(),
       requiresOverride,
-      overrideApproved: false,
+      overrideApproved: existingOverrideApproved,
     };
   }
   

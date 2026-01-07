@@ -6,6 +6,28 @@ A professional web-based pricing calculator for Scan-to-BIM (Building Informatio
 
 ## Recent Changes
 
+### Integrity Auditor Implementation (January 2026)
+- Added quote integrity validation system to enforce business rules before finalization
+- Created PRICING_GUARDRAILS.json configuration file with 6 validation checks:
+  - Margin floor (45% minimum gross margin, 50% warning threshold)
+  - Travel rules (fly-out projects require travel cost)
+  - LoD premiums (verify LoD 350 pricing applied)
+  - Scan duration logic (sqft vs estimated time validation)
+  - Historical pricing comparison (15% warning, 30% block variance)
+  - Square footage verification against past scans
+- Added database schema: integrityStatus, integrityFlags, requiresOverride, overrideApproved columns to quotes table
+- Created audit_exceptions table for tracking override requests
+- Created projects_actuals table for storing actual scan sqft data
+- Built IntegrityAuditor middleware with structured AuditReport (status: pass/warning/blocked)
+- Added API endpoints:
+  - POST /api/quotes/:id/audit - Run integrity audit
+  - POST /api/quotes/:id/integrity/override - Request exception
+  - GET /api/quotes/:id/integrity/overrides - Get override requests
+  - PATCH /api/integrity/overrides/:id - Approve/reject override
+  - GET /api/integrity/overrides/pending - Admin view of pending overrides
+- Created IntegrityAuditPanel component displaying audit status, flags, and override request flow
+- Export buttons (PDF, PandaDoc, QBO CSV) are disabled when quote is blocked and override not approved
+
 ### Admin Pricing Parameters Implementation (November 2025)
 - Integrated database-driven pricing parameters for all configurable system values
 - Added API endpoints `/api/pricing-parameters` (GET) and `/api/pricing-parameters/:id` (PATCH)
