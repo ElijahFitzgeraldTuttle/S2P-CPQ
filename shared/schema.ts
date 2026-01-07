@@ -106,6 +106,14 @@ export const quotes = pgTable("quotes", {
   // Scan2Plan-OS Integration
   leadId: integer("lead_id"),
   
+  // Integrity Audit
+  integrityStatus: text("integrity_status").default("pass"), // 'pass' | 'warning' | 'blocked'
+  integrityFlags: jsonb("integrity_flags").default('[]'),
+  requiresOverride: boolean("requires_override").default(false),
+  overrideApproved: boolean("override_approved").default(false),
+  overrideApprovedBy: text("override_approved_by"),
+  overrideApprovedAt: timestamp("override_approved_at"),
+  
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -116,6 +124,7 @@ export const insertQuoteSchema = createInsertSchema(quotes).omit({
   quoteNumber: true,
   createdAt: true,
   updatedAt: true,
+  overrideApprovedAt: true,
 });
 
 export const updateQuoteSchema = insertQuoteSchema.partial();
@@ -136,3 +145,38 @@ export const quickbooksTokens = pgTable("quickbooks_tokens", {
 });
 
 export type QuickBooksTokens = typeof quickbooksTokens.$inferSelect;
+
+// Audit Exceptions table for CEO override workflow
+export const auditExceptions = pgTable("audit_exceptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull(),
+  requestedBy: text("requested_by"),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  status: text("status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected'
+  flagCodes: jsonb("flag_codes").default('[]').notNull(), // Which flags triggered the exception
+  justification: text("justification"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+});
+
+export const insertAuditExceptionSchema = createInsertSchema(auditExceptions).omit({
+  id: true,
+  requestedAt: true,
+});
+
+export type InsertAuditException = z.infer<typeof insertAuditExceptionSchema>;
+export type AuditException = typeof auditExceptions.$inferSelect;
+
+// Projects Actuals table for sqft verification against historical scans
+export const projectsActuals = pgTable("projects_actuals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  normalizedAddress: text("normalized_address").notNull(),
+  actualSqft: integer("actual_sqft").notNull(),
+  lastScanDate: timestamp("last_scan_date").notNull(),
+  scanNotes: text("scan_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ProjectActuals = typeof projectsActuals.$inferSelect;
