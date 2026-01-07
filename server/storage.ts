@@ -1,6 +1,6 @@
-import { type User, type InsertUser, type Quote, type InsertQuote, type QuickBooksTokens, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters, cadPricingMatrix, quickbooksTokens } from "@shared/schema";
+import { type User, type InsertUser, type Quote, type InsertQuote, type QuickBooksTokens, type AuditException, type InsertAuditException, type ProjectActuals, quotes, users, pricingMatrix, upteamPricingMatrix, pricingParameters, cadPricingMatrix, quickbooksTokens, auditExceptions, projectsActuals } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -40,6 +40,19 @@ export interface IStorage {
   getQuickBooksTokens(): Promise<QuickBooksTokens | undefined>;
   saveQuickBooksTokens(tokens: Omit<QuickBooksTokens, 'id' | 'createdAt' | 'updatedAt'>): Promise<QuickBooksTokens>;
   deleteQuickBooksTokens(): Promise<boolean>;
+  
+  // Audit exception operations
+  createAuditException(exception: InsertAuditException): Promise<AuditException>;
+  getAuditException(id: string): Promise<AuditException | undefined>;
+  getAuditExceptionsForQuote(quoteId: string): Promise<AuditException[]>;
+  updateAuditException(id: string, data: Partial<AuditException>): Promise<AuditException | undefined>;
+  
+  // Historical quotes for comparison
+  getHistoricalQuotesForClient(clientName: string, excludeQuoteId?: string): Promise<Quote[]>;
+  
+  // Project actuals for sqft verification
+  getProjectActualByAddress(address: string): Promise<ProjectActuals | undefined>;
+  saveProjectActual(data: { normalizedAddress: string; actualSqft: number; lastScanDate: Date; scanNotes?: string }): Promise<ProjectActuals>;
 }
 
 export class DbStorage implements IStorage {
@@ -304,6 +317,85 @@ export class DbStorage implements IStorage {
   async deleteQuickBooksTokens(): Promise<boolean> {
     const result = await db.delete(quickbooksTokens).returning();
     return result.length > 0;
+  }
+  
+  // Audit exception methods
+  async createAuditException(exception: InsertAuditException): Promise<AuditException> {
+    const [newException] = await db.insert(auditExceptions).values(exception).returning();
+    return newException!;
+  }
+  
+  async getAuditException(id: string): Promise<AuditException | undefined> {
+    const [exception] = await db
+      .select()
+      .from(auditExceptions)
+      .where(eq(auditExceptions.id, id))
+      .limit(1);
+    return exception;
+  }
+  
+  async getAuditExceptionsForQuote(quoteId: string): Promise<AuditException[]> {
+    return db
+      .select()
+      .from(auditExceptions)
+      .where(eq(auditExceptions.quoteId, quoteId))
+      .orderBy(desc(auditExceptions.requestedAt));
+  }
+  
+  async updateAuditException(id: string, data: Partial<AuditException>): Promise<AuditException | undefined> {
+    const [updated] = await db
+      .update(auditExceptions)
+      .set(data)
+      .where(eq(auditExceptions.id, id))
+      .returning();
+    return updated;
+  }
+  
+  // Historical quotes for comparison
+  async getHistoricalQuotesForClient(clientName: string, excludeQuoteId?: string): Promise<Quote[]> {
+    if (!clientName) return [];
+    
+    const allQuotes = await db
+      .select()
+      .from(quotes)
+      .where(ilike(quotes.clientName, `%${clientName}%`))
+      .orderBy(desc(quotes.createdAt))
+      .limit(10);
+    
+    if (excludeQuoteId) {
+      return allQuotes.filter(q => q.id !== excludeQuoteId);
+    }
+    return allQuotes;
+  }
+  
+  // Project actuals for sqft verification
+  async getProjectActualByAddress(address: string): Promise<ProjectActuals | undefined> {
+    if (!address) return undefined;
+    
+    // Normalize the address for comparison (lowercase, trim whitespace)
+    const normalizedInput = address.toLowerCase().trim();
+    
+    const [actual] = await db
+      .select()
+      .from(projectsActuals)
+      .where(ilike(projectsActuals.normalizedAddress, `%${normalizedInput}%`))
+      .orderBy(desc(projectsActuals.lastScanDate))
+      .limit(1);
+    
+    return actual;
+  }
+  
+  async saveProjectActual(data: { normalizedAddress: string; actualSqft: number; lastScanDate: Date; scanNotes?: string }): Promise<ProjectActuals> {
+    const [inserted] = await db
+      .insert(projectsActuals)
+      .values({
+        normalizedAddress: data.normalizedAddress.toLowerCase().trim(),
+        actualSqft: data.actualSqft,
+        lastScanDate: data.lastScanDate,
+        scanNotes: data.scanNotes,
+      })
+      .returning();
+    return inserted!;
   }
 }
 

@@ -920,6 +920,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // INTEGRITY AUDIT ROUTES
+  // ============================================
+  
+  // Run integrity audit on a quote
+  app.post("/api/quotes/:id/audit", async (req, res) => {
+    try {
+      const quote = await storage.getQuote(req.params.id);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+      
+      // Import auditor dynamically to avoid circular dependencies
+      const { auditor } = await import("./integrityAuditor");
+      
+      // Get historical quotes for comparison
+      const historicalQuotes = quote.clientName 
+        ? await storage.getHistoricalQuotesForClient(quote.clientName, quote.id)
+        : [];
+      
+      // Get project actuals for sqft verification
+      const projectActual = quote.projectAddress
+        ? await storage.getProjectActualByAddress(quote.projectAddress)
+        : null;
+      
+      // Run the audit
+      const auditReport = await auditor.auditQuote(quote, historicalQuotes, projectActual);
+      
+      // Update quote with audit results
+      await storage.updateQuote(req.params.id, {
+        integrityStatus: auditReport.status,
+        integrityFlags: auditReport.flags,
+        requiresOverride: auditReport.requiresOverride,
+      });
+      
+      res.json(auditReport);
+    } catch (error) {
+      console.error("Error running integrity audit:", error);
+      res.status(500).json({ error: "Failed to run integrity audit" });
+    }
+  });
+  
+  // Request override exception for a blocked quote
+  app.post("/api/quotes/:id/integrity/override", async (req, res) => {
+    try {
+      const quote = await storage.getQuote(req.params.id);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+      
+      const { justification, requestedBy } = req.body;
+      
+      if (!justification) {
+        return res.status(400).json({ error: "Justification is required" });
+      }
+      
+      // Get the flags that need override
+      const flagCodes = (quote.integrityFlags as any[] || [])
+        .filter((f: any) => f.severity === 'error')
+        .map((f: any) => f.code);
+      
+      const exception = await storage.createAuditException({
+        quoteId: quote.id,
+        requestedBy: requestedBy || "Unknown",
+        status: "pending",
+        flagCodes,
+        justification,
+      });
+      
+      res.status(201).json(exception);
+    } catch (error) {
+      console.error("Error requesting override:", error);
+      res.status(500).json({ error: "Failed to request override" });
+    }
+  });
+  
+  // Get pending override requests for a quote
+  app.get("/api/quotes/:id/integrity/overrides", async (req, res) => {
+    try {
+      const exceptions = await storage.getAuditExceptionsForQuote(req.params.id);
+      res.json(exceptions);
+    } catch (error) {
+      console.error("Error fetching overrides:", error);
+      res.status(500).json({ error: "Failed to fetch overrides" });
+    }
+  });
+  
+  // Approve or reject an override request
+  app.patch("/api/integrity/overrides/:id", async (req, res) => {
+    try {
+      const { status, reviewedBy, reviewNotes } = req.body;
+      
+      if (!status || !['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: "Status must be 'approved' or 'rejected'" });
+      }
+      
+      const exception = await storage.getAuditException(req.params.id);
+      if (!exception) {
+        return res.status(404).json({ error: "Override request not found" });
+      }
+      
+      // Update the exception
+      const updatedException = await storage.updateAuditException(req.params.id, {
+        status,
+        reviewedBy: reviewedBy || "Admin",
+        reviewedAt: new Date(),
+        reviewNotes,
+      });
+      
+      // If approved, update the quote to unlock it
+      if (status === 'approved') {
+        await storage.updateQuote(exception.quoteId, {
+          overrideApproved: true,
+          overrideApprovedBy: reviewedBy || "Admin",
+          overrideApprovedAt: new Date(),
+        });
+      }
+      
+      res.json(updatedException);
+    } catch (error) {
+      console.error("Error updating override:", error);
+      res.status(500).json({ error: "Failed to update override" });
+    }
+  });
+  
+  // Get all pending override requests (for admin dashboard)
+  app.get("/api/integrity/overrides/pending", async (req, res) => {
+    try {
+      // This would ideally have its own storage method, but for now we query all quotes
+      const allQuotes = await storage.getAllQuotes();
+      const pendingOverrides = [];
+      
+      for (const quote of allQuotes) {
+        if (quote.requiresOverride && !quote.overrideApproved) {
+          const exceptions = await storage.getAuditExceptionsForQuote(quote.id);
+          const pendingException = exceptions.find(e => e.status === 'pending');
+          if (pendingException) {
+            pendingOverrides.push({
+              quote: {
+                id: quote.id,
+                quoteNumber: quote.quoteNumber,
+                projectName: quote.projectName,
+                clientName: quote.clientName,
+                totalPrice: quote.totalPrice,
+              },
+              exception: pendingException,
+            });
+          }
+        }
+      }
+      
+      res.json(pendingOverrides);
+    } catch (error) {
+      console.error("Error fetching pending overrides:", error);
+      res.status(500).json({ error: "Failed to fetch pending overrides" });
+    }
+  });
+  
+  // Get guardrails configuration
+  app.get("/api/integrity/guardrails", async (req, res) => {
+    try {
+      const { GUARDRAILS } = await import("../shared/config/guardrails");
+      res.json(GUARDRAILS);
+    } catch (error) {
+      console.error("Error fetching guardrails:", error);
+      res.status(500).json({ error: "Failed to fetch guardrails" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
