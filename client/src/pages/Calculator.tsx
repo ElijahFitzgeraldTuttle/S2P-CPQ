@@ -32,6 +32,7 @@ import QuoteFields from "@/components/QuoteFields";
 import ScopeFields from "@/components/ScopeFields";
 import CRMFields from "@/components/CRMFields";
 import VersionControl from "@/components/VersionControl";
+import IntegrityAuditPanel from "@/components/IntegrityAuditPanel";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -2511,6 +2512,11 @@ export default function Calculator() {
   const pricingData = calculatePricing();
   const pricingItems = pricingData.items;
 
+  // Determine if exports should be blocked (integrity check failed and not overridden)
+  const isExportBlocked = existingQuote?.integrityStatus === 'blocked' && 
+    existingQuote?.requiresOverride === true && 
+    existingQuote?.overrideApproved !== true;
+
   if (isLoadingQuote || isLoadingPricing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -2632,6 +2638,8 @@ export default function Calculator() {
                 size="lg" 
                 variant="outline" 
                 onClick={exportScope}
+                disabled={isExportBlocked}
+                title={isExportBlocked ? "Quote is blocked. Request override to export." : undefined}
                 data-testid="button-export-scope-doc"
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -2641,7 +2649,8 @@ export default function Calculator() {
                 size="lg" 
                 variant="outline" 
                 onClick={createPandaDoc}
-                disabled={isCreatingPandaDoc}
+                disabled={isCreatingPandaDoc || isExportBlocked}
+                title={isExportBlocked ? "Quote is blocked. Request override to export." : undefined}
                 data-testid="button-create-pandadoc"
               >
                 {isCreatingPandaDoc ? (
@@ -2655,6 +2664,8 @@ export default function Calculator() {
                 size="lg" 
                 variant="outline" 
                 onClick={exportQBOCSV}
+                disabled={isExportBlocked}
+                title={isExportBlocked ? "Quote is blocked. Request override to export." : undefined}
                 data-testid="button-export-qbo-csv"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -2671,22 +2682,22 @@ export default function Calculator() {
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="lg" variant="outline" data-testid="button-export-menu">
+                  <Button size="lg" variant="outline" disabled={isExportBlocked} data-testid="button-export-menu">
                     <Download className="h-4 w-4 mr-2" />
                     More Export Options
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
+                  <DropdownMenuItem onClick={exportQuoteClient} disabled={isExportBlocked} data-testid="button-export-quote-client">
                     <FileText className="h-4 w-4 mr-2" />
                     Quote Only (Client)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportQuoteInternal} data-testid="button-export-quote-internal">
+                  <DropdownMenuItem onClick={exportQuoteInternal} disabled={isExportBlocked} data-testid="button-export-quote-internal">
                     <FileText className="h-4 w-4 mr-2" />
                     Quote Only (Internal)
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportCRMOnly} data-testid="button-export-crm-only">
+                  <DropdownMenuItem onClick={exportCRMOnly} disabled={isExportBlocked} data-testid="button-export-crm-only">
                     <FileText className="h-4 w-4 mr-2" />
                     CRM Only
                   </DropdownMenuItem>
@@ -2700,13 +2711,26 @@ export default function Calculator() {
             </div>
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
             <PricingSummary 
               items={pricingItems} 
               onEdit={(i, v) => console.log(`Edit ${i}: ${v}`)} 
               totalClientPrice={pricingData.clientTotal}
               totalUpteamCost={pricingData.upteamCost}
             />
+            
+            {quoteId && (
+              <IntegrityAuditPanel
+                quoteId={quoteId}
+                integrityStatus={existingQuote?.integrityStatus as 'pass' | 'warning' | 'blocked' | undefined}
+                integrityFlags={existingQuote?.integrityFlags as any[]}
+                requiresOverride={existingQuote?.requiresOverride ?? false}
+                overrideApproved={existingQuote?.overrideApproved ?? false}
+                onAuditComplete={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api", "quotes", quoteId] });
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
