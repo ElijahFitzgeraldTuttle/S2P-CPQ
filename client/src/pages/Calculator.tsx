@@ -316,7 +316,7 @@ export default function Calculator() {
   // Listen for postMessage from parent iframe (Scan2Plan-OS)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Accept messages from Scan2Plan-OS domains
+      // Handle legacy CPQ_PREFILL message (partial data)
       if (event.data?.type === "CPQ_PREFILL") {
         console.log("CPQ received prefill data via postMessage:", event.data);
         const { 
@@ -375,6 +375,126 @@ export default function Calculator() {
               accountContactPhone: contactPhone || prev.accountContactPhone,
             }));
           }
+        }
+      }
+      
+      // Handle full CPQ_SCOPING_PAYLOAD message (complete form data from CRM)
+      if (event.data?.type === "CPQ_SCOPING_PAYLOAD") {
+        console.log("CPQ received full scoping payload:", event.data);
+        const payload = event.data;
+        
+        // Set leadId
+        if (payload.leadId) {
+          setLeadId(typeof payload.leadId === 'number' ? payload.leadId : parseInt(payload.leadId, 10));
+        }
+        
+        // Only hydrate if not editing an existing quote
+        if (!quoteId) {
+          // Hydrate project details
+          if (payload.projectDetails) {
+            setProjectDetails({
+              clientName: payload.projectDetails.clientName || "",
+              projectName: payload.projectDetails.projectName || "",
+              projectAddress: payload.projectDetails.projectAddress || "",
+              specificBuilding: payload.projectDetails.specificBuilding || "",
+              typeOfBuilding: payload.projectDetails.typeOfBuilding || "",
+              hasBasement: payload.projectDetails.hasBasement || false,
+              hasAttic: payload.projectDetails.hasAttic || false,
+              notes: payload.projectDetails.notes || "",
+            });
+          }
+          
+          // Hydrate areas
+          if (payload.areas && Array.isArray(payload.areas) && payload.areas.length > 0) {
+            setAreas(payload.areas.map((area: any) => ({
+              id: area.id || String(Date.now()),
+              name: area.name || "",
+              buildingType: area.buildingType || "",
+              squareFeet: area.squareFeet || "",
+              scope: area.scope || "full",
+              disciplines: area.disciplines || [],
+              disciplineLods: area.disciplineLods || {},
+              mixedInteriorLod: area.mixedInteriorLod || "300",
+              mixedExteriorLod: area.mixedExteriorLod || "300",
+              numberOfRoofs: area.numberOfRoofs || 0,
+              facades: area.facades || [],
+              gradeAroundBuilding: area.gradeAroundBuilding || false,
+              gradeLod: area.gradeLod || "300",
+              includeCad: area.includeCad || false,
+              additionalElevations: area.additionalElevations || 0,
+            })));
+          }
+          
+          // Hydrate risks
+          if (payload.risks && Array.isArray(payload.risks)) {
+            setRisks(payload.risks);
+          }
+          
+          // Hydrate travel
+          if (payload.travel) {
+            if (payload.travel.dispatchLocation) {
+              setDispatch(payload.travel.dispatchLocation);
+            }
+            if (payload.travel.distance != null) {
+              setDistance(payload.travel.distance);
+              setDistanceCalculated(true);
+            }
+            if (payload.travel.customTravelCost != null) {
+              setCustomTravelCost(payload.travel.customTravelCost);
+            }
+          }
+          
+          // Hydrate services
+          if (payload.services && typeof payload.services === 'object') {
+            setServices(payload.services);
+          }
+          
+          // Hydrate scopingData
+          if (payload.scopingData) {
+            setScopingData(prev => ({
+              ...prev,
+              aboveBelowACT: payload.scopingData.aboveBelowACT || prev.aboveBelowACT,
+              aboveBelowACTOther: payload.scopingData.aboveBelowACTOther || prev.aboveBelowACTOther,
+              actSqft: payload.scopingData.actSqft || prev.actSqft,
+              bimDeliverable: payload.scopingData.bimDeliverable || prev.bimDeliverable,
+              bimDeliverableOther: payload.scopingData.bimDeliverableOther || prev.bimDeliverableOther,
+              bimVersion: payload.scopingData.bimVersion || prev.bimVersion,
+              customTemplate: payload.scopingData.customTemplate || prev.customTemplate,
+              customTemplateOther: payload.scopingData.customTemplateOther || prev.customTemplateOther,
+              sqftAssumptions: payload.scopingData.sqftAssumptions || prev.sqftAssumptions,
+              assumedGrossMargin: payload.scopingData.assumedGrossMargin || prev.assumedGrossMargin,
+              caveatsProfitability: payload.scopingData.caveatsProfitability || prev.caveatsProfitability,
+              projectNotes: payload.scopingData.projectNotes || prev.projectNotes,
+              mixedScope: payload.scopingData.mixedScope || prev.mixedScope,
+              insuranceRequirements: payload.scopingData.insuranceRequirements || prev.insuranceRequirements,
+              tierAScanningCost: payload.scopingData.tierAScanningCost || prev.tierAScanningCost,
+              tierAScanningCostOther: payload.scopingData.tierAScanningCostOther || prev.tierAScanningCostOther,
+              tierAModelingCost: payload.scopingData.tierAModelingCost || prev.tierAModelingCost,
+              tierAMargin: payload.scopingData.tierAMargin || prev.tierAMargin,
+              estimatedTimeline: payload.scopingData.estimatedTimeline || prev.estimatedTimeline,
+              timelineOther: payload.scopingData.timelineOther || prev.timelineOther,
+              timelineNotes: payload.scopingData.timelineNotes || prev.timelineNotes,
+              paymentTerms: payload.scopingData.paymentTerms || prev.paymentTerms,
+              paymentTermsOther: payload.scopingData.paymentTermsOther || prev.paymentTermsOther,
+              paymentNotes: payload.scopingData.paymentNotes || prev.paymentNotes,
+              accountContact: payload.scopingData.accountContact || prev.accountContact,
+              accountContactEmail: payload.scopingData.accountContactEmail || prev.accountContactEmail,
+              accountContactPhone: payload.scopingData.accountContactPhone || prev.accountContactPhone,
+              phoneNumber: payload.scopingData.phoneNumber || prev.phoneNumber,
+              designProContact: payload.scopingData.designProContact || prev.designProContact,
+              designProCompanyContact: payload.scopingData.designProCompanyContact || prev.designProCompanyContact,
+              otherContact: payload.scopingData.otherContact || prev.otherContact,
+              proofLinks: payload.scopingData.proofLinks || prev.proofLinks,
+              source: payload.scopingData.source || prev.source,
+              sourceNote: payload.scopingData.sourceNote || prev.sourceNote,
+              assist: payload.scopingData.assist || prev.assist,
+              probabilityOfClosing: payload.scopingData.probabilityOfClosing || prev.probabilityOfClosing,
+              projectStatus: payload.scopingData.projectStatus || prev.projectStatus,
+              projectStatusOther: payload.scopingData.projectStatusOther || prev.projectStatusOther,
+            }));
+          }
+          
+          console.log("CPQ state hydrated from full scoping payload");
         }
       }
     };
