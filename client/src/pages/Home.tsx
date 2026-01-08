@@ -39,7 +39,7 @@ export default function Home() {
     deleteQuoteMutation.mutate(quoteId);
   };
 
-  const pastProjects = quotes.slice(0, 5).map((quote) => ({
+  const pastProjects = quotes.map((quote) => ({
     id: quote.id,
     name: quote.projectName,
     client: quote.clientName || "N/A",
