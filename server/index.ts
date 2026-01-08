@@ -16,10 +16,10 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
-// Allow iframe embedding from Scan2Plan-OS
+// Allow iframe embedding from Scan2Plan-OS and custom domains
 app.use((req, res, next) => {
   res.removeHeader('X-Frame-Options');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://scan2plan-os.replit.app https://*.replit.app https://*.replit.dev");
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://scan2plan-os.replit.app https://*.replit.app https://*.replit.dev https://*.scan2plan.dev https://scan2plan.dev");
   next();
 });
 
