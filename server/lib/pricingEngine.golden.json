@@ -1,6 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "generated": "2026-01-09",
+  "description": "Golden expected results for CPQ pricing engine cross-agent validation",
   "testResults": [
     {"category": "areaTier", "test": "0-3k tier at 2000 sqft", "input": 2000, "expected": "0-3k"},
     {"category": "areaTier", "test": "3k-5k tier at 3000 sqft", "input": 3000, "expected": "3k-5k"},
@@ -78,6 +79,35 @@
     {"category": "elevations", "test": "5 elevations", "input": 5, "expected": 125},
     {"category": "elevations", "test": "10 elevations", "input": 10, "expected": 250},
     {"category": "elevations", "test": "15 elevations", "input": 15, "expected": 350},
-    {"category": "elevations", "test": "25 elevations", "input": 25, "expected": 525}
+    {"category": "elevations", "test": "25 elevations", "input": 25, "expected": 525},
+    
+    {"category": "modelingCost", "test": "with database rates (arch 5k sqft)", "input": {"sqft": 5000, "discipline": "arch", "lod": "300", "clientRate": 3.50, "upteamRate": 2.00, "scope": 1.0}, "expected": {"clientPrice": 17500, "upteamCost": 10000}},
+    {"category": "modelingCost", "test": "fallback upteam rate", "input": {"sqft": 5000, "discipline": "mepf", "lod": "300", "clientRate": 4.00, "upteamRate": null, "scope": 1.0}, "expected": {"clientPrice": 20000, "upteamCost": 13000}},
+    {"category": "modelingCost", "test": "fallback both rates (arch LoD 300)", "input": {"sqft": 5000, "discipline": "arch", "lod": "300", "clientRate": null, "upteamRate": null, "scope": 1.0}, "expected": {"clientPrice": 16250, "upteamCost": 10562.5}},
+    {"category": "modelingCost", "test": "fallback both rates (mepf LoD 350)", "input": {"sqft": 5000, "discipline": "mepf", "lod": "350", "clientRate": null, "upteamRate": null, "scope": 1.0}, "expected": {"clientPrice": 22500, "upteamCost": 14625}},
+    {"category": "modelingCost", "test": "minimum sqft floor (2000 → 3000)", "input": {"sqft": 2000, "discipline": "arch", "lod": "300", "clientRate": 3.00, "upteamRate": 1.80, "scope": 1.0}, "expected": {"clientPrice": 9000, "upteamCost": 5400, "effectiveSqft": 3000}},
+    {"category": "modelingCost", "test": "interior scope 65%", "input": {"sqft": 10000, "discipline": "arch", "lod": "300", "clientRate": 3.00, "upteamRate": 1.80, "scope": 0.65}, "expected": {"clientPrice": 19500, "upteamCost": 11700}},
+    {"category": "modelingCost", "test": "exterior scope 35%", "input": {"sqft": 10000, "discipline": "arch", "lod": "300", "clientRate": 3.00, "upteamRate": 1.80, "scope": 0.35}, "expected": {"clientPrice": 10500, "upteamCost": 6300}},
+    
+    {"category": "actPricing", "test": "ACT 5000 sqft @ $2.00/sqft", "input": 5000, "expected": {"clientPrice": 10000, "upteamCost": 6500}},
+    {"category": "actPricing", "test": "ACT min floor (2000 → 3000)", "input": 2000, "expected": {"clientPrice": 6000, "upteamCost": 3900, "effectiveSqft": 3000}},
+    
+    {"category": "matterportPricing", "test": "Matterport 5000 sqft @ $0.10/sqft", "input": 5000, "expected": {"clientPrice": 500, "upteamCost": 325}},
+    {"category": "matterportPricing", "test": "Matterport min floor (2000 → 3000)", "input": 2000, "expected": {"clientPrice": 300, "upteamCost": 195, "effectiveSqft": 3000}},
+    
+    {"category": "landscapeAreaPricing", "test": "Built Landscape 5 acres LoD 300", "input": {"type": "14", "acres": 5, "lod": "300"}, "expected": {"clientPrice": 3750, "upteamCost": 2437.5}},
+    {"category": "landscapeAreaPricing", "test": "Natural Landscape 10 acres LoD 350", "input": {"type": "15", "acres": 10, "lod": "350"}, "expected": {"clientPrice": 7500, "upteamCost": 4875}},
+    
+    {"category": "profitMargin", "test": "50% gross margin", "input": {"clientPrice": 10000, "upteamCost": 5000}, "expected": {"margin": 5000, "grossMarginPercent": 50}},
+    {"category": "profitMargin", "test": "35% gross margin", "input": {"clientPrice": 10000, "upteamCost": 6500}, "expected": {"margin": 3500, "grossMarginPercent": 35}},
+    
+    {"category": "lodMultiplier", "test": "LoD 200 = 1.0", "input": "200", "expected": 1.0},
+    {"category": "lodMultiplier", "test": "LoD 300 = 1.3", "input": "300", "expected": 1.3},
+    {"category": "lodMultiplier", "test": "LoD 350 = 1.5", "input": "350", "expected": 1.5},
+    
+    {"category": "defaultBaseRate", "test": "arch = $2.50", "input": "arch", "expected": 2.50},
+    {"category": "defaultBaseRate", "test": "mepf = $3.00", "input": "mepf", "expected": 3.00},
+    {"category": "defaultBaseRate", "test": "structure = $2.00", "input": "structure", "expected": 2.00},
+    {"category": "defaultBaseRate", "test": "site = $1.50", "input": "site", "expected": 1.50}
   ]
 }

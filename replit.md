@@ -6,6 +6,19 @@ A professional web-based pricing calculator for Scan-to-BIM (Building Informatio
 
 ## Recent Changes
 
+### Cross-Agent Pricing Validation System (January 2026)
+- Created testable pricing engine module (`server/lib/pricingEngine.ts`) with pure functions for all calculation logic
+- Added 85 golden test cases in `server/lib/pricingEngine.golden.json` for cross-system validation
+- Implemented validation script (`scripts/validate-pricing-tests.ts`) to verify pricing parity
+- Key modeling cost calculation functions added:
+  - `calculateAreaPricing()` - Core function for standard discipline pricing with client and upteam costs
+  - `calculateLandscapeAreaPricing()` - Per-acre landscape pricing
+  - `calculateACTAreaPricing()` - Above Ceiling Tile at $2.00/sqft
+  - `calculateMatterportPricing()` - Virtual tours at $0.10/sqft
+  - `calculateProfitMargin()` - Margin calculations between client and vendor costs
+- Run validation: `npx tsx scripts/validate-pricing-tests.ts`
+- Test categories: areaTier, brooklynTravel, landscape, travel, riskPremiums, tierA, scopeDiscounts, paymentTerms, modelingCost, profitMargin
+
 ### Integrity Auditor Implementation (January 2026)
 - Added quote integrity validation system to enforce business rules before finalization
 - Created PRICING_GUARDRAILS.json configuration file with 6 validation checks:

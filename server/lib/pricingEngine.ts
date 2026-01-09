@@ -413,6 +413,188 @@ export function calculateAdditionalElevationsPrice(count: number): number {
 }
 
 // ============================================================================
+// MODELING COST CALCULATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Fallback multiplier when upteam rate not found in database
+ * This means vendor cost = client price * 0.65
+ */
+export const UPTEAM_MULTIPLIER_FALLBACK = 0.65;
+
+/**
+ * Minimum sqft floor for pricing (areas below this are priced at this minimum)
+ */
+export const MIN_SQFT_FLOOR = 3000;
+
+/**
+ * Default base rates per discipline (fallback when database rate not found)
+ */
+export const DEFAULT_BASE_RATES = {
+  arch: 2.50,
+  architecture: 2.50,
+  mepf: 3.00,
+  structure: 2.00,
+  site: 1.50,
+};
+
+/**
+ * LoD multipliers for base rate calculations
+ */
+export const LOD_MULTIPLIERS = {
+  "200": 1.0,
+  "300": 1.3,
+  "350": 1.5,
+};
+
+/**
+ * ACT (Above Ceiling Tile) rate per sqft
+ */
+export const ACT_RATE_PER_SQFT = 2.00;
+
+/**
+ * Matterport rate per sqft
+ */
+export const MATTERPORT_RATE_PER_SQFT = 0.10;
+
+export interface AreaPricingInput {
+  buildingTypeId: string;
+  sqft: number;
+  discipline: string;
+  lod: string;
+  clientRatePerSqft: number | null;  // From pricing matrix, null if not found
+  upteamRatePerSqft: number | null;  // From upteam matrix, null if not found
+  scopePortion: number;              // 1.0 = full, 0.65 = interior, 0.35 = exterior
+}
+
+export interface AreaPricingResult {
+  clientPrice: number;
+  upteamCost: number;
+  effectiveSqft: number;
+  rateUsed: 'database' | 'fallback';
+  upteamRateUsed: 'database' | 'fallback';
+}
+
+/**
+ * Calculate client price and upteam (modeling) cost for a standard discipline area
+ * 
+ * CALCULATION LOGIC:
+ * 1. Apply minimum sqft floor (3000 sqft)
+ * 2. Look up client rate from pricing matrix
+ *    - If found: clientPrice = sqft * clientRatePerSqft * scopePortion
+ *    - If not found: use fallback base rate * LoD multiplier
+ * 3. Look up upteam rate from upteam pricing matrix
+ *    - If found: upteamCost = sqft * upteamRatePerSqft * scopePortion
+ *    - If not found: upteamCost = clientPrice * 0.65 (fallback multiplier)
+ */
+export function calculateAreaPricing(input: AreaPricingInput): AreaPricingResult {
+  const effectiveSqft = Math.max(input.sqft, MIN_SQFT_FLOOR);
+  let clientPrice: number;
+  let upteamCost: number;
+  let rateUsed: 'database' | 'fallback' = 'database';
+  let upteamRateUsed: 'database' | 'fallback' = 'database';
+  
+  // Calculate client price
+  if (input.clientRatePerSqft !== null && input.clientRatePerSqft > 0) {
+    clientPrice = effectiveSqft * input.clientRatePerSqft * input.scopePortion;
+  } else {
+    rateUsed = 'fallback';
+    const baseRate = DEFAULT_BASE_RATES[input.discipline as keyof typeof DEFAULT_BASE_RATES] || 2.50;
+    const lodMultiplier = LOD_MULTIPLIERS[input.lod as keyof typeof LOD_MULTIPLIERS] || 1.0;
+    clientPrice = effectiveSqft * baseRate * lodMultiplier * input.scopePortion;
+  }
+  
+  // Calculate upteam (modeling) cost
+  if (input.upteamRatePerSqft !== null && input.upteamRatePerSqft > 0) {
+    upteamCost = effectiveSqft * input.upteamRatePerSqft * input.scopePortion;
+  } else {
+    upteamRateUsed = 'fallback';
+    upteamCost = clientPrice * UPTEAM_MULTIPLIER_FALLBACK;
+  }
+  
+  return {
+    clientPrice,
+    upteamCost,
+    effectiveSqft,
+    rateUsed,
+    upteamRateUsed,
+  };
+}
+
+/**
+ * Calculate pricing for landscape areas (per-acre based)
+ * Upteam cost always uses fallback multiplier (no database rates for landscape)
+ */
+export function calculateLandscapeAreaPricing(
+  buildingTypeId: string,
+  acres: number,
+  lod: string,
+  scopePortion: number = 1.0
+): AreaPricingResult {
+  const clientPrice = calculateLandscapePrice(buildingTypeId, acres, lod) * scopePortion;
+  const upteamCost = clientPrice * UPTEAM_MULTIPLIER_FALLBACK;
+  
+  return {
+    clientPrice,
+    upteamCost,
+    effectiveSqft: acresToSqft(acres),
+    rateUsed: 'database', // Landscape uses hardcoded rates
+    upteamRateUsed: 'fallback',
+  };
+}
+
+/**
+ * Calculate pricing for ACT (Above Ceiling Tile) areas
+ * Fixed rate of $2.00/sqft, upteam uses fallback multiplier
+ */
+export function calculateACTAreaPricing(sqft: number, scopePortion: number = 1.0): AreaPricingResult {
+  const effectiveSqft = Math.max(sqft, MIN_SQFT_FLOOR);
+  const clientPrice = effectiveSqft * ACT_RATE_PER_SQFT * scopePortion;
+  const upteamCost = clientPrice * UPTEAM_MULTIPLIER_FALLBACK;
+  
+  return {
+    clientPrice,
+    upteamCost,
+    effectiveSqft,
+    rateUsed: 'database',
+    upteamRateUsed: 'fallback',
+  };
+}
+
+/**
+ * Calculate pricing for Matterport virtual tours
+ * Fixed rate of $0.10/sqft, upteam uses fallback multiplier
+ */
+export function calculateMatterportPricing(sqft: number): AreaPricingResult {
+  const effectiveSqft = Math.max(sqft, MIN_SQFT_FLOOR);
+  const clientPrice = effectiveSqft * MATTERPORT_RATE_PER_SQFT;
+  const upteamCost = clientPrice * UPTEAM_MULTIPLIER_FALLBACK;
+  
+  return {
+    clientPrice,
+    upteamCost,
+    effectiveSqft,
+    rateUsed: 'database',
+    upteamRateUsed: 'fallback',
+  };
+}
+
+/**
+ * Calculate profit margin between client price and upteam cost
+ */
+export function calculateProfitMargin(clientPrice: number, upteamCost: number): {
+  margin: number;
+  marginPercent: number;
+  grossMarginPercent: number;
+} {
+  const margin = clientPrice - upteamCost;
+  const marginPercent = upteamCost > 0 ? (margin / upteamCost) * 100 : 0;
+  const grossMarginPercent = clientPrice > 0 ? (margin / clientPrice) * 100 : 0;
+  
+  return { margin, marginPercent, grossMarginPercent };
+}
+
+// ============================================================================
 // EXPORT ALL FOR TESTING
 // ============================================================================
 
@@ -426,6 +608,12 @@ export const PricingEngine = {
   PAYMENT_TERM_PREMIUMS,
   TIER_A_THRESHOLD,
   LANDSCAPE_RATES,
+  UPTEAM_MULTIPLIER_FALLBACK,
+  MIN_SQFT_FLOOR,
+  DEFAULT_BASE_RATES,
+  LOD_MULTIPLIERS,
+  ACT_RATE_PER_SQFT,
+  MATTERPORT_RATE_PER_SQFT,
   
   // Functions
   getAreaTier,
@@ -450,4 +638,9 @@ export const PricingEngine = {
   applyPaymentTermPremium,
   calculateTotalSqft,
   calculateAdditionalElevationsPrice,
+  calculateAreaPricing,
+  calculateLandscapeAreaPricing,
+  calculateACTAreaPricing,
+  calculateMatterportPricing,
+  calculateProfitMargin,
 };

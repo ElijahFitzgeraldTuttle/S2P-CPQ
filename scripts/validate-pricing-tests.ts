@@ -30,6 +30,13 @@ import {
   getPaymentTermPremium,
   applyPaymentTermPremium,
   calculateAdditionalElevationsPrice,
+  calculateAreaPricing,
+  calculateLandscapeAreaPricing,
+  calculateACTAreaPricing,
+  calculateMatterportPricing,
+  calculateProfitMargin,
+  LOD_MULTIPLIERS,
+  DEFAULT_BASE_RATES,
 } from '../server/lib/pricingEngine';
 
 import * as fs from 'fs';
@@ -128,6 +135,58 @@ function runTest(category: string, test: string, input: any, expected: any): Tes
         break;
       case 'elevations':
         actual = calculateAdditionalElevationsPrice(input);
+        break;
+      case 'modelingCost':
+        const areaResult = calculateAreaPricing({
+          buildingTypeId: '1',
+          sqft: input.sqft,
+          discipline: input.discipline,
+          lod: input.lod,
+          clientRatePerSqft: input.clientRate,
+          upteamRatePerSqft: input.upteamRate,
+          scopePortion: input.scope,
+        });
+        actual = {
+          clientPrice: areaResult.clientPrice,
+          upteamCost: areaResult.upteamCost,
+          effectiveSqft: areaResult.effectiveSqft,
+        };
+        break;
+      case 'actPricing':
+        const actResult = calculateACTAreaPricing(input);
+        actual = {
+          clientPrice: actResult.clientPrice,
+          upteamCost: actResult.upteamCost,
+          effectiveSqft: actResult.effectiveSqft,
+        };
+        break;
+      case 'matterportPricing':
+        const mpResult = calculateMatterportPricing(input);
+        actual = {
+          clientPrice: mpResult.clientPrice,
+          upteamCost: mpResult.upteamCost,
+          effectiveSqft: mpResult.effectiveSqft,
+        };
+        break;
+      case 'landscapeAreaPricing':
+        const landscapeResult = calculateLandscapeAreaPricing(input.type, input.acres, input.lod);
+        actual = {
+          clientPrice: landscapeResult.clientPrice,
+          upteamCost: landscapeResult.upteamCost,
+        };
+        break;
+      case 'profitMargin':
+        const marginResult = calculateProfitMargin(input.clientPrice, input.upteamCost);
+        actual = {
+          margin: marginResult.margin,
+          grossMarginPercent: marginResult.grossMarginPercent,
+        };
+        break;
+      case 'lodMultiplier':
+        actual = LOD_MULTIPLIERS[input as keyof typeof LOD_MULTIPLIERS];
+        break;
+      case 'defaultBaseRate':
+        actual = DEFAULT_BASE_RATES[input as keyof typeof DEFAULT_BASE_RATES];
         break;
       default:
         actual = null;
