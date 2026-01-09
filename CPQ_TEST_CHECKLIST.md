@@ -297,4 +297,36 @@ After modifying pricing logic, re-run:
 
 ---
 
+## Automated Test Commands
+
+### Unit Tests (72 tests)
+Tests individual pricing functions:
+```bash
+npx tsx server/lib/pricingEngine.test.ts
+```
+
+### Golden Validation Tests (85 tests)
+Validates pricing parity with golden results file for cross-system validation:
+```bash
+npx tsx scripts/validate-pricing-tests.ts
+```
+
+### Run Both
+```bash
+npx tsx server/lib/pricingEngine.test.ts && npx tsx scripts/validate-pricing-tests.ts
+```
+
+---
+
+## Known Issues
+
+### Scope Discount Value Mismatch
+There is a discrepancy between scope discount values:
+- **Calculator.tsx**: Interior 25%, Exterior 50%
+- **pricingEngine.ts**: Interior 35%, Exterior 65%
+
+This needs clarification on which values are authoritative.
+
+---
+
 *Last Updated: January 2026*
