@@ -13,6 +13,10 @@ const allowedOrigins = [
   /\.replit\.app$/,
   /\.replit\.dev$/,
   /\.scan2plan\.dev$/,
+  // Development origins
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^http:\/\/0\.0\.0\.0(:\d+)?$/,
 ];
 
 app.use(cors({
