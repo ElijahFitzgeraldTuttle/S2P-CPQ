@@ -6,6 +6,22 @@ A professional web-based pricing calculator for Scan-to-BIM (Building Informatio
 
 ## Recent Changes
 
+### Bi-Directional CRM Integration (January 2026)
+- Implemented full bi-directional API integration between CPQ and external CRM (Scan2Plan-OS)
+- Added `returnUrl` parameter handling in Calculator for navigation back to CRM
+- Created "Back to CRM" breadcrumb link when navigating from CRM with returnUrl parameter
+- New API endpoints for CPQ→CRM communication:
+  - GET `/api/leads/:id` - Fetch lead details from CRM to pre-populate quote form
+  - POST `/api/quotes/:id/sync-to-crm` - Send complete quote data to CRM webhook
+- Existing CRM→CPQ endpoints (secured with CPQ_API_KEY):
+  - GET `/api/crm/quotes/:id` - Fetch complete quote for CRM proposal generation
+  - GET `/api/crm/quotes` - List all quotes for CRM sync
+- Frontend automatically fetches lead data when `leadId` URL parameter present (and no existing quote)
+- Quote save automatically syncs to CRM via existing `/api/sync-to-crm` endpoint
+- Environment variables for outbound CRM calls:
+  - `CRM_API_URL` - Base URL of external CRM (default: https://scan2plan-os.replit.app)
+  - `CRM_API_KEY` - API key for authenticating CPQ→CRM calls (fallback to CPQ_API_KEY)
+
 ### Cross-Agent Pricing Validation System (January 2026)
 - Created testable pricing engine module (`server/lib/pricingEngine.ts`) with pure functions for all calculation logic
 - Added 85 golden test cases in `server/lib/pricingEngine.golden.json` for cross-system validation

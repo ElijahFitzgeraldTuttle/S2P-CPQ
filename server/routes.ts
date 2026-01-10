@@ -1342,6 +1342,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/leads/:id - Fetch lead details from external CRM (Scan2Plan-OS)
+  // This is called by the frontend to pre-populate quote form from CRM lead data
+  app.get("/api/leads/:id", async (req, res) => {
+    try {
+      const leadId = req.params.id;
+      
+      if (!leadId || isNaN(parseInt(leadId))) {
+        return res.status(400).json({ error: "Valid leadId is required" });
+      }
+      
+      const CRM_API_URL = process.env.CRM_API_URL || "https://scan2plan-os.replit.app";
+      const CRM_API_KEY = process.env.CRM_API_KEY || process.env.CPQ_API_KEY;
+      
+      if (!CRM_API_KEY) {
+        console.warn("CRM_API_KEY not configured, returning empty lead data");
+        return res.json({ 
+          leadId: parseInt(leadId),
+          source: "fallback",
+          message: "CRM API key not configured"
+        });
+      }
+      
+      console.log(`Fetching lead ${leadId} from CRM: ${CRM_API_URL}`);
+      
+      const leadResponse = await fetch(`${CRM_API_URL}/api/cpq/leads/${leadId}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${CRM_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (!leadResponse.ok) {
+        if (leadResponse.status === 404) {
+          return res.status(404).json({ error: "Lead not found in CRM" });
+        }
+        const errorText = await leadResponse.text();
+        console.error(`Failed to fetch lead from CRM: ${leadResponse.status}`, errorText);
+        return res.json({
+          leadId: parseInt(leadId),
+          source: "fallback",
+          message: `CRM returned ${leadResponse.status}`
+        });
+      }
+      
+      const leadData = await leadResponse.json();
+      console.log(`Successfully fetched lead ${leadId}:`, leadData);
+      
+      res.json({
+        leadId: parseInt(leadId),
+        source: "crm",
+        ...leadData
+      });
+    } catch (error) {
+      console.error("Error fetching lead from CRM:", error);
+      res.json({
+        leadId: parseInt(req.params.id),
+        source: "error",
+        message: "Failed to connect to CRM"
+      });
+    }
+  });
+
+  // POST /api/quotes/:id/sync-to-crm - Webhook to notify CRM when quote is saved/finalized
+  // This sends full quote details to the CRM for timeline tracking
+  app.post("/api/quotes/:id/sync-to-crm", async (req, res) => {
+    try {
+      const quoteId = req.params.id;
+      const quote = await storage.getQuote(quoteId);
+      
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+      
+      // Check if quote has associated lead
+      const leadId = quote.leadId;
+      
+      if (!leadId) {
+        return res.json({ 
+          success: false, 
+          message: "Quote not linked to a CRM lead" 
+        });
+      }
+      
+      const CRM_API_URL = process.env.CRM_API_URL || "https://scan2plan-os.replit.app";
+      const CRM_API_KEY = process.env.CRM_API_KEY || process.env.CPQ_API_KEY;
+      
+      if (!CRM_API_KEY) {
+        console.warn("CRM_API_KEY not configured, skipping CRM sync");
+        return res.json({ 
+          success: false, 
+          message: "CRM integration not configured" 
+        });
+      }
+      
+      // Build quote data payload for CRM
+      const quotePayload = {
+        quoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+        versionNumber: quote.versionNumber || 1,
+        projectName: quote.projectName,
+        clientName: quote.clientName,
+        totalPrice: Number(quote.totalPrice) || 0,
+        integrityStatus: quote.integrityStatus || "pass",
+        quoteUrl: `https://scan2plan-cpq.replit.app/calculator/${quote.id}`,
+        syncedAt: new Date().toISOString(),
+        areas: quote.areas || [],
+        risks: quote.risks || [],
+        services: quote.services || {},
+        dispatchLocation: quote.dispatchLocation,
+        distance: quote.distance
+      };
+      
+      console.log(`Syncing quote ${quoteId} to CRM for lead ${leadId}:`, quotePayload);
+      
+      const syncResponse = await fetch(`${CRM_API_URL}/api/cpq/quotes/${leadId}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${CRM_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(quotePayload)
+      });
+      
+      if (!syncResponse.ok) {
+        const errorText = await syncResponse.text();
+        console.error(`Failed to sync quote to CRM: ${syncResponse.status}`, errorText);
+        return res.json({
+          success: false,
+          message: `CRM sync failed: ${syncResponse.status}`,
+          details: errorText
+        });
+      }
+      
+      const syncResult = await syncResponse.json();
+      console.log("Quote sync to CRM successful:", syncResult);
+      
+      res.json({ 
+        success: true, 
+        message: "Quote synced to CRM",
+        syncResult 
+      });
+    } catch (error) {
+      console.error("Error syncing quote to CRM:", error);
+      res.status(500).json({ error: "Failed to sync quote to CRM" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

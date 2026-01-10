@@ -216,6 +216,12 @@ export default function Calculator() {
     queryKey: ["/api/pricing-parameters"],
   });
 
+  // Fetch lead details from CRM when leadId is present and no existing quote
+  const { data: leadData, isLoading: isLoadingLead } = useQuery<any>({
+    queryKey: ["/api/leads", urlParams.leadId],
+    enabled: !!urlParams.leadId && !quoteId,
+  });
+
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
   // Initialize leadId from URL params immediately
@@ -523,6 +529,60 @@ export default function Calculator() {
     
     return () => window.removeEventListener("message", handleMessage);
   }, [quoteId]);
+
+  // Pre-populate form fields from CRM lead data when fetched
+  useEffect(() => {
+    if (!leadData || leadData.source === "fallback" || leadData.source === "error" || quoteId) {
+      return;
+    }
+    
+    console.log("Pre-populating form from CRM lead data:", leadData);
+    
+    // Update project details
+    if (leadData.company || leadData.project || leadData.address) {
+      setProjectDetails(prev => ({
+        ...prev,
+        clientName: leadData.company || prev.clientName,
+        projectName: leadData.project || prev.projectName,
+        projectAddress: leadData.address || prev.projectAddress,
+      }));
+    }
+    
+    // Update areas with building type, sqft, scope, disciplines
+    if (leadData.buildingType || leadData.sqft || leadData.scope || leadData.disciplines) {
+      const parsedDisciplines = parseDisciplines(leadData.disciplines);
+      setAreas(prev => prev.map((area, idx) => {
+        if (idx !== 0) return area;
+        return {
+          ...area,
+          buildingType: mapBuildingType(leadData.buildingType) || area.buildingType,
+          squareFeet: leadData.sqft?.toString() || area.squareFeet,
+          scope: mapScope(leadData.scope),
+          disciplines: parsedDisciplines.disciplines.length > 0 ? parsedDisciplines.disciplines : area.disciplines,
+          disciplineLods: Object.keys(parsedDisciplines.lods).length > 0 ? parsedDisciplines.lods : area.disciplineLods,
+        };
+      }));
+    }
+    
+    // Update dispatch and distance
+    if (leadData.dispatchLocation) {
+      setDispatch(mapDispatchLocation(leadData.dispatchLocation));
+    }
+    if (leadData.distance) {
+      setDistance(parseInt(leadData.distance.toString(), 10));
+      setDistanceCalculated(true);
+    }
+    
+    // Update contact info in scopingData
+    if (leadData.contactName || leadData.contactEmail || leadData.contactPhone) {
+      setScopingData(prev => ({
+        ...prev,
+        accountContact: leadData.contactName || prev.accountContact,
+        accountContactEmail: leadData.contactEmail || prev.accountContactEmail,
+        accountContactPhone: leadData.contactPhone || prev.accountContactPhone,
+      }));
+    }
+  }, [leadData, quoteId]);
 
   const handleProjectDetailChange = (field: string, value: string | boolean) => {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
