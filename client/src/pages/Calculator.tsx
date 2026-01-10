@@ -606,12 +606,12 @@ export default function Calculator() {
           
           if (isLandscape) {
             updatedArea.disciplines = ["site"];
-            updatedArea.disciplineLods = { site: updatedArea.disciplineLods.site || "300" };
+            updatedArea.disciplineLods = { site: (updatedArea.disciplineLods?.site) || "300" };
             updatedArea.includeCad = false;
             updatedArea.additionalElevations = 0;
           } else if (isACT) {
             updatedArea.disciplines = ["mepf"];
-            updatedArea.disciplineLods = { mepf: updatedArea.disciplineLods.mepf || "300" };
+            updatedArea.disciplineLods = { mepf: (updatedArea.disciplineLods?.mepf) || "300" };
             updatedArea.includeCad = false;
             updatedArea.additionalElevations = 0;
           }
@@ -644,7 +644,7 @@ export default function Calculator() {
             : [...area.disciplines, disciplineId]
           : area.disciplines.filter((d) => d !== disciplineId);
         
-        const newLods = { ...area.disciplineLods };
+        const newLods = { ...(area.disciplineLods || {}) };
         if (checked && !newLods[disciplineId]) {
           newLods[disciplineId] = "300";
         }
@@ -2213,7 +2213,7 @@ export default function Calculator() {
       disciplines.forEach((discipline) => {
         // Handle Roof/Facades Only Scope - create separate line items for each facade/roof entry
         if (scope === "roof" && discipline !== "matterport" && !isLandscape && !isACT) {
-          const lod = area.disciplineLods[discipline] || "300";
+          const lod = (area.disciplineLods && area.disciplineLods[discipline]) || "300";
           const facades = area.facades || [];
           
           // Calculate base price at full rate for reference
@@ -2282,7 +2282,7 @@ export default function Calculator() {
           });
         } else {
           // Standard single line item processing
-          const lod = area.disciplineLods[discipline] || "300";
+          const lod = (area.disciplineLods && area.disciplineLods[discipline]) || "300";
           const result = calculateDisciplinePricing(discipline, lod, 1.0, "full");
           let lineTotal = result.lineTotal;
           let upteamLineCost = result.upteamLineCost;
