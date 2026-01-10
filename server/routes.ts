@@ -1034,7 +1034,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateQuote(exception.quoteId, {
           overrideApproved: true,
           overrideApprovedBy: reviewedBy || "Admin",
-          overrideApprovedAt: new Date(),
         });
       }
       
@@ -1086,6 +1085,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching guardrails:", error);
       res.status(500).json({ error: "Failed to fetch guardrails" });
+    }
+  });
+
+  // ===========================================
+  // CRM INTEGRATION API
+  // ===========================================
+  
+  const BUILDING_TYPE_NAMES: Record<string, string> = {
+    "1": "Residential - Single Family",
+    "2": "Residential - Multi Family",
+    "3": "Residential - Luxury",
+    "4": "Commercial / Office",
+    "5": "Retail / Restaurants",
+    "6": "Kitchen / Catering Facilities",
+    "7": "Education",
+    "8": "Hotel / Theatre / Museum",
+    "9": "Hospitals / Mixed Use",
+    "10": "Mechanical / Utility Rooms",
+    "11": "Warehouse / Storage",
+    "12": "Religious Buildings",
+    "13": "Infrastructure / Roads / Bridges",
+    "14": "Built Landscape",
+    "15": "Natural Landscape",
+    "16": "ACT (Above Ceiling Tiles)",
+  };
+
+  const DISCIPLINE_DISPLAY_NAMES: Record<string, string> = {
+    "arch": "Architecture",
+    "architecture": "Architecture",
+    "struct": "Structure",
+    "structure": "Structure",
+    "mepf": "MEPF",
+    "mep": "MEPF",
+    "site": "Site",
+    "matterport": "Matterport",
+  };
+
+  const SCOPE_DISPLAY_NAMES: Record<string, string> = {
+    "full": "Full Building (Interior + Exterior)",
+    "interior": "Interior Only",
+    "exterior": "Exterior Only",
+    "mixed": "Mixed Scope",
+  };
+
+  // Middleware to check CRM API key
+  const verifyCrmApiKey = (req: any, res: any, next: any) => {
+    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    const expectedKey = process.env.CPQ_API_KEY;
+    
+    if (!expectedKey) {
+      console.error("CPQ_API_KEY not configured");
+      return res.status(500).json({ error: "API key not configured on server" });
+    }
+    
+    if (!apiKey || apiKey !== expectedKey) {
+      return res.status(401).json({ error: "Invalid or missing API key" });
+    }
+    
+    next();
+  };
+
+  // GET /api/crm/quotes/:id - Get complete quote data for CRM proposal generation
+  app.get("/api/crm/quotes/:id", verifyCrmApiKey, async (req, res) => {
+    try {
+      const quote = await storage.getQuote(req.params.id);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+
+      // Parse areas data
+      const areas = Array.isArray(quote.areas) ? quote.areas : [];
+      
+      // Format areas for CRM
+      const formattedAreas = areas.map((area: any, index: number) => {
+        const buildingTypeId = area.buildingType || area.buildingTypeId || "1";
+        const buildingTypeName = BUILDING_TYPE_NAMES[buildingTypeId] || `Building Type ${buildingTypeId}`;
+        
+        // Format disciplines with proper capitalization
+        const rawDisciplines = area.disciplines || [];
+        const formattedDisciplines = rawDisciplines.map((d: string) => 
+          DISCIPLINE_DISPLAY_NAMES[d.toLowerCase()] || d.charAt(0).toUpperCase() + d.slice(1)
+        );
+        
+        // Calculate individual discipline pricing if available
+        const disciplinePricing: Record<string, number> = {};
+        if (area.disciplineLods) {
+          for (const [disc, lod] of Object.entries(area.disciplineLods)) {
+            const displayName = DISCIPLINE_DISPLAY_NAMES[disc.toLowerCase()] || disc;
+            disciplinePricing[displayName] = 0; // Placeholder - would be calculated from pricing engine
+          }
+        }
+        
+        const sqft = area.squareFeet || area.squareFootage || 0;
+        const scope = area.scope || "full";
+        const lod = area.gradeLod || area.lod || "300";
+        
+        return {
+          id: area.id || `area-${index + 1}`,
+          name: area.name || `Area ${index + 1}`,
+          buildingTypeId,
+          buildingTypeName,
+          squareFeet: Number(sqft),
+          scope: SCOPE_DISPLAY_NAMES[scope] || scope,
+          scopeRaw: scope,
+          lod: String(lod),
+          disciplines: formattedDisciplines,
+          disciplineLods: area.disciplineLods || {},
+          isLandscape: buildingTypeId === "14" || buildingTypeId === "15",
+          pricing: disciplinePricing,
+        };
+      });
+
+      // Parse risks
+      const risks = Array.isArray(quote.risks) ? quote.risks : [];
+      const formattedRisks = risks.map((risk: string) => {
+        const riskLabels: Record<string, { label: string; appliesTo: string; percentage: number }> = {
+          "occupied": { label: "Occupied Building", appliesTo: "Architecture only", percentage: 15 },
+          "hazardous": { label: "Hazardous Materials", appliesTo: "Architecture only", percentage: 25 },
+          "no_power": { label: "No Power", appliesTo: "Architecture only", percentage: 20 },
+          "height": { label: "Height Premium", appliesTo: "All disciplines", percentage: 10 },
+          "weather": { label: "Weather Conditions", appliesTo: "All disciplines", percentage: 15 },
+        };
+        const riskInfo = riskLabels[risk] || { label: risk, appliesTo: "All disciplines", percentage: 0 };
+        return {
+          type: risk,
+          ...riskInfo,
+        };
+      });
+
+      // Parse services
+      const services = typeof quote.services === 'object' && quote.services ? quote.services : {};
+      
+      // Calculate total square feet
+      const totalSqft = formattedAreas.reduce((sum: number, area: any) => sum + area.squareFeet, 0);
+
+      // Build travel info
+      let travelInfo = null;
+      if (quote.distance && quote.distance > 0) {
+        const ratePerMile = 3.00; // Standard rate
+        travelInfo = {
+          type: "mileage",
+          dispatchLocation: quote.dispatchLocation || "Brooklyn",
+          distance: quote.distance,
+          ratePerMile,
+          total: quote.distance * ratePerMile,
+        };
+      } else if (quote.customTravelCost && Number(quote.customTravelCost) > 0) {
+        travelInfo = {
+          type: "custom",
+          dispatchLocation: quote.dispatchLocation || "Brooklyn",
+          total: Number(quote.customTravelCost),
+        };
+      }
+
+      // Format response
+      const crmQuoteData = {
+        quoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+        quoteDate: quote.createdAt?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+        
+        // Project info
+        projectName: quote.projectName,
+        projectAddress: quote.projectAddress || "",
+        specificBuilding: quote.specificBuilding || "",
+        primaryBuildingType: quote.typeOfBuilding || "",
+        
+        // Client info
+        clientName: quote.clientName || "",
+        clientCompany: "", // Not stored separately in current schema
+        clientEmail: "", // Would come from CRM sync
+        clientPhone: "", // Would come from CRM sync
+        
+        // Contacts (placeholders - would come from extended schema)
+        accountContact: {
+          name: "",
+          email: "",
+          phone: "",
+        },
+        siteContact: {
+          name: "",
+          email: "",
+          phone: "",
+        },
+        
+        // Areas with full details
+        areas: formattedAreas,
+        totalSquareFeet: totalSqft,
+        
+        // Risk factors
+        risks: formattedRisks,
+        
+        // Travel
+        travel: travelInfo,
+        
+        // Additional services
+        additionalServices: {
+          cadPackage: (services as any).cadPackage || false,
+          matterport: (services as any).matterport || false,
+          act: (services as any).act || false,
+        },
+        
+        // Pricing
+        subtotal: 0, // Would need to calculate from breakdown
+        adjustments: 0,
+        totalPrice: Number(quote.totalPrice) || 0,
+        pricingBreakdown: quote.pricingBreakdown || {},
+        
+        // Terms
+        paymentTerms: "Net 30",
+        depositRequired: "50%",
+        proposalValidDays: 30,
+        
+        // Integrity status
+        integrityStatus: quote.integrityStatus || "pass",
+        requiresOverride: quote.requiresOverride || false,
+        overrideApproved: quote.overrideApproved || false,
+        
+        // Metadata
+        createdAt: quote.createdAt?.toISOString() || new Date().toISOString(),
+        updatedAt: quote.updatedAt?.toISOString() || new Date().toISOString(),
+        versionNumber: quote.versionNumber || 1,
+      };
+
+      res.json(crmQuoteData);
+    } catch (error) {
+      console.error("Error fetching quote for CRM:", error);
+      res.status(500).json({ error: "Failed to fetch quote data" });
+    }
+  });
+
+  // GET /api/crm/quotes - List all quotes for CRM sync (with pagination)
+  app.get("/api/crm/quotes", verifyCrmApiKey, async (req, res) => {
+    try {
+      const allQuotes = await storage.getAllQuotes();
+      
+      // Return simplified list for CRM sync
+      const quoteList = allQuotes.map(quote => ({
+        quoteId: quote.id,
+        quoteNumber: quote.quoteNumber,
+        projectName: quote.projectName,
+        clientName: quote.clientName || "",
+        totalPrice: Number(quote.totalPrice) || 0,
+        integrityStatus: quote.integrityStatus || "pass",
+        createdAt: quote.createdAt?.toISOString() || "",
+        updatedAt: quote.updatedAt?.toISOString() || "",
+      }));
+
+      res.json({
+        quotes: quoteList,
+        total: quoteList.length,
+      });
+    } catch (error) {
+      console.error("Error fetching quotes for CRM:", error);
+      res.status(500).json({ error: "Failed to fetch quotes" });
     }
   });
 
