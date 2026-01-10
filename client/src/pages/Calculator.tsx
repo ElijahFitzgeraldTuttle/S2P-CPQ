@@ -21,7 +21,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
 import RiskFactors from "@/components/RiskFactors";
@@ -30,7 +29,8 @@ import AdditionalServices from "@/components/AdditionalServices";
 import PricingSummary from "@/components/PricingSummary";
 import QuoteFields from "@/components/QuoteFields";
 import ScopeFields from "@/components/ScopeFields";
-import CRMFields from "@/components/CRMFields";
+import LeadFields from "@/components/LeadFields";
+import InternalNotesFields from "@/components/InternalNotesFields";
 import VersionControl from "@/components/VersionControl";
 import IntegrityAuditPanel from "@/components/IntegrityAuditPanel";
 import { Separator } from "@/components/ui/separator";
@@ -2644,7 +2644,39 @@ export default function Calculator() {
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {/* QUOTE SECTION */}
+            {/* LEAD PANEL - Business & Contact Information */}
+            <div className="rounded-lg bg-amber-50/30 dark:bg-amber-950/10 p-6 space-y-6">
+              <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-100">Lead</h2>
+              
+              <LeadFields
+                projectDetails={{
+                  clientName: projectDetails.clientName,
+                  projectName: projectDetails.projectName,
+                  projectAddress: projectDetails.projectAddress,
+                  specificBuilding: projectDetails.specificBuilding,
+                }}
+                scopingData={{
+                  accountContact: scopingData.accountContact,
+                  accountContactEmail: scopingData.accountContactEmail,
+                  accountContactPhone: scopingData.accountContactPhone,
+                  designProContact: scopingData.designProContact,
+                  designProCompanyContact: scopingData.designProCompanyContact,
+                  otherContact: scopingData.otherContact,
+                  source: scopingData.source,
+                  sourceNote: scopingData.sourceNote,
+                  assist: scopingData.assist,
+                  probabilityOfClosing: scopingData.probabilityOfClosing,
+                  projectStatus: scopingData.projectStatus,
+                  projectStatusOther: scopingData.projectStatusOther,
+                  proofLinks: scopingData.proofLinks,
+                  ndaFiles: scopingData.ndaFiles,
+                }}
+                onProjectDetailChange={handleProjectDetailChange}
+                onScopingDataChange={handleScopingDataChange}
+              />
+            </div>
+
+            {/* QUOTE PANEL - Technical Scoping & Pricing */}
             <div className="rounded-lg bg-blue-50/30 dark:bg-blue-950/10 p-6 space-y-6">
               <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100">Quote</h2>
               
@@ -2700,24 +2732,23 @@ export default function Calculator() {
               <Separator />
 
               <QuoteFields data={scopingData} onChange={handleScopingDataChange} />
-            </div>
-
-            {/* SCOPE SECTION */}
-            <div className="rounded-lg bg-green-50/30 dark:bg-green-950/10 p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-green-900 dark:text-green-100">Scope</h2>
-              
-              <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
 
               <Separator />
 
-              <ScopeFields data={scopingData} onChange={handleScopingDataChange} />
-            </div>
+              <ScopeFields 
+                data={scopingData} 
+                projectDetails={{
+                  hasBasement: projectDetails.hasBasement,
+                  hasAttic: projectDetails.hasAttic,
+                  notes: projectDetails.notes,
+                }}
+                onChange={handleScopingDataChange}
+                onProjectDetailChange={handleProjectDetailChange}
+              />
 
-            {/* CRM SECTION */}
-            <div className="rounded-lg bg-amber-50/30 dark:bg-amber-950/10 p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-100">CRM</h2>
-              
-              <CRMFields data={scopingData} onChange={handleScopingDataChange} />
+              <Separator />
+
+              <InternalNotesFields data={scopingData} onChange={handleScopingDataChange} />
             </div>
 
             <div className="flex flex-wrap gap-3 pt-6">
