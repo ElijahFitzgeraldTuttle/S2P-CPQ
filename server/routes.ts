@@ -904,8 +904,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!syncResponse.ok) {
         const errorText = await syncResponse.text();
         console.error(`Failed to sync to Scan2Plan-OS: ${syncResponse.status}`, errorText);
-        return res.status(syncResponse.status).json({ 
-          error: "Failed to sync to CRM", 
+        // Return 200 with success: false so the quote save isn't treated as failed
+        // The sync can be retried later or will happen on next save
+        return res.json({ 
+          success: false, 
+          syncPending: true,
+          error: `CRM returned ${syncResponse.status}`,
           details: errorText 
         });
       }
@@ -913,10 +917,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const syncResult = await syncResponse.json();
       console.log("Sync successful:", syncResult);
       
-      res.json({ success: true, syncResult });
+      res.json({ success: true, syncPending: false, syncResult });
     } catch (error) {
       console.error("Error syncing to CRM:", error);
-      res.status(500).json({ error: "Failed to sync to CRM" });
+      // Return 200 with success: false so the quote save isn't blocked
+      res.json({ 
+        success: false, 
+        syncPending: true,
+        error: "Failed to connect to CRM" 
+      });
     }
   });
 

@@ -1055,6 +1055,8 @@ export default function Calculator() {
               }, "*");
             }
             console.log("Synced to Scan2Plan-OS successfully");
+          } else if (syncData.syncPending) {
+            console.log("CRM sync pending:", syncData.error);
           }
         } catch (syncError) {
           console.error("Failed to sync to Scan2Plan-OS:", syncError);
@@ -1063,11 +1065,11 @@ export default function Calculator() {
       }
       
       toast({
-        title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
+        title: quoteId ? "Quote updated" : "Quote saved",
         description: syncedToCRM 
-          ? `Quote synced to CRM (Lead #${quoteLeadId})`
+          ? `Synced to CRM (Lead #${quoteLeadId})`
           : quoteLeadId 
-            ? "Quote saved. CRM sync pending."
+            ? "Quote saved locally. CRM sync will retry on next save."
             : "Your quote has been saved.",
       });
       setLocation("/");
