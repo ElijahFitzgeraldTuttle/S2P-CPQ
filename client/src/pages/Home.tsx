@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Plus, FileText, Clock, Trash2 } from "lucide-react";
+import { Plus, FileText, Clock, Trash2, ExternalLink } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -49,7 +49,10 @@ export default function Home() {
       year: "numeric",
     }),
     total: `$${parseFloat(quote.totalPrice || "0").toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    leadId: quote.leadId,
   }));
+
+  const CRM_BASE_URL = import.meta.env.VITE_CRM_URL || "https://scan2plan-os.replit.app";
 
   return (
     <div className="min-h-screen bg-background">
@@ -117,6 +120,22 @@ export default function Home() {
                         {project.total}
                       </span>
                     </div>
+                    {project.leadId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full mt-3"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open(`${CRM_BASE_URL}/deals/${project.leadId}`, '_blank');
+                        }}
+                        data-testid={`button-view-crm-${project.id}`}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View in CRM
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
