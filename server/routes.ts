@@ -1519,6 +1519,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/pricing/calculate", async (req, res) => {
     try {
+      // API key authentication for external CRM calls
+      // If Authorization header is provided, validate it
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        const expectedKey = process.env.CPQ_API_KEY;
+        if (!expectedKey) {
+          return res.status(500).json({ success: false, error: "API key not configured" });
+        }
+        const providedKey = authHeader.replace(/^Bearer\s+/i, '');
+        if (providedKey !== expectedKey) {
+          return res.status(401).json({ success: false, error: "Invalid API key" });
+        }
+      }
+      
       const parseResult = pricingCalculationRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({
