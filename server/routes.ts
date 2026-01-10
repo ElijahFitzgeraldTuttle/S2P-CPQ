@@ -10,6 +10,50 @@ import {
 import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
+// Dispatch location normalization: UI/API uses lowercase, database uses uppercase
+const DISPATCH_LOCATION_MAP: Record<string, string> = {
+  'troy': 'TROY',
+  'woodstock': 'WOODSTOCK', 
+  'brooklyn': 'BROOKLYN',
+  'fly_out': 'FLY_OUT',
+  // Also handle if already uppercase
+  'TROY': 'TROY',
+  'WOODSTOCK': 'WOODSTOCK',
+  'BROOKLYN': 'BROOKLYN',
+  'FLY_OUT': 'FLY_OUT',
+};
+
+function toUppercaseDispatchLocation(location: string): string {
+  return DISPATCH_LOCATION_MAP[location] || location.toUpperCase();
+}
+
+// Area kind backfill based on building type
+// Building types 14 (Built Landscape) and 15 (Natural Landscape) use "landscape", all others use "standard"
+function getAreaKind(buildingType: string | number): "standard" | "landscape" {
+  const typeId = typeof buildingType === 'string' ? parseInt(buildingType, 10) : buildingType;
+  return (typeId === 14 || typeId === 15) ? "landscape" : "standard";
+}
+
+// Normalize quote data before saving to database
+function normalizeQuoteData(data: any): any {
+  const normalized = { ...data };
+  
+  // Normalize dispatch location to uppercase
+  if (normalized.dispatchLocation) {
+    normalized.dispatchLocation = toUppercaseDispatchLocation(normalized.dispatchLocation);
+  }
+  
+  // Backfill area kind based on building type
+  if (normalized.areas && Array.isArray(normalized.areas)) {
+    normalized.areas = normalized.areas.map((area: any) => ({
+      ...area,
+      kind: area.kind || getAreaKind(area.buildingType || area.buildingTypeId || "1"),
+    }));
+  }
+  
+  return normalized;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
@@ -83,7 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/quotes", async (req, res) => {
     try {
       const validatedData = insertQuoteSchema.parse(req.body);
-      const newQuote = await storage.createQuote(validatedData);
+      const normalizedData = normalizeQuoteData(validatedData);
+      const newQuote = await storage.createQuote(normalizedData);
       res.status(201).json(newQuote);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -97,7 +142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/quotes/:id", async (req, res) => {
     try {
       const validatedData = insertQuoteSchema.partial().parse(req.body);
-      const updatedQuote = await storage.updateQuote(req.params.id, validatedData);
+      const normalizedData = normalizeQuoteData(validatedData);
+      const updatedQuote = await storage.updateQuote(req.params.id, normalizedData);
       if (!updatedQuote) {
         return res.status(404).json({ error: "Quote not found" });
       }
