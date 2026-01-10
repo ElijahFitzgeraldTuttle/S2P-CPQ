@@ -5,7 +5,7 @@ import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Download, FileText, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, Save, Download, FileText, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
 import JSZip from "jszip";
 import {
   generateScopePDF,
@@ -88,6 +88,8 @@ const getUrlParams = () => {
     contactPhone: urlParams.get("contactPhone"),
     dispatchLocation: urlParams.get("dispatchLocation"),
     distance: urlParams.get("distance"),
+    // CRM return link
+    returnUrl: urlParams.get("returnUrl"),
   };
 };
 
@@ -220,6 +222,18 @@ export default function Calculator() {
   const [leadId, setLeadId] = useState<number | null>(() => {
     const lid = urlParams.leadId;
     return lid ? parseInt(lid, 10) : null;
+  });
+  // CRM return URL for "Back to CRM" link
+  const [crmReturnUrl] = useState<string | null>(() => {
+    const returnUrl = urlParams.returnUrl;
+    if (returnUrl) {
+      try {
+        return decodeURIComponent(returnUrl);
+      } catch {
+        return returnUrl;
+      }
+    }
+    return null;
   });
   // Initialize projectDetails from URL params immediately (for new quotes)
   const [projectDetails, setProjectDetails] = useState(() => ({
@@ -2528,6 +2542,19 @@ export default function Calculator() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        {crmReturnUrl && (
+          <div className="mb-4">
+            <a
+              href={crmReturnUrl}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="link-back-to-crm"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to CRM</span>
+              {leadId && <span className="text-xs opacity-70">(Lead #{leadId})</span>}
+            </a>
+          </div>
+        )}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">{quoteId ? "Edit Quote" : "Create Quote"}</h1>
           <p className="text-muted-foreground">
