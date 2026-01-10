@@ -1344,6 +1344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // GET /api/leads/:id - Fetch lead details from external CRM (Scan2Plan-OS)
   // This is called by the frontend to pre-populate quote form from CRM lead data
+  // Note: This is an internal endpoint (CPQ frontend → CPQ server → CRM API)
+  // Security: Without CRM_API_KEY configured, only fallback data is returned
+  // For production: Consider adding session-based authentication
   app.get("/api/leads/:id", async (req, res) => {
     try {
       const leadId = req.params.id;
@@ -1407,6 +1410,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // POST /api/quotes/:id/sync-to-crm - Webhook to notify CRM when quote is saved/finalized
   // This sends full quote details to the CRM for timeline tracking
+  // Note: This is an internal endpoint (CPQ frontend → CPQ server → CRM API)
+  // Security: Requires existing quote with leadId, uses CRM_API_KEY for outbound auth
+  // For production: Consider adding session-based authentication
   app.post("/api/quotes/:id/sync-to-crm", async (req, res) => {
     try {
       const quoteId = req.params.id;
