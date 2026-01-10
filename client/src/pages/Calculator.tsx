@@ -1030,6 +1030,8 @@ export default function Calculator() {
       
       // Sync to Scan2Plan-OS if this quote is linked to a lead
       const quoteLeadId = savedQuote.leadId || leadId;
+      let syncedToCRM = false;
+      
       if (quoteLeadId) {
         try {
           const syncRes = await apiRequest("POST", "/api/sync-to-crm", {
@@ -1042,6 +1044,7 @@ export default function Calculator() {
           const syncData = await syncRes.json();
           
           if (syncData.success) {
+            syncedToCRM = true;
             // Send postMessage to parent iframe for instant UI update
             if (window.parent !== window) {
               window.parent.postMessage({
@@ -1061,7 +1064,11 @@ export default function Calculator() {
       
       toast({
         title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
-        description: quoteId ? "Your changes have been saved." : "Your quote has been saved.",
+        description: syncedToCRM 
+          ? `Quote synced to CRM (Lead #${quoteLeadId})`
+          : quoteLeadId 
+            ? "Quote saved. CRM sync pending."
+            : "Your quote has been saved.",
       });
       setLocation("/");
     },
