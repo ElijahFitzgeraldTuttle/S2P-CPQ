@@ -1,7 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertQuoteSchema } from "@shared/schema";
+import { 
+  insertQuoteSchema,
+  pricingCalculationRequestSchema,
+  type PricingCalculationResponse,
+  type PricingLineItem,
+} from "@shared/schema";
 import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -1505,6 +1510,306 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error syncing quote to CRM:", error);
       res.status(500).json({ error: "Failed to sync quote to CRM" });
+    }
+  });
+
+  // ============================================================================
+  // STATELESS PRICING CALCULATION API (for CRM Integration)
+  // ============================================================================
+  
+  app.post("/api/pricing/calculate", async (req, res) => {
+    try {
+      const parseResult = pricingCalculationRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid request",
+          details: parseResult.error.flatten(),
+        });
+      }
+      
+      const input = parseResult.data;
+      const lineItems: PricingLineItem[] = [];
+      let totalClientPrice = 0;
+      let totalUpteamCost = 0;
+      let modelingSubtotal = 0;
+      let travelSubtotal = 0;
+      let riskPremiumSubtotal = 0;
+      let servicesSubtotal = 0;
+      
+      const {
+        calculateTravel,
+        calculateTotalSqft,
+        calculateAreaPricing,
+        calculateLandscapeAreaPricing,
+        calculateACTAreaPricing,
+        calculateMatterportPricing,
+        calculateRiskMultiplier,
+        calculateAdditionalElevationsPrice,
+        getPaymentTermPremium,
+        isLandscapeType,
+        getAreaTier,
+        getScopeDiscount,
+      } = await import("./lib/pricingEngine");
+      
+      const [pricingMatrix, upteamMatrix] = await Promise.all([
+        storage.getAllPricingRates(),
+        storage.getAllUpteamPricingRates(),
+      ]);
+      
+      const findRate = (matrix: any[], buildingTypeId: string, areaTier: string, discipline: string, lod: string) => {
+        const entry = matrix.find(m => 
+          String(m.buildingTypeId) === buildingTypeId &&
+          m.areaTier === areaTier &&
+          m.discipline === discipline &&
+          m.lod === lod
+        );
+        return entry ? parseFloat(entry.ratePerSqFt) : null;
+      };
+      
+      const areasForSqft = input.areas.map(a => ({
+        buildingType: a.buildingType,
+        squareFeet: a.squareFeet
+      }));
+      const totalSqft = calculateTotalSqft(areasForSqft);
+      
+      for (let areaIndex = 0; areaIndex < input.areas.length; areaIndex++) {
+        const area = input.areas[areaIndex];
+        const areaName = area.name || `Area ${areaIndex + 1}`;
+        const sqft = parseFloat(area.squareFeet) || 0;
+        const isLandscape = isLandscapeType(area.buildingType);
+        
+        if (isLandscape) {
+          const lod = area.disciplineLods?.site?.lod || '300';
+          const result = calculateLandscapeAreaPricing(area.buildingType, sqft, lod);
+          
+          lineItems.push({
+            id: `area-${areaIndex}-landscape`,
+            label: `${areaName} - Landscape (${sqft} acres)`,
+            category: 'area',
+            clientPrice: result.clientPrice,
+            upteamCost: result.upteamCost,
+            details: { acres: sqft, lod, buildingType: area.buildingType },
+          });
+          
+          modelingSubtotal += result.clientPrice;
+          totalUpteamCost += result.upteamCost;
+        } else {
+          const disciplines = area.disciplines || ['arch'];
+          const areaTier = getAreaTier(sqft);
+          
+          for (const disciplineId of disciplines) {
+            const config = area.disciplineLods?.[disciplineId];
+            const lod = config?.lod || '300';
+            const scope = config?.scope || 'full';
+            const scopePortion = 1 - getScopeDiscount(scope);
+            
+            const clientRate = findRate(pricingMatrix, area.buildingType, areaTier, disciplineId, lod);
+            const upteamRate = findRate(upteamMatrix, area.buildingType, areaTier, disciplineId, lod);
+            
+            const result = calculateAreaPricing({
+              buildingTypeId: area.buildingType,
+              sqft,
+              discipline: disciplineId,
+              lod,
+              clientRatePerSqft: clientRate,
+              upteamRatePerSqft: upteamRate,
+              scopePortion,
+            });
+            
+            const disciplineLabel = {
+              arch: 'Architecture',
+              mepf: 'MEPF',
+              structure: 'Structure',
+              site: 'Site/Topo',
+            }[disciplineId] || disciplineId;
+            
+            lineItems.push({
+              id: `area-${areaIndex}-${disciplineId}`,
+              label: `${areaName} - ${disciplineLabel} (LoD ${lod})`,
+              category: 'discipline',
+              clientPrice: result.clientPrice,
+              upteamCost: result.upteamCost,
+              details: {
+                sqft,
+                discipline: disciplineId,
+                lod,
+                scope,
+                clientRate: clientRate || 'fallback',
+                upteamRate: upteamRate || 'fallback',
+              },
+            });
+            
+            modelingSubtotal += result.clientPrice;
+            totalUpteamCost += result.upteamCost;
+          }
+        }
+      }
+      
+      if (input.risks.length > 0) {
+        const archSubtotal = lineItems
+          .filter(item => item.details?.discipline === 'arch')
+          .reduce((sum, item) => sum + item.clientPrice, 0);
+        
+        const riskMultiplier = calculateRiskMultiplier(input.risks);
+        const riskPremium = archSubtotal * (riskMultiplier - 1);
+        
+        if (riskPremium > 0) {
+          lineItems.push({
+            id: 'risk-premium',
+            label: `Risk Premium (${input.risks.join(', ')})`,
+            category: 'risk',
+            clientPrice: riskPremium,
+            upteamCost: 0,
+            details: { risks: input.risks, multiplier: riskMultiplier },
+          });
+          riskPremiumSubtotal = riskPremium;
+        }
+      }
+      
+      if (input.customTravelCost !== undefined) {
+        lineItems.push({
+          id: 'travel-custom',
+          label: 'Travel (Custom)',
+          category: 'travel',
+          clientPrice: input.customTravelCost,
+          upteamCost: 0,
+        });
+        travelSubtotal = input.customTravelCost;
+      } else if (input.distance > 0 && input.dispatchLocation !== 'fly_out') {
+        const travelResult = calculateTravel(input.dispatchLocation, input.distance, totalSqft);
+        lineItems.push({
+          id: 'travel',
+          label: travelResult.label,
+          category: 'travel',
+          clientPrice: travelResult.totalCost,
+          upteamCost: 0,
+          details: travelResult,
+        });
+        travelSubtotal = travelResult.totalCost;
+      }
+      
+      if (input.services?.matterport) {
+        const result = calculateMatterportPricing(totalSqft);
+        lineItems.push({
+          id: 'service-matterport',
+          label: 'Matterport Virtual Tour',
+          category: 'service',
+          clientPrice: result.clientPrice,
+          upteamCost: result.upteamCost,
+        });
+        servicesSubtotal += result.clientPrice;
+        totalUpteamCost += result.upteamCost;
+      }
+      
+      if (input.services?.actScan) {
+        const result = calculateACTAreaPricing(totalSqft);
+        lineItems.push({
+          id: 'service-act',
+          label: 'Above Ceiling Tile Scan',
+          category: 'service',
+          clientPrice: result.clientPrice,
+          upteamCost: result.upteamCost,
+        });
+        servicesSubtotal += result.clientPrice;
+        totalUpteamCost += result.upteamCost;
+      }
+      
+      if (input.services?.additionalElevations && input.services.additionalElevations > 0) {
+        const elevPrice = calculateAdditionalElevationsPrice(input.services.additionalElevations);
+        lineItems.push({
+          id: 'service-elevations',
+          label: `Additional Interior Elevations (${input.services.additionalElevations})`,
+          category: 'service',
+          clientPrice: elevPrice,
+          upteamCost: 0,
+        });
+        servicesSubtotal += elevPrice;
+      }
+      
+      const subtotalBeforePayment = modelingSubtotal + riskPremiumSubtotal + travelSubtotal + servicesSubtotal;
+      
+      let paymentPremiumAmount = 0;
+      if (input.paymentTerms && input.paymentTerms !== 'partner' && input.paymentTerms !== 'owner') {
+        const premium = getPaymentTermPremium(input.paymentTerms);
+        paymentPremiumAmount = subtotalBeforePayment * premium;
+        
+        if (paymentPremiumAmount > 0) {
+          lineItems.push({
+            id: 'payment-premium',
+            label: `Payment Terms (${input.paymentTerms.toUpperCase()})`,
+            category: 'subtotal',
+            clientPrice: paymentPremiumAmount,
+            upteamCost: 0,
+            details: { terms: input.paymentTerms, premium: `${premium * 100}%` },
+          });
+        }
+      }
+      
+      totalClientPrice = subtotalBeforePayment + paymentPremiumAmount;
+      const grossMargin = totalClientPrice - totalUpteamCost;
+      const grossMarginPercent = totalClientPrice > 0 ? (grossMargin / totalClientPrice) * 100 : 0;
+      
+      lineItems.push({
+        id: 'total',
+        label: 'Total',
+        category: 'total',
+        clientPrice: totalClientPrice,
+        upteamCost: totalUpteamCost,
+      });
+      
+      const integrityFlags: Array<{code: string, message: string, severity: 'info' | 'warning' | 'error'}> = [];
+      
+      if (grossMarginPercent < 45) {
+        integrityFlags.push({
+          code: 'LOW_MARGIN',
+          message: `Gross margin ${grossMarginPercent.toFixed(1)}% is below 45% threshold`,
+          severity: grossMarginPercent < 40 ? 'error' : 'warning',
+        });
+      }
+      
+      if (input.dispatchLocation === 'fly_out' && travelSubtotal === 0) {
+        integrityFlags.push({
+          code: 'FLY_OUT_NO_TRAVEL',
+          message: 'Fly-out dispatch selected but no travel cost entered',
+          severity: 'warning',
+        });
+      }
+      
+      const integrityStatus = integrityFlags.some(f => f.severity === 'error') 
+        ? 'blocked' 
+        : integrityFlags.some(f => f.severity === 'warning')
+          ? 'warning'
+          : 'pass';
+      
+      const response: PricingCalculationResponse = {
+        success: true,
+        totalClientPrice,
+        totalUpteamCost,
+        grossMargin,
+        grossMarginPercent,
+        lineItems,
+        subtotals: {
+          modeling: modelingSubtotal,
+          travel: travelSubtotal,
+          riskPremiums: riskPremiumSubtotal,
+          services: servicesSubtotal,
+          paymentPremium: paymentPremiumAmount,
+        },
+        integrityStatus,
+        integrityFlags,
+        calculatedAt: new Date().toISOString(),
+        engineVersion: '1.0.0',
+      };
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Pricing calculation error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Pricing calculation failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
