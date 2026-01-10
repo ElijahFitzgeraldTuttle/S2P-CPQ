@@ -6,21 +6,34 @@ A professional web-based pricing calculator for Scan-to-BIM (Building Informatio
 
 ## Recent Changes
 
+### Stateless Pricing Calculation API (January 2026)
+- Created `/api/pricing/calculate` endpoint for CRM-driven pricing calculations
+- CPQ now functions as a pure pricing engine - CRM sends questionnaire data, CPQ returns pricing breakdown
+- Request schema includes: areas (with building types, sqft, disciplines, LoDs), risks, travel info, services, payment terms
+- Response includes: total client price, upteam costs, gross margin, detailed line items, subtotals by category, integrity flags
+- All pricing logic from UI now accessible via API for CRM integration
+- API secured with Bearer token authentication using `CPQ_API_KEY`
+- Zod schemas in `shared/schema.ts`: `pricingCalculationRequestSchema`, `pricingCalculationResponseSchema`
+
 ### Bi-Directional CRM Integration (January 2026)
 - Implemented full bi-directional API integration between CPQ and external CRM (Scan2Plan-OS)
 - Added `returnUrl` parameter handling in Calculator for navigation back to CRM
 - Created "Back to CRM" breadcrumb link when navigating from CRM with returnUrl parameter
+- "View in CRM" button on homepage quote cards for quotes linked to CRM leads
 - New API endpoints for CPQ→CRM communication:
   - GET `/api/leads/:id` - Fetch lead details from CRM to pre-populate quote form
   - POST `/api/quotes/:id/sync-to-crm` - Send complete quote data to CRM webhook
+  - POST `/api/pricing/calculate` - Stateless pricing calculation (secured with CPQ_API_KEY)
 - Existing CRM→CPQ endpoints (secured with CPQ_API_KEY):
   - GET `/api/crm/quotes/:id` - Fetch complete quote for CRM proposal generation
   - GET `/api/crm/quotes` - List all quotes for CRM sync
 - Frontend automatically fetches lead data when `leadId` URL parameter present (and no existing quote)
 - Quote save automatically syncs to CRM via existing `/api/sync-to-crm` endpoint
+- CRM sync failures no longer block quote saves - returns "Quote saved locally. CRM sync will retry."
 - Environment variables for outbound CRM calls:
   - `CRM_API_URL` - Base URL of external CRM (default: https://scan2plan-os.replit.app)
   - `CRM_API_KEY` - API key for authenticating CPQ→CRM calls (fallback to CPQ_API_KEY)
+  - `CPQ_API_KEY` - API key for authenticating CRM→CPQ pricing API calls
 
 ### Cross-Agent Pricing Validation System (January 2026)
 - Created testable pricing engine module (`server/lib/pricingEngine.ts`) with pure functions for all calculation logic
