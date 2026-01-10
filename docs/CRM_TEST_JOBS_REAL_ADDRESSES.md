@@ -68,14 +68,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
-| Company Name | Purchase Estate Holdings |
-| Contact First Name | Victoria |
-| Contact Last Name | Ashworth |
-| Contact Email | vashworth@purchaseestate.com |
-| Contact Phone | (914) 555-0101 |
+| Company Name | Purchase Estate Holdings LLC |
+| Company Address | 1000 Westchester Ave, Suite 400, White Plains, NY 10604 |
+| Company Phone | (914) 555-0100 |
+| Company Website | www.purchaseestateholdings.com |
+| Industry | Real Estate Investment |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Victoria |
+| Last Name | Ashworth |
+| Title | Director of Property Management |
+| Email | vashworth@purchaseestate.com |
+| Phone | (914) 555-0101 |
+| Mobile | (914) 555-0102 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Thomas |
+| Last Name | Pemberton |
+| Title | CFO |
+| Email | tpemberton@purchaseestate.com |
+| Phone | (914) 555-0105 |
+| Billing Address | 1000 Westchester Ave, Suite 400, White Plains, NY 10604 |
 
 ### Expected Validation
 - **Tier:** 10k-20k sqft
@@ -139,14 +159,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
-| Company Name | Greenwich Street Partners |
-| Contact First Name | Marcus |
-| Contact Last Name | Chen |
-| Contact Email | mchen@greenwichpartners.com |
-| Contact Phone | (212) 555-0202 |
+| Company Name | Greenwich Street Partners LP |
+| Company Address | 255 Greenwich St, 40th Floor, New York, NY 10007 |
+| Company Phone | (212) 555-0200 |
+| Company Website | www.greenwichstreetpartners.com |
+| Industry | Commercial Real Estate |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Marcus |
+| Last Name | Chen |
+| Title | VP of Facilities |
+| Email | mchen@greenwichpartners.com |
+| Phone | (212) 555-0202 |
+| Mobile | (917) 555-0203 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Rebecca |
+| Last Name | Goldman |
+| Title | Controller |
+| Email | rgoldman@greenwichpartners.com |
+| Phone | (212) 555-0210 |
+| Billing Address | 255 Greenwich St, 40th Floor, New York, NY 10007 |
 
 ### Expected Validation
 - **Tier:** 50k-75k sqft
@@ -205,14 +245,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
 | Company Name | Philadelphia Preservation Society |
-| Contact First Name | Eleanor |
-| Contact Last Name | Richardson |
-| Contact Email | erichardson@philapres.org |
-| Contact Phone | (215) 555-0303 |
+| Company Address | 321 Chestnut St, Philadelphia, PA 19106 |
+| Company Phone | (215) 555-0300 |
+| Company Website | www.philadelphiapreservation.org |
+| Industry | Non-Profit / Historic Preservation |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Eleanor |
+| Last Name | Richardson |
+| Title | Executive Director |
+| Email | erichardson@philapres.org |
+| Phone | (215) 555-0303 |
+| Mobile | (215) 555-0304 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Harold |
+| Last Name | Whitmore |
+| Title | Finance Director |
+| Email | hwhitmore@philapres.org |
+| Phone | (215) 555-0315 |
+| Billing Address | 321 Chestnut St, Philadelphia, PA 19106 |
 
 ### Expected Validation
 - **Tier:** 10k-20k sqft (or 20k-30k depending on tier boundaries)
@@ -270,14 +330,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
 | Company Name | Wilmington Logistics Corp |
-| Contact First Name | James |
-| Contact Last Name | O'Brien |
-| Contact Email | jobrien@wilmingtonlogistics.com |
-| Contact Phone | (978) 555-0404 |
+| Company Address | 100 Commerce Way, Wilmington, MA 01887 |
+| Company Phone | (978) 555-0400 |
+| Company Website | www.wilmingtonlogistics.com |
+| Industry | Logistics / Supply Chain |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | James |
+| Last Name | O'Brien |
+| Title | Operations Manager |
+| Email | jobrien@wilmingtonlogistics.com |
+| Phone | (978) 555-0404 |
+| Mobile | (978) 555-0405 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Patricia |
+| Last Name | Sullivan |
+| Title | Accounts Payable Manager |
+| Email | psullivan@wilmingtonlogistics.com |
+| Phone | (978) 555-0420 |
+| Billing Address | 100 Commerce Way, Wilmington, MA 01887 |
 
 ### Expected Validation
 - **Tier:** Highest tier (300k+ sqft)
@@ -335,14 +415,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
 | Company Name | Mercer Street Retail LLC |
-| Contact First Name | Sofia |
-| Contact Last Name | Martinez |
-| Contact Email | smartinez@mercerretail.com |
-| Contact Phone | (212) 555-0505 |
+| Company Address | 69 Mercer St, 2nd Floor, New York, NY 10012 |
+| Company Phone | (212) 555-0500 |
+| Company Website | www.mercerstreetretail.com |
+| Industry | Luxury Retail |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Sofia |
+| Last Name | Martinez |
+| Title | Store Development Director |
+| Email | smartinez@mercerretail.com |
+| Phone | (212) 555-0505 |
+| Mobile | (917) 555-0506 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Anthony |
+| Last Name | Ricci |
+| Title | Finance Manager |
+| Email | aricci@mercerretail.com |
+| Phone | (212) 555-0515 |
+| Billing Address | 69 Mercer St, 2nd Floor, New York, NY 10012 |
 
 ### Expected Validation
 - **Tier:** 5k-10k sqft
@@ -405,14 +505,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
-| Company Name | Woolworth Building Management |
-| Contact First Name | Alexander |
-| Contact Last Name | Thompson |
-| Contact Email | athompson@woolworthbldg.com |
-| Contact Phone | (212) 555-0606 |
+| Company Name | Woolworth Building Management Inc |
+| Company Address | 233 Broadway, Suite 2700, New York, NY 10007 |
+| Company Phone | (212) 555-0600 |
+| Company Website | www.woolworthbuilding.com |
+| Industry | Property Management |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Alexander |
+| Last Name | Thompson |
+| Title | Building Manager |
+| Email | athompson@woolworthbldg.com |
+| Phone | (212) 555-0606 |
+| Mobile | (917) 555-0607 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Catherine |
+| Last Name | Wright |
+| Title | Director of Finance |
+| Email | cwright@woolworthbldg.com |
+| Phone | (212) 555-0625 |
+| Billing Address | 233 Broadway, Suite 2700, New York, NY 10007 |
 
 ### Expected Validation
 - **Tier:** 20k-30k sqft (or 30k-50k)
@@ -471,14 +591,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
 | Company Name | Taunton Cold Storage Inc |
-| Contact First Name | Robert |
-| Contact Last Name | Kelly |
-| Contact Email | rkelly@tauntoncold.com |
-| Contact Phone | (508) 555-0707 |
+| Company Address | 425 John Quincy Adams Rd, Taunton, MA 02780 |
+| Company Phone | (508) 555-0700 |
+| Company Website | www.tauntoncoldstorage.com |
+| Industry | Cold Chain / Food Storage |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Robert |
+| Last Name | Kelly |
+| Title | Facility Director |
+| Email | rkelly@tauntoncold.com |
+| Phone | (508) 555-0707 |
+| Mobile | (508) 555-0708 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Diane |
+| Last Name | Murphy |
+| Title | Accounting Manager |
+| Email | dmurphy@tauntoncold.com |
+| Phone | (508) 555-0720 |
+| Billing Address | 425 John Quincy Adams Rd, Taunton, MA 02780 |
 
 ### Expected Validation
 - **Tier:** 75k-100k sqft
@@ -541,14 +681,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
-| Company Name | Presidential City Partners |
-| Contact First Name | David |
-| Contact Last Name | Washington |
-| Contact Email | dwashington@presidentialcity.com |
-| Contact Phone | (215) 555-0808 |
+| Company Name | Presidential City Partners LLC |
+| Company Address | 3900 City Ave, Suite 100, Philadelphia, PA 19131 |
+| Company Phone | (215) 555-0800 |
+| Company Website | www.presidentialcityapts.com |
+| Industry | Multi-Family Residential |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | David |
+| Last Name | Washington |
+| Title | Property Manager |
+| Email | dwashington@presidentialcity.com |
+| Phone | (215) 555-0808 |
+| Mobile | (215) 555-0809 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Linda |
+| Last Name | Jackson |
+| Title | VP of Finance |
+| Email | ljackson@presidentialcity.com |
+| Phone | (215) 555-0830 |
+| Billing Address | 3900 City Ave, Suite 100, Philadelphia, PA 19131 |
 
 ### Expected Validation
 - **Tier:** 100k-150k sqft
@@ -617,14 +777,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
 | Company Name | Tobin Center for the Performing Arts |
-| Contact First Name | Maria |
-| Contact Last Name | Rodriguez |
-| Contact Email | mrodriguez@tobincenter.org |
-| Contact Phone | (210) 555-0909 |
+| Company Address | 100 Auditorium Cir, San Antonio, TX 78205 |
+| Company Phone | (210) 555-0900 |
+| Company Website | www.tobincenter.org |
+| Industry | Arts / Entertainment |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Maria |
+| Last Name | Rodriguez |
+| Title | Director of Operations |
+| Email | mrodriguez@tobincenter.org |
+| Phone | (210) 555-0909 |
+| Mobile | (210) 555-0910 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Carlos |
+| Last Name | Hernandez |
+| Title | CFO |
+| Email | chernandez@tobincenter.org |
+| Phone | (210) 555-0925 |
+| Billing Address | 100 Auditorium Cir, San Antonio, TX 78205 |
 
 ### Expected Validation
 - **Tier:** 150k+ sqft
@@ -689,14 +869,34 @@ This document contains 10 test jobs using real addresses for accurate travel cal
 }
 ```
 
-### Lead Information
+### Company Information
 | Field | Value |
 |-------|-------|
-| Company Name | Clark Avenue Industrial |
-| Contact First Name | Michael |
-| Contact Last Name | Johnson |
-| Contact Email | mjohnson@clarkaveindustrial.com |
-| Contact Phone | (314) 555-1010 |
+| Company Name | Clark Avenue Industrial LLC |
+| Company Address | 2810 Clark Ave, St. Louis, MO 63103 |
+| Company Phone | (314) 555-1000 |
+| Company Website | www.clarkaveindustrial.com |
+| Industry | Industrial Inspection Services |
+
+### Primary Contact
+| Field | Value |
+|-------|-------|
+| First Name | Michael |
+| Last Name | Johnson |
+| Title | Plant Manager |
+| Email | mjohnson@clarkaveindustrial.com |
+| Phone | (314) 555-1010 |
+| Mobile | (314) 555-1011 |
+
+### Billing Contact
+| Field | Value |
+|-------|-------|
+| First Name | Karen |
+| Last Name | Williams |
+| Title | Controller |
+| Email | kwilliams@clarkaveindustrial.com |
+| Phone | (314) 555-1030 |
+| Billing Address | 2810 Clark Ave, St. Louis, MO 63103 |
 
 ### Expected Validation
 - **Tier:** 10k-20k sqft
