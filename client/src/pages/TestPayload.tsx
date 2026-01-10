@@ -490,7 +490,7 @@ export default function TestPayload() {
                       <Input
                         value={projectDetails.projectAddress}
                         onChange={(e) => setProjectDetails({ ...projectDetails, projectAddress: e.target.value })}
-                        data-testid="input-project-address"
+                        data-testid="input-test-address"
                       />
                     </div>
                     <div>
