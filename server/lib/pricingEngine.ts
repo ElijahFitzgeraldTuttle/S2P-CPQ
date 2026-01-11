@@ -69,13 +69,15 @@ export const LANDSCAPE_RATES = {
 
 /**
  * Determine pricing tier based on square footage
+ * Tier labels MUST match database pricing_matrix.area_tier values exactly
  */
 export function getAreaTier(sqft: number): string {
-  if (sqft < 3000) return "0-3k";
-  if (sqft < 5000) return "3k-5k";
+  if (sqft < 5000) return "0-5k";
   if (sqft < 10000) return "5k-10k";
-  if (sqft < 25000) return "10k-25k";
-  if (sqft < 50000) return "25k-50k";
+  if (sqft < 20000) return "10k-20k";
+  if (sqft < 30000) return "20k-30k";
+  if (sqft < 40000) return "30k-40k";
+  if (sqft < 50000) return "40k-50k";
   if (sqft < 75000) return "50k-75k";
   if (sqft < 100000) return "75k-100k";
   return "100k+";
