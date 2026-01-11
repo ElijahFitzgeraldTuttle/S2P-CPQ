@@ -1,8 +1,96 @@
 # CRM UI Specification for CPQ Integration
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Last Updated:** January 2026  
 **Purpose:** Enable CRM to match CPQ UI layout with identical field structure and pricing preview
+
+---
+
+## Quick Reference: Fields Potentially Missing from CRM
+
+Based on parity analysis, ensure these fields are implemented:
+
+| Category | Field | Priority | Notes |
+|----------|-------|----------|-------|
+| **Per-Area** | `disciplines[]` | Critical | ARCH/MEPF/STRUCT/SITE toggles per area - affects pricing |
+| **Per-Area** | `disciplineLods{}` | Critical | LOD 200/300/350 per discipline - major rate impact |
+| **Per-Area** | `scope` | Critical | full/interior/exterior per discipline - 35-65% discount |
+| **Travel** | `dispatchLocation` | Critical | Brooklyn/Troy/Woodstock dropdown |
+| **Travel** | `customTravelCost` | Critical | Override for flyout jobs |
+| **Tier A** | `tierAScanningCost` | High | Radio selector for 50k+ sqft projects |
+| **Tier A** | `tierAModelingCost` | High | Dollar input |
+| **Tier A** | `tierAMargin` | High | Multiplier dropdown |
+| **Margin** | `marginTarget` | High | Slider for target margin (API integration) |
+| **Contacts** | `designProContact` | Medium | Architect/engineer name |
+| **Contacts** | `designProCompanyContact` | Medium | Architecture firm |
+| **Deliverables** | `bimDeliverable` | Medium | Multi-select format options |
+| **Deliverables** | `customTemplateFiles` | Medium | Template upload |
+| **Version** | Version Control UI | Medium | Create/list/edit versions |
+
+---
+
+## Margin Slider Feature (NEW)
+
+### Overview
+
+The CRM should implement a margin slider that:
+1. Defaults to 45% (CPQ guardrail)
+2. Allows adjustment per-quote (35% - 60% range)
+3. Sends `marginTarget` to CPQ pricing API
+4. Displays returned margin and warnings
+
+### UI Implementation
+
+```
+┌─────────────────────────────────────────┐
+│ Target Gross Margin                     │
+│ ○───────────●───────────○               │
+│ 35%        [45%]       60%              │
+│                                         │
+│ [!] Warning: Below 45% requires approval│
+└─────────────────────────────────────────┘
+```
+
+**Slider Configuration:**
+- Range: 35% to 60%
+- Step: 1% increments
+- Default: 45%
+- Persistence: Store `marginTarget` on quote record, send to CPQ on each pricing calculation
+
+### API Integration
+
+**Request:**
+```json
+{
+  "areas": [...],
+  "marginTarget": 0.45,
+  ...
+}
+```
+
+**Response:**
+```json
+{
+  "pricing": {
+    "grossMarginPercent": 45.2,
+    ...
+  },
+  "warnings": [
+    {
+      "code": "LOW_MARGIN",
+      "message": "Margin 42% is below 45% threshold"
+    }
+  ]
+}
+```
+
+### Validation Rules
+
+| Margin Target | Behavior |
+|---------------|----------|
+| ≥ 45% | Normal operation |
+| 40% - 44% | Warning displayed, requires justification |
+| < 40% | Blocked, requires CEO override |
 
 ---
 
