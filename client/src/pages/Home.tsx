@@ -14,7 +14,7 @@ export default function Home() {
   });
 
   const deleteQuoteMutation = useMutation({
-    mutationFn: async (quoteId: number) => {
+    mutationFn: async (quoteId: string) => {
       await apiRequest("DELETE", `/api/quotes/${quoteId}`);
     },
     onSuccess: () => {
@@ -33,13 +33,13 @@ export default function Home() {
     },
   });
 
-  const handleDelete = (e: React.MouseEvent, quoteId: number) => {
+  const handleDelete = (e: React.MouseEvent, quoteId: string) => {
     e.preventDefault();
     e.stopPropagation();
     deleteQuoteMutation.mutate(quoteId);
   };
 
-  const pastProjects = quotes.slice(0, 5).map((quote) => ({
+  const pastProjects = quotes.map((quote) => ({
     id: quote.id,
     name: quote.projectName,
     client: quote.clientName || "N/A",
