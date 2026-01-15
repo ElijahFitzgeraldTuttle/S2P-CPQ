@@ -72,7 +72,7 @@ export default function TravelCalculator({
               placeholder="Enter project address"
               value={projectAddress}
               onChange={(e) => onAddressChange(e.target.value)}
-              data-testid="input-travel-address"
+              data-testid="input-project-address"
             />
           </div>
         </div>

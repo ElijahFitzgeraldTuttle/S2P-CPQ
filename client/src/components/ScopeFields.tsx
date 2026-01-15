@@ -20,19 +20,21 @@ interface ScopeFieldsProps {
     scopingDocuments: any[];
     mixedScope: string;
     insuranceRequirements: string;
+    accountContact: string;
+    accountContactEmail: string;
+    accountContactPhone: string;
+    designProContact: string;
+    designProCompanyContact: string;
+    otherContact: string;
+    proofLinks: string;
+    ndaFiles: any[];
     estimatedTimeline: string;
     timelineNotes: string;
   };
-  projectDetails: {
-    hasBasement: boolean;
-    hasAttic: boolean;
-    notes: string;
-  };
   onChange: (field: string, value: any) => void;
-  onProjectDetailChange: (field: string, value: string | boolean) => void;
 }
 
-export default function ScopeFields({ data, projectDetails, onChange, onProjectDetailChange }: ScopeFieldsProps) {
+export default function ScopeFields({ data, onChange }: ScopeFieldsProps) {
   const handleCheckboxArrayChange = (field: string, value: string, checked: boolean) => {
     const currentValues = (data[field as keyof typeof data] as string[]) || [];
     const newValues = checked 
@@ -43,56 +45,13 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
 
   return (
     <div className="space-y-6">
-      <Card className="p-4 bg-accent/50">
-        <h3 className="text-lg font-semibold mb-4">Building Features</h3>
-        <div className="space-y-4">
-          <div className="flex gap-6">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="has-basement"
-                checked={projectDetails.hasBasement}
-                onCheckedChange={(checked) => onProjectDetailChange('hasBasement', checked as boolean)}
-                data-testid="checkbox-basement"
-              />
-              <Label htmlFor="has-basement" className="cursor-pointer font-normal">
-                Has Basement
-              </Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="has-attic"
-                checked={projectDetails.hasAttic}
-                onCheckedChange={(checked) => onProjectDetailChange('hasAttic', checked as boolean)}
-                data-testid="checkbox-attic"
-              />
-              <Label htmlFor="has-attic" className="cursor-pointer font-normal">
-                Has Attic
-              </Label>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes" className="text-sm font-medium">
-              Project Notes
-            </Label>
-            <Textarea
-              id="notes"
-              placeholder="Add any special requirements or notes..."
-              value={projectDetails.notes}
-              onChange={(e) => onProjectDetailChange('notes', e.target.value)}
-              rows={3}
-              data-testid="textarea-notes"
-            />
-          </div>
-        </div>
-      </Card>
-
+      {/* Deliverables */}
       <Card className="p-4 bg-accent/50">
         <h3 className="text-lg font-semibold mb-4">Deliverables</h3>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-sm font-medium">
-              BIM Deliverable Format
+              BIM Deliverable
             </Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {['Revit', 'Archicad', 'Sketchup', 'Rhino', 'Other'].map((option) => (
@@ -101,7 +60,6 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
                     id={`bim-${option}`}
                     checked={(data.bimDeliverable || []).includes(option)}
                     onCheckedChange={(checked) => handleCheckboxArrayChange('bimDeliverable', option, checked as boolean)}
-                    data-testid={`checkbox-bim-${option.toLowerCase()}`}
                   />
                   <Label htmlFor={`bim-${option}`} className="cursor-pointer">
                     {option}
@@ -111,25 +69,23 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
             </div>
             {(data.bimDeliverable || []).includes('Other') && (
               <Input
-                placeholder="Specify other format"
+                placeholder="Specify other"
                 value={data.bimDeliverableOther}
                 onChange={(e) => onChange('bimDeliverableOther', e.target.value)}
                 className="mt-2"
-                data-testid="input-bim-other"
               />
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="bim-version" className="text-sm font-medium">
-              BIM Version
+              Which BIM Version?
             </Label>
             <Input
               id="bim-version"
               placeholder="e.g., Revit 2024"
               value={data.bimVersion}
               onChange={(e) => onChange('bimVersion', e.target.value)}
-              data-testid="input-bim-version"
             />
           </div>
 
@@ -139,15 +95,15 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
             </Label>
             <RadioGroup value={data.customTemplate} onValueChange={(val) => onChange('customTemplate', val)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="template-yes" data-testid="radio-template-yes" />
+                <RadioGroupItem value="yes" id="template-yes" />
                 <Label htmlFor="template-yes" className="cursor-pointer">Yes, will provide</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id="template-no" data-testid="radio-template-no" />
+                <RadioGroupItem value="no" id="template-no" />
                 <Label htmlFor="template-no" className="cursor-pointer">No, use Scan2Plan standard</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="template-other" data-testid="radio-template-other" />
+                <RadioGroupItem value="other" id="template-other" />
                 <Label htmlFor="template-other" className="cursor-pointer">Other:</Label>
               </div>
             </RadioGroup>
@@ -157,7 +113,6 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
                 value={data.customTemplateOther}
                 onChange={(e) => onChange('customTemplateOther', e.target.value)}
                 className="mt-2"
-                data-testid="input-template-other"
               />
             )}
           </div>
@@ -172,6 +127,7 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
         </div>
       </Card>
 
+      {/* Scope Assumptions */}
       <Card className="p-4 bg-accent/50">
         <h3 className="text-lg font-semibold mb-4">Scope Assumptions</h3>
         <div className="space-y-4">
@@ -185,7 +141,6 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
               value={data.sqftAssumptions}
               onChange={(e) => onChange('sqftAssumptions', e.target.value)}
               rows={3}
-              data-testid="textarea-sqft-assumptions"
             />
             <FileUpload
               label="Upload Supporting Documents"
@@ -195,16 +150,15 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="additional-project-notes" className="text-sm font-medium">
+            <Label htmlFor="project-notes" className="text-sm font-medium">
               Additional Project Notes
             </Label>
             <Textarea
-              id="additional-project-notes"
+              id="project-notes"
               placeholder="Any other project notes..."
               value={data.projectNotes}
               onChange={(e) => onChange('projectNotes', e.target.value)}
               rows={4}
-              data-testid="textarea-project-notes"
             />
             <FileUpload
               label="Upload Scoping Documents"
@@ -215,14 +169,13 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
 
           <div className="space-y-2">
             <Label htmlFor="mixed-scope" className="text-sm font-medium">
-              Mixed Scope Details
+              Mixed Scope?
             </Label>
             <Input
               id="mixed-scope"
               placeholder="Describe any mixed scope considerations"
               value={data.mixedScope}
               onChange={(e) => onChange('mixedScope', e.target.value)}
-              data-testid="input-mixed-scope"
             />
           </div>
 
@@ -236,12 +189,115 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
               value={data.insuranceRequirements}
               onChange={(e) => onChange('insuranceRequirements', e.target.value)}
               rows={2}
-              data-testid="textarea-insurance"
             />
           </div>
         </div>
       </Card>
 
+      {/* Contacts & Communication */}
+      <Card className="p-4 bg-accent/50">
+        <h3 className="text-lg font-semibold mb-4">Contacts & Communication</h3>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="account-contact" className="text-sm font-medium">
+              Account Contact
+            </Label>
+            <Input
+              id="account-contact"
+              placeholder="Primary account contact name"
+              value={data.accountContact}
+              onChange={(e) => onChange('accountContact', e.target.value)}
+              data-testid="input-account-contact"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="account-contact-email" className="text-sm font-medium">
+                Account Contact Email
+              </Label>
+              <Input
+                id="account-contact-email"
+                type="email"
+                placeholder="email@example.com"
+                value={data.accountContactEmail}
+                onChange={(e) => onChange('accountContactEmail', e.target.value)}
+                data-testid="input-account-contact-email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="account-contact-phone" className="text-sm font-medium">
+                Account Contact Phone
+              </Label>
+              <Input
+                id="account-contact-phone"
+                type="tel"
+                placeholder="(555) 123-4567"
+                value={data.accountContactPhone}
+                onChange={(e) => onChange('accountContactPhone', e.target.value)}
+                data-testid="input-account-contact-phone"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="design-pro-contact" className="text-sm font-medium">
+              Design Pro Contact
+            </Label>
+            <Input
+              id="design-pro-contact"
+              placeholder="Design professional contact"
+              value={data.designProContact}
+              onChange={(e) => onChange('designProContact', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="design-pro-company-contact" className="text-sm font-medium">
+              Design Pro Company Contact Info (if not client)
+            </Label>
+            <Input
+              id="design-pro-company-contact"
+              placeholder="Company contact information"
+              value={data.designProCompanyContact}
+              onChange={(e) => onChange('designProCompanyContact', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="other-contact" className="text-sm font-medium">
+              Other Contact Info
+            </Label>
+            <Input
+              id="other-contact"
+              placeholder="Additional contacts"
+              value={data.otherContact}
+              onChange={(e) => onChange('otherContact', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="proof-links" className="text-sm font-medium">
+              Proof Links
+            </Label>
+            <Textarea
+              id="proof-links"
+              placeholder="Links to proof documents, photos, etc..."
+              value={data.proofLinks}
+              onChange={(e) => onChange('proofLinks', e.target.value)}
+              rows={2}
+            />
+            <FileUpload
+              label="Upload NDA"
+              files={data.ndaFiles || []}
+              onChange={(files) => onChange('ndaFiles', files)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Project Timeline */}
       <Card className="p-4 bg-accent/50">
         <h3 className="text-lg font-semibold mb-4">Project Timeline</h3>
         <div className="space-y-4">
@@ -251,27 +307,27 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
             </Label>
             <RadioGroup value={data.estimatedTimeline} onValueChange={(val) => onChange('estimatedTimeline', val)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1week" id="timeline-1week" data-testid="radio-timeline-1week" />
+                <RadioGroupItem value="1week" id="timeline-1week" />
                 <Label htmlFor="timeline-1week" className="cursor-pointer">~1 week</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="2weeks" id="timeline-2weeks" data-testid="radio-timeline-2weeks" />
+                <RadioGroupItem value="2weeks" id="timeline-2weeks" />
                 <Label htmlFor="timeline-2weeks" className="cursor-pointer">~2 weeks</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3weeks" id="timeline-3weeks" data-testid="radio-timeline-3weeks" />
+                <RadioGroupItem value="3weeks" id="timeline-3weeks" />
                 <Label htmlFor="timeline-3weeks" className="cursor-pointer">~3 weeks</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="4weeks" id="timeline-4weeks" data-testid="radio-timeline-4weeks" />
+                <RadioGroupItem value="4weeks" id="timeline-4weeks" />
                 <Label htmlFor="timeline-4weeks" className="cursor-pointer">~4 weeks</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="5weeks" id="timeline-5weeks" data-testid="radio-timeline-5weeks" />
+                <RadioGroupItem value="5weeks" id="timeline-5weeks" />
                 <Label htmlFor="timeline-5weeks" className="cursor-pointer">~5 weeks</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="6weeks" id="timeline-6weeks" data-testid="radio-timeline-6weeks" />
+                <RadioGroupItem value="6weeks" id="timeline-6weeks" />
                 <Label htmlFor="timeline-6weeks" className="cursor-pointer">~6 weeks</Label>
               </div>
             </RadioGroup>
@@ -287,7 +343,6 @@ export default function ScopeFields({ data, projectDetails, onChange, onProjectD
               value={data.timelineNotes}
               onChange={(e) => onChange('timelineNotes', e.target.value)}
               rows={3}
-              data-testid="textarea-timeline-notes"
             />
           </div>
         </div>

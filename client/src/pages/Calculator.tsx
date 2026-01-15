@@ -5,7 +5,7 @@ import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { Quote } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Download, FileText, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
+import { Plus, Save, Download, FileText, ExternalLink, Loader2 } from "lucide-react";
 import JSZip from "jszip";
 import {
   generateScopePDF,
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import ProjectDetailsForm from "@/components/ProjectDetailsForm";
 import AreaInput from "@/components/AreaInput";
 import DisciplineSelector from "@/components/DisciplineSelector";
 import RiskFactors from "@/components/RiskFactors";
@@ -29,10 +30,8 @@ import AdditionalServices from "@/components/AdditionalServices";
 import PricingSummary from "@/components/PricingSummary";
 import QuoteFields from "@/components/QuoteFields";
 import ScopeFields from "@/components/ScopeFields";
-import LeadFields from "@/components/LeadFields";
-import InternalNotesFields from "@/components/InternalNotesFields";
+import CRMFields from "@/components/CRMFields";
 import VersionControl from "@/components/VersionControl";
-import IntegrityAuditPanel from "@/components/IntegrityAuditPanel";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,126 +69,11 @@ interface PricingLineItem {
   upteamCost?: number;
 }
 
-// Parse URL params once at module level for immediate access
-const getUrlParams = () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  return {
-    leadId: urlParams.get("leadId"),
-    company: urlParams.get("company"),
-    project: urlParams.get("project"),
-    address: urlParams.get("address"),
-    // Additional scoping data from Scan2Plan-OS
-    buildingType: urlParams.get("buildingType"),
-    sqft: urlParams.get("sqft"),
-    scope: urlParams.get("scope"),
-    disciplines: urlParams.get("disciplines"),
-    contactName: urlParams.get("contactName"),
-    contactEmail: urlParams.get("contactEmail"),
-    contactPhone: urlParams.get("contactPhone"),
-    dispatchLocation: urlParams.get("dispatchLocation"),
-    distance: urlParams.get("distance"),
-    // CRM return link
-    returnUrl: urlParams.get("returnUrl"),
-  };
-};
-
-// Map building type string to building type ID
-const mapBuildingType = (buildingTypeStr: string | null): string => {
-  if (!buildingTypeStr) return "";
-  const lower = buildingTypeStr.toLowerCase();
-  
-  // Map common building type strings to IDs
-  if (lower.includes("office") || lower.includes("commercial")) return "7"; // Commercial - Office
-  if (lower.includes("warehouse")) return "10"; // Commercial - Warehouse
-  if (lower.includes("retail")) return "8"; // Commercial - Retail
-  if (lower.includes("industrial")) return "9"; // Commercial - Industrial
-  if (lower.includes("medical") || lower.includes("healthcare")) return "11"; // Commercial - Medical
-  if (lower.includes("hotel") || lower.includes("hospitality")) return "12"; // Commercial - Hospitality
-  if (lower.includes("education") || lower.includes("school")) return "13"; // Institutional - Education
-  if (lower.includes("residential") && lower.includes("luxury")) return "3"; // Residential - Luxury
-  if (lower.includes("residential") && lower.includes("multi")) return "4"; // Multi-Family
-  if (lower.includes("residential")) return "2"; // Residential - Standard
-  if (lower.includes("simple")) return "1"; // Commercial - Simple
-  if (lower.includes("landscape") && lower.includes("built")) return "14"; // Built Landscape
-  if (lower.includes("landscape") && lower.includes("natural")) return "15"; // Natural Landscape
-  
-  return "";
-};
-
-// Map scope string to scope value
-const mapScope = (scopeStr: string | null): string => {
-  if (!scopeStr) return "full";
-  const lower = scopeStr.toLowerCase();
-  
-  if (lower.includes("interior only")) return "interior";
-  if (lower.includes("exterior only") || lower.includes("facades")) return "exterior";
-  return "full";
-};
-
-// Parse disciplines string to array
-const parseDisciplines = (disciplinesStr: string | null): { disciplines: string[], lods: Record<string, string> } => {
-  if (!disciplinesStr) return { disciplines: [], lods: {} };
-  
-  const lower = disciplinesStr.toLowerCase();
-  const disciplines: string[] = [];
-  const lods: Record<string, string> = {};
-  
-  // Parse Architecture
-  if (lower.includes("architecture") || lower.includes("arch")) {
-    disciplines.push("arch");
-    // Try to extract LoD
-    const archMatch = disciplinesStr.match(/architecture.*?lod\s*(\d+)/i);
-    lods["arch"] = archMatch ? archMatch[1] : "300";
-  }
-  
-  // Parse Structure
-  if (lower.includes("structure") || lower.includes("structural")) {
-    disciplines.push("struct");
-    const structMatch = disciplinesStr.match(/structur.*?lod\s*(\d+)/i);
-    lods["struct"] = structMatch ? structMatch[1] : "300";
-  }
-  
-  // Parse MEPF
-  if (lower.includes("mepf") || lower.includes("mep") || lower.includes("mechanical")) {
-    disciplines.push("mepf");
-    const mepfMatch = disciplinesStr.match(/mepf?.*?lod\s*(\d+)/i);
-    lods["mepf"] = mepfMatch ? mepfMatch[1] : "300";
-  }
-  
-  // Parse Site
-  if (lower.includes("site") || lower.includes("topography")) {
-    disciplines.push("site");
-    const siteMatch = disciplinesStr.match(/site.*?lod\s*(\d+)/i);
-    lods["site"] = siteMatch ? siteMatch[1] : "300";
-  }
-  
-  return { disciplines, lods };
-};
-
-// Map dispatch location string to dispatch key
-const mapDispatchLocation = (dispatchStr: string | null): string => {
-  if (!dispatchStr) return "troy";
-  const lower = dispatchStr.toLowerCase();
-  
-  if (lower.includes("brooklyn") || lower.includes("nyc") || lower.includes("new york city")) return "brooklyn";
-  if (lower.includes("woodstock")) return "woodstock";
-  return "troy"; // Default
-};
-
 export default function Calculator() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [, params] = useRoute("/calculator/:id");
   const quoteId = params?.id;
-  
-  // Debug: Log URL params immediately on component render
-  const urlParams = getUrlParams();
-  console.log("CPQ Calculator loaded with URL params:", {
-    fullUrl: window.location.href,
-    search: window.location.search,
-    parsed: urlParams,
-    quoteId,
-  });
 
   const { data: existingQuote, isLoading: isLoadingQuote } = useQuery<Quote>({
     queryKey: ["/api", "quotes", quoteId],
@@ -216,80 +100,29 @@ export default function Calculator() {
     queryKey: ["/api/pricing-parameters"],
   });
 
-  // Fetch lead details from CRM when leadId is present and no existing quote
-  const { data: leadData, isLoading: isLoadingLead } = useQuery<any>({
-    queryKey: ["/api/leads", urlParams.leadId],
-    enabled: !!urlParams.leadId && !quoteId,
-  });
-
   const [scopingMode] = useState(true);
   const [isCreatingPandaDoc, setIsCreatingPandaDoc] = useState(false);
-  // Initialize leadId from URL params immediately
-  const [leadId, setLeadId] = useState<number | null>(() => {
-    const lid = urlParams.leadId;
-    return lid ? parseInt(lid, 10) : null;
-  });
-  // CRM return URL for "Back to CRM" link
-  const [crmReturnUrl] = useState<string | null>(() => {
-    const returnUrl = urlParams.returnUrl;
-    if (returnUrl) {
-      try {
-        return decodeURIComponent(returnUrl);
-      } catch {
-        return returnUrl;
-      }
-    }
-    return null;
-  });
-  // Initialize projectDetails from URL params immediately (for new quotes)
-  const [projectDetails, setProjectDetails] = useState(() => ({
-    clientName: urlParams.company || "",
-    projectName: urlParams.project || "",
-    projectAddress: urlParams.address || "",
+  const [projectDetails, setProjectDetails] = useState({
+    clientName: "",
+    projectName: "",
+    projectAddress: "",
     specificBuilding: "",
     typeOfBuilding: "",
     hasBasement: false,
     hasAttic: false,
     notes: "",
-  }));
-  
-  // Initialize areas from URL params (building type, sqft, scope, disciplines)
-  const [areas, setAreas] = useState<Area[]>(() => {
-    const parsedDisciplines = parseDisciplines(urlParams.disciplines);
-    const mappedBuildingType = mapBuildingType(urlParams.buildingType);
-    const mappedScope = mapScope(urlParams.scope);
-    
-    return [{
-      id: "1",
-      name: "",
-      buildingType: mappedBuildingType,
-      squareFeet: urlParams.sqft || "",
-      scope: mappedScope,
-      disciplines: parsedDisciplines.disciplines,
-      disciplineLods: parsedDisciplines.lods,
-      mixedInteriorLod: "300",
-      mixedExteriorLod: "300",
-      numberOfRoofs: 0,
-      facades: [],
-      gradeAroundBuilding: false,
-      gradeLod: "300",
-      includeCad: false,
-      additionalElevations: 0
-    }];
   });
+  const [areas, setAreas] = useState<Area[]>([
+    { id: "1", name: "", buildingType: "", squareFeet: "", scope: "full", disciplines: [], disciplineLods: {}, mixedInteriorLod: "300", mixedExteriorLod: "300", numberOfRoofs: 0, facades: [], gradeAroundBuilding: false, gradeLod: "300", includeCad: false, additionalElevations: 0 },
+  ]);
   const [risks, setRisks] = useState<string[]>([]);
-  // Initialize dispatch from URL params
-  const [dispatch, setDispatch] = useState(() => mapDispatchLocation(urlParams.dispatchLocation));
-  // Initialize distance from URL params
-  const [distance, setDistance] = useState<number | null>(() => {
-    return urlParams.distance ? parseInt(urlParams.distance, 10) : null;
-  });
-  const [distanceCalculated, setDistanceCalculated] = useState(() => !!urlParams.distance);
+  const [dispatch, setDispatch] = useState("troy");
+  const [distance, setDistance] = useState<number | null>(null);
+  const [distanceCalculated, setDistanceCalculated] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [customTravelCost, setCustomTravelCost] = useState<number | null>(null);
   const [services, setServices] = useState<Record<string, number>>({});
-  // Initialize scopingData with contact info from URL params
-  const [scopingData, setScopingData] = useState(() => ({
+  const [scopingData, setScopingData] = useState({
     aboveBelowACT: "",
     aboveBelowACTOther: "",
     actSqft: "",
@@ -317,9 +150,9 @@ export default function Calculator() {
     paymentTerms: "",
     paymentTermsOther: "",
     paymentNotes: "",
-    accountContact: urlParams.contactName || "",
-    accountContactEmail: urlParams.contactEmail || "",
-    accountContactPhone: urlParams.contactPhone || "",
+    accountContact: "",
+    accountContactEmail: "",
+    accountContactPhone: "",
     phoneNumber: "",
     designProContact: "",
     designProCompanyContact: "",
@@ -332,257 +165,7 @@ export default function Calculator() {
     probabilityOfClosing: "50",
     projectStatus: "",
     projectStatusOther: "",
-  }));
-
-  // Listen for postMessage from parent iframe (Scan2Plan-OS)
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Handle legacy CPQ_PREFILL message (partial data)
-      if (event.data?.type === "CPQ_PREFILL") {
-        console.log("CPQ received prefill data via postMessage:", event.data);
-        const { 
-          leadId: msgLeadId, company, project, address,
-          buildingType, sqft, scope, disciplines,
-          contactName, contactEmail, contactPhone,
-          dispatchLocation, distance: msgDistance
-        } = event.data;
-        
-        if (msgLeadId) {
-          setLeadId(parseInt(msgLeadId, 10));
-        }
-        
-        if (!quoteId) {
-          // Update project details
-          if (company || project || address) {
-            setProjectDetails(prev => ({
-              ...prev,
-              clientName: company || prev.clientName,
-              projectName: project || prev.projectName,
-              projectAddress: address || prev.projectAddress,
-            }));
-          }
-          
-          // Update areas with building type, sqft, scope, disciplines
-          if (buildingType || sqft || scope || disciplines) {
-            const parsedDisciplines = parseDisciplines(disciplines);
-            setAreas(prev => prev.map((area, idx) => {
-              if (idx !== 0) return area;
-              return {
-                ...area,
-                buildingType: mapBuildingType(buildingType) || area.buildingType,
-                squareFeet: sqft || area.squareFeet,
-                scope: mapScope(scope),
-                disciplines: parsedDisciplines.disciplines.length > 0 ? parsedDisciplines.disciplines : area.disciplines,
-                disciplineLods: Object.keys(parsedDisciplines.lods).length > 0 ? parsedDisciplines.lods : area.disciplineLods,
-              };
-            }));
-          }
-          
-          // Update dispatch and distance
-          if (dispatchLocation) {
-            setDispatch(mapDispatchLocation(dispatchLocation));
-          }
-          if (msgDistance) {
-            setDistance(parseInt(msgDistance, 10));
-            setDistanceCalculated(true);
-          }
-          
-          // Update contact info in scopingData
-          if (contactName || contactEmail || contactPhone) {
-            setScopingData(prev => ({
-              ...prev,
-              accountContact: contactName || prev.accountContact,
-              accountContactEmail: contactEmail || prev.accountContactEmail,
-              accountContactPhone: contactPhone || prev.accountContactPhone,
-            }));
-          }
-        }
-      }
-      
-      // Handle full CPQ_SCOPING_PAYLOAD message (complete form data from CRM)
-      if (event.data?.type === "CPQ_SCOPING_PAYLOAD") {
-        console.log("CPQ received full scoping payload:", event.data);
-        const payload = event.data;
-        
-        // Set leadId
-        if (payload.leadId) {
-          setLeadId(typeof payload.leadId === 'number' ? payload.leadId : parseInt(payload.leadId, 10));
-        }
-        
-        // Only hydrate if not editing an existing quote
-        if (!quoteId) {
-          // Hydrate project details
-          if (payload.projectDetails) {
-            setProjectDetails({
-              clientName: payload.projectDetails.clientName || "",
-              projectName: payload.projectDetails.projectName || "",
-              projectAddress: payload.projectDetails.projectAddress || "",
-              specificBuilding: payload.projectDetails.specificBuilding || "",
-              typeOfBuilding: payload.projectDetails.typeOfBuilding || "",
-              hasBasement: payload.projectDetails.hasBasement || false,
-              hasAttic: payload.projectDetails.hasAttic || false,
-              notes: payload.projectDetails.notes || "",
-            });
-          }
-          
-          // Hydrate areas
-          if (payload.areas && Array.isArray(payload.areas) && payload.areas.length > 0) {
-            setAreas(payload.areas.map((area: any) => ({
-              id: area.id || String(Date.now()),
-              name: area.name || "",
-              buildingType: area.buildingType || "",
-              squareFeet: area.squareFeet || "",
-              scope: area.scope || "full",
-              disciplines: area.disciplines || [],
-              disciplineLods: area.disciplineLods || {},
-              mixedInteriorLod: area.mixedInteriorLod || "300",
-              mixedExteriorLod: area.mixedExteriorLod || "300",
-              numberOfRoofs: area.numberOfRoofs || 0,
-              facades: area.facades || [],
-              gradeAroundBuilding: area.gradeAroundBuilding || false,
-              gradeLod: area.gradeLod || "300",
-              includeCad: area.includeCad || false,
-              additionalElevations: area.additionalElevations || 0,
-            })));
-          }
-          
-          // Hydrate risks
-          if (payload.risks && Array.isArray(payload.risks)) {
-            setRisks(payload.risks);
-          }
-          
-          // Hydrate travel
-          if (payload.travel) {
-            if (payload.travel.dispatchLocation) {
-              setDispatch(payload.travel.dispatchLocation);
-            }
-            if (payload.travel.distance != null) {
-              setDistance(payload.travel.distance);
-              setDistanceCalculated(true);
-            }
-            if (payload.travel.customTravelCost != null) {
-              setCustomTravelCost(payload.travel.customTravelCost);
-            }
-          }
-          
-          // Hydrate services
-          if (payload.services && typeof payload.services === 'object') {
-            setServices(payload.services);
-          }
-          
-          // Hydrate scopingData
-          if (payload.scopingData) {
-            setScopingData(prev => ({
-              ...prev,
-              aboveBelowACT: payload.scopingData.aboveBelowACT || prev.aboveBelowACT,
-              aboveBelowACTOther: payload.scopingData.aboveBelowACTOther || prev.aboveBelowACTOther,
-              actSqft: payload.scopingData.actSqft || prev.actSqft,
-              bimDeliverable: payload.scopingData.bimDeliverable || prev.bimDeliverable,
-              bimDeliverableOther: payload.scopingData.bimDeliverableOther || prev.bimDeliverableOther,
-              bimVersion: payload.scopingData.bimVersion || prev.bimVersion,
-              customTemplate: payload.scopingData.customTemplate || prev.customTemplate,
-              customTemplateOther: payload.scopingData.customTemplateOther || prev.customTemplateOther,
-              sqftAssumptions: payload.scopingData.sqftAssumptions || prev.sqftAssumptions,
-              assumedGrossMargin: payload.scopingData.assumedGrossMargin || prev.assumedGrossMargin,
-              caveatsProfitability: payload.scopingData.caveatsProfitability || prev.caveatsProfitability,
-              projectNotes: payload.scopingData.projectNotes || prev.projectNotes,
-              mixedScope: payload.scopingData.mixedScope || prev.mixedScope,
-              insuranceRequirements: payload.scopingData.insuranceRequirements || prev.insuranceRequirements,
-              tierAScanningCost: payload.scopingData.tierAScanningCost || prev.tierAScanningCost,
-              tierAScanningCostOther: payload.scopingData.tierAScanningCostOther || prev.tierAScanningCostOther,
-              tierAModelingCost: payload.scopingData.tierAModelingCost || prev.tierAModelingCost,
-              tierAMargin: payload.scopingData.tierAMargin || prev.tierAMargin,
-              estimatedTimeline: payload.scopingData.estimatedTimeline || prev.estimatedTimeline,
-              timelineOther: payload.scopingData.timelineOther || prev.timelineOther,
-              timelineNotes: payload.scopingData.timelineNotes || prev.timelineNotes,
-              paymentTerms: payload.scopingData.paymentTerms || prev.paymentTerms,
-              paymentTermsOther: payload.scopingData.paymentTermsOther || prev.paymentTermsOther,
-              paymentNotes: payload.scopingData.paymentNotes || prev.paymentNotes,
-              accountContact: payload.scopingData.accountContact || prev.accountContact,
-              accountContactEmail: payload.scopingData.accountContactEmail || prev.accountContactEmail,
-              accountContactPhone: payload.scopingData.accountContactPhone || prev.accountContactPhone,
-              phoneNumber: payload.scopingData.phoneNumber || prev.phoneNumber,
-              designProContact: payload.scopingData.designProContact || prev.designProContact,
-              designProCompanyContact: payload.scopingData.designProCompanyContact || prev.designProCompanyContact,
-              otherContact: payload.scopingData.otherContact || prev.otherContact,
-              proofLinks: payload.scopingData.proofLinks || prev.proofLinks,
-              source: payload.scopingData.source || prev.source,
-              sourceNote: payload.scopingData.sourceNote || prev.sourceNote,
-              assist: payload.scopingData.assist || prev.assist,
-              probabilityOfClosing: payload.scopingData.probabilityOfClosing || prev.probabilityOfClosing,
-              projectStatus: payload.scopingData.projectStatus || prev.projectStatus,
-              projectStatusOther: payload.scopingData.projectStatusOther || prev.projectStatusOther,
-            }));
-          }
-          
-          console.log("CPQ state hydrated from full scoping payload");
-        }
-      }
-    };
-    
-    window.addEventListener("message", handleMessage);
-    
-    // Notify parent that CPQ is ready to receive data
-    if (window.parent !== window) {
-      window.parent.postMessage({ type: "CPQ_READY" }, "*");
-    }
-    
-    return () => window.removeEventListener("message", handleMessage);
-  }, [quoteId]);
-
-  // Pre-populate form fields from CRM lead data when fetched
-  useEffect(() => {
-    if (!leadData || leadData.source === "fallback" || leadData.source === "error" || quoteId) {
-      return;
-    }
-    
-    console.log("Pre-populating form from CRM lead data:", leadData);
-    
-    // Update project details
-    if (leadData.company || leadData.project || leadData.address) {
-      setProjectDetails(prev => ({
-        ...prev,
-        clientName: leadData.company || prev.clientName,
-        projectName: leadData.project || prev.projectName,
-        projectAddress: leadData.address || prev.projectAddress,
-      }));
-    }
-    
-    // Update areas with building type, sqft, scope, disciplines
-    if (leadData.buildingType || leadData.sqft || leadData.scope || leadData.disciplines) {
-      const parsedDisciplines = parseDisciplines(leadData.disciplines);
-      setAreas(prev => prev.map((area, idx) => {
-        if (idx !== 0) return area;
-        return {
-          ...area,
-          buildingType: mapBuildingType(leadData.buildingType) || area.buildingType,
-          squareFeet: leadData.sqft?.toString() || area.squareFeet,
-          scope: mapScope(leadData.scope),
-          disciplines: parsedDisciplines.disciplines.length > 0 ? parsedDisciplines.disciplines : area.disciplines,
-          disciplineLods: Object.keys(parsedDisciplines.lods).length > 0 ? parsedDisciplines.lods : area.disciplineLods,
-        };
-      }));
-    }
-    
-    // Update dispatch and distance
-    if (leadData.dispatchLocation) {
-      setDispatch(mapDispatchLocation(leadData.dispatchLocation));
-    }
-    if (leadData.distance) {
-      setDistance(parseInt(leadData.distance.toString(), 10));
-      setDistanceCalculated(true);
-    }
-    
-    // Update contact info in scopingData
-    if (leadData.contactName || leadData.contactEmail || leadData.contactPhone) {
-      setScopingData(prev => ({
-        ...prev,
-        accountContact: leadData.contactName || prev.accountContact,
-        accountContactEmail: leadData.contactEmail || prev.accountContactEmail,
-        accountContactPhone: leadData.contactPhone || prev.accountContactPhone,
-      }));
-    }
-  }, [leadData, quoteId]);
+  });
 
   const handleProjectDetailChange = (field: string, value: string | boolean) => {
     setProjectDetails((prev) => ({ ...prev, [field]: value }));
@@ -606,12 +189,12 @@ export default function Calculator() {
           
           if (isLandscape) {
             updatedArea.disciplines = ["site"];
-            updatedArea.disciplineLods = { site: (updatedArea.disciplineLods?.site) || "300" };
+            updatedArea.disciplineLods = { site: updatedArea.disciplineLods.site || "300" };
             updatedArea.includeCad = false;
             updatedArea.additionalElevations = 0;
           } else if (isACT) {
             updatedArea.disciplines = ["mepf"];
-            updatedArea.disciplineLods = { mepf: (updatedArea.disciplineLods?.mepf) || "300" };
+            updatedArea.disciplineLods = { mepf: updatedArea.disciplineLods.mepf || "300" };
             updatedArea.includeCad = false;
             updatedArea.additionalElevations = 0;
           }
@@ -644,7 +227,7 @@ export default function Calculator() {
             : [...area.disciplines, disciplineId]
           : area.disciplines.filter((d) => d !== disciplineId);
         
-        const newLods = { ...(area.disciplineLods || {}) };
+        const newLods = { ...area.disciplineLods };
         if (checked && !newLods[disciplineId]) {
           newLods[disciplineId] = "300";
         }
@@ -738,9 +321,6 @@ export default function Calculator() {
       setDistanceCalculated(existingQuote.distance !== null && existingQuote.distance !== undefined);
       setCustomTravelCost(existingQuote.customTravelCost ? parseFloat(existingQuote.customTravelCost) : null);
       setServices(existingQuote.services as Record<string, number>);
-      if (existingQuote.leadId) {
-        setLeadId(existingQuote.leadId);
-      }
       
       const legacyPaymentTerms = (existingQuote as any).paymentTerms;
       
@@ -1025,52 +605,11 @@ export default function Calculator() {
         return res.json();
       }
     },
-    onSuccess: async (savedQuote: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api", "quotes"] });
-      
-      // Sync to Scan2Plan-OS if this quote is linked to a lead
-      const quoteLeadId = savedQuote.leadId || leadId;
-      let syncedToCRM = false;
-      
-      if (quoteLeadId) {
-        try {
-          const syncRes = await apiRequest("POST", "/api/sync-to-crm", {
-            leadId: quoteLeadId,
-            quoteId: savedQuote.id,
-            quoteNumber: savedQuote.quoteNumber,
-            totalPrice: savedQuote.totalPrice,
-            versionNumber: savedQuote.versionNumber
-          });
-          const syncData = await syncRes.json();
-          
-          if (syncData.success) {
-            syncedToCRM = true;
-            // Send postMessage to parent iframe for instant UI update
-            if (window.parent !== window) {
-              window.parent.postMessage({
-                type: "CPQ_QUOTE_SAVED",
-                leadId: quoteLeadId,
-                quoteNumber: savedQuote.quoteNumber,
-                value: parseFloat(savedQuote.totalPrice) || 0
-              }, "*");
-            }
-            console.log("Synced to Scan2Plan-OS successfully");
-          } else if (syncData.syncPending) {
-            console.log("CRM sync pending:", syncData.error);
-          }
-        } catch (syncError) {
-          console.error("Failed to sync to Scan2Plan-OS:", syncError);
-          // Don't fail the save if sync fails - quote is still saved
-        }
-      }
-      
       toast({
-        title: quoteId ? "Quote updated" : "Quote saved",
-        description: syncedToCRM 
-          ? `Synced to CRM (Lead #${quoteLeadId})`
-          : quoteLeadId 
-            ? "Quote saved locally. CRM sync will retry on next save."
-            : "Your quote has been saved.",
+        title: quoteId ? "Quote updated successfully" : "Quote saved successfully",
+        description: quoteId ? "Your changes have been saved." : "Your quote has been saved.",
       });
       setLocation("/");
     },
@@ -1106,7 +645,6 @@ export default function Calculator() {
       scopingData: scopingMode ? scopingData : null,
       totalPrice,
       pricingBreakdown: {},
-      leadId: leadId || undefined,
     };
     
     saveQuoteMutation.mutate(quoteData);
@@ -2222,7 +1760,7 @@ export default function Calculator() {
       disciplines.forEach((discipline) => {
         // Handle Roof/Facades Only Scope - create separate line items for each facade/roof entry
         if (scope === "roof" && discipline !== "matterport" && !isLandscape && !isACT) {
-          const lod = (area.disciplineLods && area.disciplineLods[discipline]) || "300";
+          const lod = area.disciplineLods[discipline] || "300";
           const facades = area.facades || [];
           
           // Calculate base price at full rate for reference
@@ -2291,7 +1829,7 @@ export default function Calculator() {
           });
         } else {
           // Standard single line item processing
-          const lod = (area.disciplineLods && area.disciplineLods[discipline]) || "300";
+          const lod = area.disciplineLods[discipline] || "300";
           const result = calculateDisciplinePricing(discipline, lod, 1.0, "full");
           let lineTotal = result.lineTotal;
           let upteamLineCost = result.upteamLineCost;
@@ -2595,11 +2133,6 @@ export default function Calculator() {
   const pricingData = calculatePricing();
   const pricingItems = pricingData.items;
 
-  // Determine if exports should be blocked (integrity check failed and not overridden)
-  const isExportBlocked = existingQuote?.integrityStatus === 'blocked' && 
-    existingQuote?.requiresOverride === true && 
-    existingQuote?.overrideApproved !== true;
-
   if (isLoadingQuote || isLoadingPricing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -2611,19 +2144,6 @@ export default function Calculator() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        {crmReturnUrl && (
-          <div className="mb-4">
-            <a
-              href={crmReturnUrl}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              data-testid="link-back-to-crm"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to CRM</span>
-              {leadId && <span className="text-xs opacity-70">(Lead #{leadId})</span>}
-            </a>
-          </div>
-        )}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">{quoteId ? "Edit Quote" : "Create Quote"}</h1>
           <p className="text-muted-foreground">
@@ -2644,39 +2164,7 @@ export default function Calculator() {
 
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            {/* LEAD PANEL - Business & Contact Information */}
-            <div className="rounded-lg bg-amber-50/30 dark:bg-amber-950/10 p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-100">Lead</h2>
-              
-              <LeadFields
-                projectDetails={{
-                  clientName: projectDetails.clientName,
-                  projectName: projectDetails.projectName,
-                  projectAddress: projectDetails.projectAddress,
-                  specificBuilding: projectDetails.specificBuilding,
-                }}
-                scopingData={{
-                  accountContact: scopingData.accountContact,
-                  accountContactEmail: scopingData.accountContactEmail,
-                  accountContactPhone: scopingData.accountContactPhone,
-                  designProContact: scopingData.designProContact,
-                  designProCompanyContact: scopingData.designProCompanyContact,
-                  otherContact: scopingData.otherContact,
-                  source: scopingData.source,
-                  sourceNote: scopingData.sourceNote,
-                  assist: scopingData.assist,
-                  probabilityOfClosing: scopingData.probabilityOfClosing,
-                  projectStatus: scopingData.projectStatus,
-                  projectStatusOther: scopingData.projectStatusOther,
-                  proofLinks: scopingData.proofLinks,
-                  ndaFiles: scopingData.ndaFiles,
-                }}
-                onProjectDetailChange={handleProjectDetailChange}
-                onScopingDataChange={handleScopingDataChange}
-              />
-            </div>
-
-            {/* QUOTE PANEL - Technical Scoping & Pricing */}
+            {/* QUOTE SECTION */}
             <div className="rounded-lg bg-blue-50/30 dark:bg-blue-950/10 p-6 space-y-6">
               <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100">Quote</h2>
               
@@ -2732,23 +2220,24 @@ export default function Calculator() {
               <Separator />
 
               <QuoteFields data={scopingData} onChange={handleScopingDataChange} />
+            </div>
+
+            {/* SCOPE SECTION */}
+            <div className="rounded-lg bg-green-50/30 dark:bg-green-950/10 p-6 space-y-6">
+              <h2 className="text-2xl font-bold text-green-900 dark:text-green-100">Scope</h2>
+              
+              <ProjectDetailsForm {...projectDetails} onFieldChange={handleProjectDetailChange} />
 
               <Separator />
 
-              <ScopeFields 
-                data={scopingData} 
-                projectDetails={{
-                  hasBasement: projectDetails.hasBasement,
-                  hasAttic: projectDetails.hasAttic,
-                  notes: projectDetails.notes,
-                }}
-                onChange={handleScopingDataChange}
-                onProjectDetailChange={handleProjectDetailChange}
-              />
+              <ScopeFields data={scopingData} onChange={handleScopingDataChange} />
+            </div>
 
-              <Separator />
-
-              <InternalNotesFields data={scopingData} onChange={handleScopingDataChange} />
+            {/* CRM SECTION */}
+            <div className="rounded-lg bg-amber-50/30 dark:bg-amber-950/10 p-6 space-y-6">
+              <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-100">CRM</h2>
+              
+              <CRMFields data={scopingData} onChange={handleScopingDataChange} />
             </div>
 
             <div className="flex flex-wrap gap-3 pt-6">
@@ -2765,8 +2254,6 @@ export default function Calculator() {
                 size="lg" 
                 variant="outline" 
                 onClick={exportScope}
-                disabled={isExportBlocked}
-                title={isExportBlocked ? "Quote is blocked. Request override to export." : undefined}
                 data-testid="button-export-scope-doc"
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -2776,8 +2263,7 @@ export default function Calculator() {
                 size="lg" 
                 variant="outline" 
                 onClick={createPandaDoc}
-                disabled={isCreatingPandaDoc || isExportBlocked}
-                title={isExportBlocked ? "Quote is blocked. Request override to export." : undefined}
+                disabled={isCreatingPandaDoc}
                 data-testid="button-create-pandadoc"
               >
                 {isCreatingPandaDoc ? (
@@ -2791,8 +2277,6 @@ export default function Calculator() {
                 size="lg" 
                 variant="outline" 
                 onClick={exportQBOCSV}
-                disabled={isExportBlocked}
-                title={isExportBlocked ? "Quote is blocked. Request override to export." : undefined}
                 data-testid="button-export-qbo-csv"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -2809,22 +2293,22 @@ export default function Calculator() {
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="lg" variant="outline" disabled={isExportBlocked} data-testid="button-export-menu">
+                  <Button size="lg" variant="outline" data-testid="button-export-menu">
                     <Download className="h-4 w-4 mr-2" />
                     More Export Options
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportQuoteClient} disabled={isExportBlocked} data-testid="button-export-quote-client">
+                  <DropdownMenuItem onClick={exportQuoteClient} data-testid="button-export-quote-client">
                     <FileText className="h-4 w-4 mr-2" />
                     Quote Only (Client)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportQuoteInternal} disabled={isExportBlocked} data-testid="button-export-quote-internal">
+                  <DropdownMenuItem onClick={exportQuoteInternal} data-testid="button-export-quote-internal">
                     <FileText className="h-4 w-4 mr-2" />
                     Quote Only (Internal)
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={exportCRMOnly} disabled={isExportBlocked} data-testid="button-export-crm-only">
+                  <DropdownMenuItem onClick={exportCRMOnly} data-testid="button-export-crm-only">
                     <FileText className="h-4 w-4 mr-2" />
                     CRM Only
                   </DropdownMenuItem>
@@ -2838,26 +2322,13 @@ export default function Calculator() {
             </div>
           </div>
 
-          <div className="lg:col-span-1 space-y-4">
+          <div className="lg:col-span-1">
             <PricingSummary 
               items={pricingItems} 
               onEdit={(i, v) => console.log(`Edit ${i}: ${v}`)} 
               totalClientPrice={pricingData.clientTotal}
               totalUpteamCost={pricingData.upteamCost}
             />
-            
-            {quoteId && (
-              <IntegrityAuditPanel
-                quoteId={quoteId}
-                integrityStatus={existingQuote?.integrityStatus as 'pass' | 'warning' | 'blocked' | undefined}
-                integrityFlags={existingQuote?.integrityFlags as any[]}
-                requiresOverride={existingQuote?.requiresOverride ?? false}
-                overrideApproved={existingQuote?.overrideApproved ?? false}
-                onAuditComplete={() => {
-                  queryClient.invalidateQueries({ queryKey: ["/api", "quotes", quoteId] });
-                }}
-              />
-            )}
           </div>
         </div>
       </div>

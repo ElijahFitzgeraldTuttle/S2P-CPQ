@@ -238,7 +238,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
                 Select LoD
               </Label>
               <Select 
-                value={(area.disciplineLods && area.disciplineLods[isACT ? "mepf" : "site"]) || "300"} 
+                value={area.disciplineLods[isACT ? "mepf" : "site"] || "300"} 
                 onValueChange={(value) => onLodChange(area.id, isACT ? "mepf" : "site", value)}
               >
                 <SelectTrigger id={`lod-${area.id}`} data-testid={`select-lod-simplified-${index}`}>
@@ -308,7 +308,7 @@ export default function AreaInput({ area, index, onChange, onDisciplineChange, o
                   Level of Detail (LoD)
                 </Label>
                 <Select 
-                  value={(area.disciplineLods && area.disciplineLods["architecture"]) || "300"} 
+                  value={area.disciplineLods["architecture"] || "300"} 
                   onValueChange={(value) => {
                     DISCIPLINES.filter(d => d.id !== "matterport").forEach(d => {
                       onLodChange(area.id, d.id, value);

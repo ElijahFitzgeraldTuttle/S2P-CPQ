@@ -8,7 +8,6 @@ import Header from "@/components/Header";
 import Home from "@/pages/Home";
 import Calculator from "@/pages/Calculator";
 import Admin from "@/pages/Admin";
-import TestPayload from "@/pages/TestPayload";
 
 function Router() {
   return (
@@ -17,7 +16,6 @@ function Router() {
       <Route path="/calculator" component={Calculator} />
       <Route path="/calculator/:id" component={Calculator} />
       <Route path="/admin" component={Admin} />
-      <Route path="/test-payload" component={TestPayload} />
       <Route component={NotFound} />
     </Switch>
   );

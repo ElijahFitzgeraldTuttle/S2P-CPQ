@@ -67,7 +67,7 @@ export default function ProjectDetailsForm({
           value={projectAddress}
           onChange={(e) => onFieldChange('projectAddress', e.target.value)}
           required
-          data-testid="input-details-address"
+          data-testid="input-project-address"
         />
       </div>
 
